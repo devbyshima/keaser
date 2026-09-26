@@ -118,7 +118,7 @@ struct AddAccountSheet: View {
                 }
                 .accessibilityShowsLargeContentViewer { Label("Back", systemImage: "chevron.left") }
             } trailing: {
-                confirmButton
+                KeaserConfirmButton("Create Account", isEnabled: !trimmedName.isEmpty, action: create)
             }
             .homeSheetHeader()
             // The field below carries the same name for VoiceOver.
@@ -142,33 +142,6 @@ struct AddAccountSheet: View {
                 .padding(.top, 10)
         }
         .onAppear { nameFocused = true }
-    }
-
-    private var confirmButton: some View {
-        let valid = !trimmedName.isEmpty
-        return Button(action: create) {
-            // A glyph in a fixed 44pt circle, like KeaserCircleButton, but
-            // filled white once the name is valid.
-            Image(systemName: "checkmark")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(valid ? Color.black : Color.white.opacity(0.55))
-                .frame(width: 44, height: 44)
-                .background {
-                    if valid {
-                        Circle().fill(Color.white)
-                    } else {
-                        Circle().fill(Color.white.opacity(0.14))
-                    }
-                }
-                .contentShape(Circle())
-                .animation(.smooth(duration: 0.2), value: valid)
-        }
-        .buttonStyle(HomePressStyle())
-        .disabled(!valid)
-        .accessibilityLabel("Create Account")
-        .accessibilityShowsLargeContentViewer { Label("Create Account", systemImage: "checkmark") }
-        // The checkmark glyph would otherwise make VoiceOver say "selected".
-        .accessibilityRemoveTraits(.isSelected)
     }
 
     private func create() {

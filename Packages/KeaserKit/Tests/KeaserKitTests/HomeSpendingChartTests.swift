@@ -26,6 +26,7 @@ struct HomeSpendingChartTests {
     @Test func allTimeShowsAtLeastFourYearsEndingThisYear() {
         let result = buckets(.allTime, [Expense(title: "Outing", amount: 20, date: now)])
         #expect(result.map(\.label) == ["2023", "2024", "2025", "2026"])
+        #expect(result.map(\.narrowLabel) == result.map(\.label))
         #expect(result.map(\.total) == [0, 0, 0, 20])
         #expect(result.map(\.index) == [0, 1, 2, 3])
         #expect(result.allSatisfy { $0.showsLabel })
@@ -52,9 +53,22 @@ struct HomeSpendingChartTests {
         #expect(result.count == 12)
         #expect(result.first?.label == "Jan")
         #expect(result[8].label == "Sep")
+        #expect(result.map(\.narrowLabel).joined() == "JFMAMJJASOND")
         #expect(result[0].total == 1)
         #expect(result[8].total == 5)
         #expect(result.map(\.total).reduce(0, +) == 6)
+    }
+
+    @Test func monthLabelsSwitchToNarrowOnesOnlyWhenNeighboursWouldTouch() {
+        let year = buckets(.thisYear, [])
+        // 12 slots of 25pt: three letters of 7pt leave 4pt between labels.
+        #expect(SpendingChart.labelsFit(year, plotWidth: 300) { Double($0.count) * 7 })
+        #expect(!SpendingChart.labelsFit(year, plotWidth: 300) { Double($0.count) * 8 })
+        // Days are labelled every seventh bar, so wide labels still fit.
+        let month = buckets(.thisMonth, [])
+        #expect(SpendingChart.labelsFit(month, plotWidth: 300) { Double($0.count) * 20 })
+        // Before the plot is measured nothing is shortened.
+        #expect(SpendingChart.labelsFit(year, plotWidth: 0) { _ in 100 })
     }
 
     @Test func thisMonthIsOneBarPerDayWithWeeklyLabels() {
@@ -65,6 +79,7 @@ struct HomeSpendingChartTests {
         ])
         #expect(result.count == 30)
         #expect(result.filter(\.showsLabel).map(\.label) == ["1", "8", "15", "22", "29"])
+        #expect(result.allSatisfy { $0.narrowLabel == $0.label })
         #expect(result[0].total == 4)
         #expect(result[29].total == 6)
     }
@@ -75,6 +90,7 @@ struct HomeSpendingChartTests {
         let monday = buckets(.thisWeek, expenses, firstWeekday: 2)
         #expect(sunday.map(\.label) == ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
         #expect(monday.map(\.label) == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+        #expect(monday.map(\.narrowLabel).joined() == "MTWTFSS")
         #expect(sunday[1].total == 10)
         #expect(monday[0].total == 10)
     }

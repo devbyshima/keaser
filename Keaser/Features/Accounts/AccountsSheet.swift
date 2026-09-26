@@ -83,8 +83,7 @@ struct AccountsSheet: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .listRowBackground(
-                    AccountsCardShape(isFirst: index == 0, isLast: index == store.accounts.count - 1)
-                        .fill(Color.keaserSheetCard)
+                    CardRowBackground(position: CardPosition(index: index, count: store.accounts.count), fill: .keaserSheetCard)
                         .padding(.horizontal, 16)
                 )
             }
@@ -116,8 +115,7 @@ struct AccountsSheet: View {
             .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             .listRowSeparator(.hidden)
             .listRowBackground(
-                RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous)
-                    .fill(Color.keaserSheetCard)
+                CardRowBackground(position: .single, fill: .keaserSheetCard)
                     .padding(.horizontal, 16)
             )
             .deleteDisabled(true)
@@ -168,17 +166,28 @@ private struct AccountRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        // At accessibility sizes the decorative icon goes and the name lines
+        // up with the Add Account row; in edit mode it also drops the side
+        // margins, where the list adds its own controls. A name then keeps
+        // enough width to wrap between words.
+        let isLarge = dynamicTypeSize.isAccessibilitySize
+        let leading: CGFloat = isLarge ? (isEditing ? 0 : 16) : 22
+        let trailing: CGFloat = isLarge && isEditing ? 0 : 24
+        // The separator starts under the name.
+        let separatorLeading: CGFloat = isLarge ? leading : 62
         Button(action: action) {
             HStack(spacing: 16) {
-                Image(systemName: "person.fill")
-                    .font(.body)
-                    .foregroundStyle(Color.keaserPrimaryText)
-                    .frame(minWidth: 24)
-                    .accessibilityHidden(true)
+                if !isLarge {
+                    Image(systemName: "person.fill")
+                        .font(.body)
+                        .foregroundStyle(Color.keaserPrimaryText)
+                        .frame(minWidth: 24)
+                        .accessibilityHidden(true)
+                }
                 Text(account.name)
                     .font(.body)
                     .foregroundStyle(Color.keaserPrimaryText)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                    .lineLimit(isLarge ? 3 : 1)
                 Spacer(minLength: 8)
                 if isSelected && !isEditing {
                     Image(systemName: "checkmark")
@@ -189,36 +198,17 @@ private struct AccountRow: View {
                         .accessibilityHidden(true)
                 }
             }
-            .padding(.leading, 22)
-            .padding(.trailing, 24)
+            .padding(.leading, leading)
+            .padding(.trailing, trailing)
             .frame(minHeight: 72)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .overlay(alignment: .bottom) {
             if showsSeparator {
-                KeaserRowSeparator(leading: 62)
+                KeaserRowSeparator(leading: separatorLeading)
             }
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-/// A card split across list rows: the first row rounds the top corners, the
-/// last row the bottom ones, so separate rows read as one card.
-private struct AccountsCardShape: Shape {
-    let isFirst: Bool
-    let isLast: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let r = KeaserMetrics.cardRadius
-        return UnevenRoundedRectangle(
-            topLeadingRadius: isFirst ? r : 0,
-            bottomLeadingRadius: isLast ? r : 0,
-            bottomTrailingRadius: isLast ? r : 0,
-            topTrailingRadius: isFirst ? r : 0,
-            style: .continuous
-        )
-        .path(in: rect)
     }
 }
