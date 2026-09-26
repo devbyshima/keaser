@@ -100,7 +100,7 @@ private struct NotionIntroStep: View {
                 }
             }
         }
-        .notionBottomBar {
+        .keaserBottomBar {
             // A refused token is explained under the field, not here, where
             // it would push the bar up over the page.
             NotionPrimaryButton(
@@ -118,16 +118,18 @@ private struct NotionIntroStep: View {
 
     private var hero: some View {
         VStack(spacing: 16) {
+            // The two marks as onboarding draws them: the Keaser tile a
+            // little smaller than the outlined Notion tile, which reads
+            // larger for its border.
             HStack(spacing: 14) {
-                KeaserLogo(size: 50)
+                KeaserLogo(size: 58)
                     .frame(width: 64, height: 64)
-                    .background(Color.keaserCardRaised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 // Fixed like the 64pt tiles either side of it; the row is
                 // an illustration, hidden from VoiceOver.
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.keaserSecondaryText)
-                NotionMark(size: 64)
+                NotionMark(size: 64, style: .outlined)
             }
             .accessibilityHidden(true)
             VStack(spacing: 8) {
@@ -189,7 +191,7 @@ private struct NotionIntroStep: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .frame(minHeight: 50)
-                .background(Color.keaserCardRaised, in: Capsule())
+                .background(Color.keaserSheetCard, in: Capsule())
                 .padding(.horizontal, 16)
                 .accessibilityLabel("Access token")
             ZStack(alignment: .topLeading) {
@@ -309,7 +311,12 @@ private struct NotionDatabasesStep: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Color.keaserCardRaised, in: Capsule())
+        // A capsule on one line; a rounded card, not a pill with the icon
+        // outside it, when a large text size wraps the name.
+        .background(Color.keaserSheetCard, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // Wrapped, it lines up with the cards below instead of running to
+        // the sheet's edges.
+        .padding(.horizontal, 16)
     }
 
     private var loading: some View {
@@ -478,7 +485,7 @@ private struct NotionReviewStep: View {
                             NotionRow(title: source.displayTitle, subtitle: model.user?.workspaceName ?? "Notion") {
                                 NotionEmojiTile(emoji: source.iconEmoji)
                             } trailing: {
-                                NotionMark(size: 24)
+                                NotionMark(size: 24, style: .outlined)
                             }
                         }
                         .padding(.horizontal, 16)
@@ -491,7 +498,7 @@ private struct NotionReviewStep: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .notionBottomBar {
+        .keaserBottomBar {
             NotionPrimaryButton(
                 title: model.connectedAccountID == nil ? "Connect" : "Done",
                 isWorking: model.isConnecting,
@@ -524,7 +531,7 @@ private struct NotionReviewStep: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .frame(minHeight: 50)
-                .background(Color.keaserCardRaised, in: Capsule())
+                .background(Color.keaserSheetCard, in: Capsule())
                 .padding(.horizontal, 16)
                 .accessibilityLabel("Account name")
         }

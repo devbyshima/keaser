@@ -62,7 +62,7 @@ struct NotionAccountSection: View {
     private func databaseRow(_ notion: NotionConnection) -> some View {
         HStack(spacing: 13) {
             HStack(spacing: 13) {
-                emojiTile(notion.iconEmoji)
+                NotionDatabaseTile(emoji: notion.iconEmoji)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(notion.databaseTitle)
                         .font(.body)
@@ -93,23 +93,6 @@ struct NotionAccountSection: View {
         .padding(.vertical, 10)
         .frame(minHeight: 68)
         .cardSeparatorTrailing()
-    }
-
-    /// The database's emoji on the same faint tile as the symbols of the
-    /// other rows, or its symbol when it has none.
-    @ViewBuilder
-    private func emojiTile(_ emoji: String?) -> some View {
-        if let emoji, !emoji.isEmpty {
-            // Fixed with the 38pt SettingsSymbol tiles in the rows below it.
-            Text(emoji)
-                .font(.system(size: 21))
-                .frame(width: 38, height: 38)
-                .background(Color.keaserSheetTile, in: RoundedRectangle(cornerRadius: 38 * 0.3, style: .continuous))
-                .accessibilityHidden(true)
-        } else {
-            SettingsSymbol(symbol: "tablecells")
-                .accessibilityHidden(true)
-        }
     }
 
     private func lastSyncedRow(_ notion: NotionConnection) -> some View {
@@ -184,6 +167,30 @@ struct NotionAccountSection: View {
         guard let date else { return "Never" }
         if now.timeIntervalSince(date) < 60 { return "Just now" }
         return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
+    }
+}
+
+/// The database's emoji on the same faint tile as the `SettingsSymbol` of
+/// the rows below it, or its symbol when it has none. It grows with the text
+/// exactly as `SettingsSymbol` does, so every row's text starts at the same
+/// x at every size.
+private struct NotionDatabaseTile: View {
+    let emoji: String?
+
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+
+    var body: some View {
+        if let emoji, !emoji.isEmpty {
+            let scale = min(textScale, 1.5)
+            let side = 38 * scale
+            Text(emoji)
+                .font(.system(size: 21 * scale))
+                .frame(width: side, height: side)
+                .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: side * 0.3, style: .continuous))
+                .accessibilityHidden(true)
+        } else {
+            SettingsSymbol(symbol: "tablecells")
+        }
     }
 }
 

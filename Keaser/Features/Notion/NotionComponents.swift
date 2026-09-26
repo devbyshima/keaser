@@ -185,7 +185,7 @@ struct NotionErrorText: View {
 }
 
 /// The white capsule pinned to the bottom of a step, with a spinner while
-/// it works. Attach it with `notionBottomBar`.
+/// it works. Attach it with `keaserBottomBar`.
 struct NotionPrimaryButton: View {
     let title: String
     var isWorking = false
@@ -216,7 +216,7 @@ struct NotionPrimaryButton: View {
         .background {
             if #available(iOS 26.0, *) {
                 // Over the glass sheet the bar stays clear; the scroll edge
-                // effect of `notionBottomBar` softens what passes under it.
+                // effect of `keaserBottomBar` softens what passes under it.
                 EmptyView()
             } else {
                 // Solid behind the button (the disabled capsule is
@@ -242,18 +242,6 @@ extension View {
             self
         } else {
             self.background(Color.keaserCard.ignoresSafeArea())
-        }
-    }
-
-    /// Pins `content` (a `NotionPrimaryButton`) below the page. On iOS 26 a
-    /// safe area bar, so scrolling content gets the system's edge effect
-    /// instead of an opaque slab over the glass; before that, an inset.
-    @ViewBuilder
-    func notionBottomBar<Bar: View>(@ViewBuilder _ content: () -> Bar) -> some View {
-        if #available(iOS 26.0, *) {
-            self.safeAreaBar(edge: .bottom, content: content)
-        } else {
-            self.safeAreaInset(edge: .bottom, content: content)
         }
     }
 }
