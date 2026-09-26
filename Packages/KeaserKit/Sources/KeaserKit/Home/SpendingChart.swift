@@ -11,16 +11,21 @@ public enum SpendingChart {
         public let interval: DateInterval
         /// Axis text under the bar: "2026", "Sep", "Mon", "15", "4 PM".
         public let label: String
+        /// A shorter form for when `label` would collide with its
+        /// neighbours at large text sizes: "S" for September, "M" for
+        /// Monday. The same as `label` where there is none.
+        public let narrowLabel: String
         /// Months have room for every label; days only for every seventh.
         public let showsLabel: Bool
         public var total: Decimal
 
         public var id: Int { index }
 
-        public init(index: Int, interval: DateInterval, label: String, showsLabel: Bool, total: Decimal = 0) {
+        public init(index: Int, interval: DateInterval, label: String, narrowLabel: String? = nil, showsLabel: Bool, total: Decimal = 0) {
             self.index = index
             self.interval = interval
             self.label = label
+            self.narrowLabel = narrowLabel ?? label
             self.showsLabel = showsLabel
             self.total = total
         }
@@ -71,6 +76,24 @@ public enum SpendingChart {
                 }
             }
             magnitude *= 10
+        }
+    }
+
+    /// Whether the axis labels of `buckets`, each `width(label)` wide and
+    /// centred under its bar, keep at least `gap` between neighbours on a
+    /// plot `plotWidth` wide. When they do not, the chart shows
+    /// `narrowLabel` instead.
+    public static func labelsFit(
+        _ buckets: [Bucket],
+        plotWidth: Double,
+        gap: Double = 4,
+        width: (String) -> Double
+    ) -> Bool {
+        guard !buckets.isEmpty, plotWidth > 0 else { return true }
+        let slot = plotWidth / Double(buckets.count)
+        let labelled = buckets.filter(\.showsLabel)
+        return zip(labelled, labelled.dropFirst()).allSatisfy { left, right in
+            (width(left.label) + width(right.label)) / 2 + gap <= Double(right.index - left.index) * slot
         }
     }
 
@@ -130,22 +153,24 @@ public enum SpendingChart {
         case .thisYear:
             guard let year = calendar.dateInterval(of: .year, for: now) else { return [] }
             let symbols = calendar.shortStandaloneMonthSymbols
+            let narrow = calendar.veryShortStandaloneMonthSymbols
             return subdivide(year, by: .month, calendar: calendar) { index, start in
-                let month = calendar.component(.month, from: start)
-                return (symbols[(month - 1) % symbols.count], true)
+                let month = calendar.component(.month, from: start) - 1
+                return (symbols[month % symbols.count], narrow[month % narrow.count], true)
             }
         case .thisMonth:
             guard let month = calendar.dateInterval(of: .month, for: now) else { return [] }
             return subdivide(month, by: .day, calendar: calendar) { index, start in
-                let day = calendar.component(.day, from: start)
-                return (String(day), index % 7 == 0)
+                let day = String(calendar.component(.day, from: start))
+                return (day, day, index % 7 == 0)
             }
         case .thisWeek:
             guard let week = calendar.dateInterval(of: .weekOfYear, for: now) else { return [] }
             let symbols = calendar.shortStandaloneWeekdaySymbols
+            let narrow = calendar.veryShortStandaloneWeekdaySymbols
             return subdivide(week, by: .day, calendar: calendar) { _, start in
-                let weekday = calendar.component(.weekday, from: start)
-                return (symbols[(weekday - 1) % symbols.count], true)
+                let weekday = calendar.component(.weekday, from: start) - 1
+                return (symbols[weekday % symbols.count], narrow[weekday % narrow.count], true)
             }
         case .today:
             guard let day = calendar.dateInterval(of: .day, for: now) else { return [] }
@@ -172,15 +197,21 @@ public enum SpendingChart {
         _ interval: DateInterval,
         by component: Calendar.Component,
         calendar: Calendar,
-        label: (Int, Date) -> (String, Bool)
+        label: (Int, Date) -> (label: String, narrow: String, shows: Bool)
     ) -> [Bucket] {
         var result: [Bucket] = []
         var start = interval.start
         while start < interval.end {
             guard let next = calendar.date(byAdding: component, value: 1, to: start), next > start else { break }
             let end = min(next, interval.end)
-            let (text, shows) = label(result.count, start)
-            result.append(Bucket(index: result.count, interval: DateInterval(start: start, end: end), label: text, showsLabel: shows))
+            let text = label(result.count, start)
+            result.append(Bucket(
+                index: result.count,
+                interval: DateInterval(start: start, end: end),
+                label: text.label,
+                narrowLabel: text.narrow,
+                showsLabel: text.shows
+            ))
             start = end
         }
         return result

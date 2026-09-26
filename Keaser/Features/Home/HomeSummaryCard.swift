@@ -1,6 +1,7 @@
 import Charts
 import KeaserKit
 import SwiftUI
+import UIKit
 
 /// The charcoal card at the top of Home: what was spent in the chosen period
 /// and a bar chart of how it was spread over that period.
@@ -48,7 +49,16 @@ struct HomeSpendingChart: View {
     let calendar: Calendar
     let currencyCode: String
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// The width of the bar area, measured once the chart is laid out.
+    @State private var plotWidth: CGFloat = 0
+
+    /// The chart's text stops growing here: it has a fixed height and
+    /// unwrapped axis labels, and VoiceOver reads the bar values.
+    private static let largestTextSize = DynamicTypeSize.xxxLarge
+
     var body: some View {
+        let narrow = usesNarrowLabels
         Chart(buckets) { bucket in
             BarMark(
                 x: .value("Period", key(bucket.index)),
@@ -64,7 +74,7 @@ struct HomeSpendingChart: View {
             AxisMarks(values: buckets.filter(\.showsLabel).map { key($0.index) }) { value in
                 AxisValueLabel(centered: true, verticalSpacing: 4) {
                     if let key = value.as(String.self), let bucket = bucket(for: key) {
-                        Text(bucket.label)
+                        Text(narrow ? bucket.narrowLabel : bucket.label)
                             .font(.caption2)
                             .foregroundStyle(Color.keaserSecondaryText)
                             .fixedSize()
@@ -86,10 +96,11 @@ struct HomeSpendingChart: View {
             }
         }
         .chartYScale(domain: 0...(ticks.last ?? 20))
-        // The chart has a fixed height and unwrapped axis labels, so its
-        // text stops growing where labels would start to collide; bar values
-        // are read by VoiceOver.
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .chartOverlay { proxy in
+            Color.clear
+                .onChange(of: proxy.plotSize.width, initial: true) { _, width in plotWidth = width }
+        }
+        .dynamicTypeSize(...Self.largestTextSize)
         .animation(.smooth(duration: 0.35), value: buckets)
     }
 
@@ -99,6 +110,18 @@ struct HomeSpendingChart: View {
 
     private func bucket(for key: String) -> SpendingChart.Bucket? {
         Int(key.dropFirst()).flatMap { index in buckets.first { $0.index == index } }
+    }
+
+    /// Twelve months fit as "Jan Feb Mar" at the default text size but
+    /// collide at larger ones, so they drop to "J F M" when the measured
+    /// labels would touch.
+    private var usesNarrowLabels: Bool {
+        let size = min(dynamicTypeSize, Self.largestTextSize)
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(size))
+        let font = UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traits)
+        return !SpendingChart.labelsFit(buckets, plotWidth: plotWidth) { label in
+            (label as NSString).size(withAttributes: [.font: font]).width
+        }
     }
 
     /// Narrow bars (a month of days) get smaller corners so they stay bars.
