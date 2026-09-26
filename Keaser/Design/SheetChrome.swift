@@ -110,7 +110,7 @@ private struct CenteredTitleLayout: Layout {
 /// A charcoal card holding rows. Rows inside are separated with
 /// `KeaserRowSeparator`.
 struct KeaserCard<Content: View>: View {
-    var fill: Color = .keaserCardRaised
+    var fill: Color = .keaserSheetCard
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -154,9 +154,13 @@ struct KeaserCapsuleButtonStyle: ButtonStyle {
         configuration.label
             .font(.body.weight(.semibold))
             .foregroundStyle(Color.black)
+            .multilineTextAlignment(.center)
             .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, 6)
             .frame(minHeight: height)
-            .background(Capsule().fill(Color.white))
+            // A capsule at the design height; a rounded card, not a clipped
+            // pill, when a large text size wraps the label.
+            .background(RoundedRectangle(cornerRadius: height / 2, style: .continuous).fill(Color.white))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
@@ -166,8 +170,48 @@ struct KeaserCapsuleButtonStyle: ButtonStyle {
 }
 
 extension ButtonStyle where Self == KeaserCapsuleButtonStyle {
-    static var keaserCapsule: KeaserCapsuleButtonStyle { KeaserCapsuleButtonStyle() }
     static func keaserCapsule(height: CGFloat, horizontalPadding: CGFloat = 12) -> KeaserCapsuleButtonStyle {
         KeaserCapsuleButtonStyle(height: height, horizontalPadding: horizontalPadding)
+    }
+}
+
+/// The confirm button of a form sheet (New Account, New Category): a
+/// checkmark in a 44pt circle, filled white once the form is valid.
+struct KeaserConfirmButton: View {
+    let label: String
+    var isEnabled: Bool
+    let action: () -> Void
+
+    init(_ label: String, isEnabled: Bool, action: @escaping () -> Void) {
+        self.label = label
+        self.isEnabled = isEnabled
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(isEnabled ? Color.black : Color.white.opacity(0.55))
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(isEnabled ? Color.white : Color.white.opacity(0.14)))
+                .contentShape(Circle())
+                .animation(.smooth(duration: 0.2), value: isEnabled)
+        }
+        .buttonStyle(PressScaleButtonStyle())
+        .disabled(!isEnabled)
+        .accessibilityLabel(label)
+        .accessibilityShowsLargeContentViewer { Label(label, systemImage: "checkmark") }
+        .accessibilityRemoveTraits(.isSelected)
+    }
+}
+
+/// A slight shrink while pressed, for controls that draw their own shape.
+struct PressScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.snappy(duration: 0.18), value: configuration.isPressed)
     }
 }
