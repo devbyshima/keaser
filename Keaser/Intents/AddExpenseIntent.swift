@@ -51,7 +51,7 @@ struct AddExpenseIntent: AppIntent {
             categoryID: category.flatMap { QuickLog.category(id: $0.id, name: $0.name, in: target) }?.id,
             paymentMethodID: paymentMethod.flatMap { QuickLog.paymentMethod(id: $0.id, name: $0.name, in: target) }?.id
         )
-        let message = await IntentSupport.save(expense, in: target, store: store)
+        let message = try await IntentSupport.save(expense, in: target, store: store)
         return .result(dialog: IntentDialog(stringLiteral: message))
     }
 }

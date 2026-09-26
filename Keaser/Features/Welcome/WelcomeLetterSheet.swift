@@ -30,7 +30,7 @@ struct WelcomeLetterSheet: View {
             // over it without a bar behind it, and shows faintly below it.
             .mask {
                 ZStack {
-                    Color.black.opacity(0.35).ignoresSafeArea(edges: .bottom)
+                    Color.black.opacity(0.2).ignoresSafeArea(edges: .bottom)
                     VStack(spacing: 0) {
                         Color.black
                         LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)

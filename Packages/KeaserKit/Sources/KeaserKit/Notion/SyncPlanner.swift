@@ -168,7 +168,7 @@ public enum SyncPlanner {
             isSameContent: { mapper.matches($0, $1, in: account) },
             isBlank: { mapper.remoteExpense(from: $0).isBlank },
             keaserID: { mapper.keaserID(of: $0) },
-            deletedExpenseIDs: Set(account.deletedUnlinkedExpenseIDs)
+            deletedExpenseIDs: Set(account.unlinkedDeletions.map(\.expenseID))
         )
     }
 }

@@ -36,7 +36,7 @@ struct LogWalletTransactionIntent: AppIntent {
             throw KeaserIntentError.invalidAmount
         }
         let expense = QuickLog.walletExpense(merchant: merchant, amount: value, card: card, in: target)
-        let message = await IntentSupport.save(expense, in: target, store: store)
+        let message = try await IntentSupport.save(expense, in: target, store: store)
         return .result(dialog: IntentDialog(stringLiteral: message))
     }
 }

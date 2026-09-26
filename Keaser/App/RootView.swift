@@ -5,6 +5,7 @@ import SwiftUI
 /// over Home the first time it appears.
 struct RootView: View {
     @Environment(KeaserStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if DEBUG
     @State private var debugSheet: DebugSheet? = DebugSheet(rawValue: DebugLaunch.sheet ?? "")
     #endif
@@ -26,7 +27,9 @@ struct RootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if let problem = storageProblem {
                 StorageBanner(message: problem)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    // Slides down from the status bar, or only fades with
+                    // Reduce Motion.
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(.smooth, value: storageProblem)

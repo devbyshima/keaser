@@ -42,10 +42,15 @@ public struct NotionSyncOutcome: Sendable {
         }
         if succeeded {
             current.lastSyncedAt = startedAt
-            // The full listing this sync read settled every deletion known
-            // when it began: any page carrying one of these IDs was trashed.
-            let settled = Set(snapshot.deletedUnlinkedExpenseIDs)
-            account.deletedUnlinkedExpenseIDs.removeAll { settled.contains($0) }
+            // Any page this sync listed that carries one of the IDs it knew
+            // was trashed. A listing can lag a fresh write, though, so it
+            // only settles the deletions made well before it began; the
+            // others wait for a later sync.
+            let known = Set(snapshot.unlinkedDeletions.map(\.expenseID))
+            account.unlinkedDeletions.removeAll {
+                known.contains($0.expenseID)
+                    && startedAt.timeIntervalSince($0.deletedAt) >= NotionSync.orphanSettleTime
+            }
         }
         account.notion = current
 
@@ -106,6 +111,13 @@ public struct NotionSyncOutcome: Sendable {
 /// Runs one full sync of one account against Notion: pull, plan, push.
 /// Nothing here touches the store; the caller applies the outcome.
 public enum NotionSync {
+    /// How long after an unlinked expense is deleted a sync must begin
+    /// before its listing is trusted to show any page created for it. A
+    /// query normally catches up within seconds; a page can also be created
+    /// by a sync still running when the expense was deleted. Generous,
+    /// since keeping an expense ID a little longer costs nothing.
+    public static let orphanSettleTime: TimeInterval = 60 * 60
+
     public static func run(
         account: Account,
         api: any NotionAPI,
