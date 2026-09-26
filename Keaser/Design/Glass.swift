@@ -64,3 +64,28 @@ private struct FallbackGlassButtonStyle: ButtonStyle {
             .animation(.snappy(duration: 0.2), value: configuration.isPressed)
     }
 }
+
+extension View {
+    /// Sheet chrome: on iOS 26 the system's floating glass sheet is left
+    /// alone; before that, a charcoal background with large corners.
+    @ViewBuilder
+    func keaserSheetChrome() -> some View {
+        if #available(iOS 26.0, *) {
+            self
+        } else {
+            self
+                .presentationBackground(Color.keaserCard)
+                .presentationCornerRadius(32)
+        }
+    }
+
+    /// The round glass icon button used in sheet headers (close, back,
+    /// confirm, add).
+    func keaserCircleButton() -> some View {
+        self
+            .font(.system(size: 17, weight: .semibold))
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .keaserGlass(in: Circle(), interactive: true)
+    }
+}

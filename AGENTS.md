@@ -56,7 +56,8 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
 | `-KeaserOnboardingPage` | `0`...`5` | onboarding |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
-| `-KeaserSheet` | `accounts`, `addAccount`, `newAccount`, `newExpense`, `editExpense`, `search`, `settings`, `paywall`, `notion` | the feature that presents it |
+| `-KeaserSheet` | `accounts`, `addAccount`, `newAccount`, `newExpense`, `editExpense`, `search` | home |
+| `-KeaserSheet` | `settings`, `paywall`, `notion` (presented by `RootView` over whatever is showing) | foundation |
 | `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `paymentMethods`, `currency`, `startWeek`, `smartSuggestions`, `shortcut`, `tutorials`, `whatsNew`, `help`, `followUs`, `privacy`, `terms` | settings |
 | `-KeaserPeriod` | `today`, `thisWeek`, `thisMonth`, `thisYear`, `allTime` | home |
 
@@ -77,7 +78,7 @@ Seeded launches keep the database in memory and never touch the real file.
 
 | Area | Owns |
 |---|---|
-| foundation | `project.yml`, `Keaser/App/`, `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}` (except `NotionConnection.swift`), `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
+| foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}` (except `NotionConnection.swift`), `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, app icon |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
