@@ -1,29 +1,40 @@
 import SwiftUI
 
 /// The Keaser Pro card at the top of Settings: a slow night-sky gradient with
-/// drifting stars, the pass status and an Upgrade button.
+/// drifting stars, the pass status and an Upgrade button. At accessibility
+/// sizes the button moves under the text so neither is squeezed; the small
+/// seal shown after a purchase stays beside it.
 struct ProBanner: View {
     let subtitle: String
     let showsUpgrade: Bool
     let upgrade: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        HStack(spacing: 12) {
+        let isLarge = dynamicTypeSize.isAccessibilitySize
+        let stacks = isLarge && showsUpgrade
+        let layout = stacks
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Keaser Pro")
-                    .font(.system(size: 22, weight: .semibold))
+                    .keaserFont(22, weight: .semibold, relativeTo: .title2)
                     .foregroundStyle(.white)
                 Text(subtitle)
-                    .font(.system(size: 16))
+                    .keaserFont(16, relativeTo: .callout)
                     .foregroundStyle(Color.white.opacity(0.55))
             }
-            .lineLimit(1)
+            .lineLimit(isLarge ? 3 : 1)
             .minimumScaleFactor(0.8)
-            Spacer(minLength: 8)
+            .accessibilityElement(children: .combine)
+            if !stacks { Spacer(minLength: 8) }
             if showsUpgrade {
                 Button("Upgrade", action: upgrade)
-                    .buttonStyle(UpgradeCapsuleStyle())
+                    .buttonStyle(.keaserCapsule(height: 34, horizontalPadding: 13))
             } else {
+                // A badge in a fixed spot on the card, not text.
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 26))
                     .foregroundStyle(.white)
@@ -31,25 +42,11 @@ struct ProBanner: View {
             }
         }
         .padding(.horizontal, 26)
-        .frame(maxWidth: .infinity, minHeight: 97)
+        .padding(.vertical, isLarge ? 18 : 0)
+        .frame(maxWidth: .infinity, minHeight: 97, alignment: .leading)
         .background(StarfieldBackground())
         .clipShape(RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
         .accessibilityElement(children: .contain)
-    }
-}
-
-/// The small white capsule on the banner.
-private struct UpgradeCapsuleStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(.black)
-            .padding(.horizontal, 13)
-            .frame(height: 34)
-            .background(Capsule().fill(.white))
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
     }
 }
 

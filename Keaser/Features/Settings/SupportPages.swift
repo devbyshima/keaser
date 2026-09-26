@@ -34,9 +34,10 @@ struct TutorialDetailView: View {
                     SettingsSymbol(symbol: tutorial.symbol, size: 72, pointSize: 32)
                         .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                     Text(tutorial.title)
-                        .font(.system(size: 22, weight: .bold))
+                        .keaserFont(22, weight: .bold, relativeTo: .title2)
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
                     Text(tutorial.intro)
                         .font(.subheadline)
                         .foregroundStyle(Color.keaserSecondaryText)
@@ -77,17 +78,25 @@ private struct StepRow: View {
     let number: Int
     let step: Tutorial.Step
 
+    /// The number's circle grows with the number inside it.
+    @ScaledMetric(relativeTo: .subheadline) private var badge: CGFloat = 28
+
+    init(number: Int, step: Tutorial.Step) {
+        self.number = number
+        self.step = step
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
             Text("\(number)")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .keaserFont(15, weight: .semibold, design: .rounded, relativeTo: .subheadline)
                 .foregroundStyle(.white)
-                .frame(width: 28, height: 28)
+                .frame(width: badge, height: badge)
                 .background(Circle().fill(Color.white.opacity(0.1)))
                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
             VStack(alignment: .leading, spacing: 3) {
                 Text(step.title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .keaserFont(17, weight: .semibold, relativeTo: .headline)
                     .foregroundStyle(.white)
                 Text(step.detail)
                     .font(.subheadline)
@@ -143,8 +152,9 @@ struct ReleaseDetailView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(release.title)
-                            .font(.system(size: 28, weight: .bold))
+                            .keaserFont(28, weight: .bold, relativeTo: .title)
                             .foregroundStyle(.white)
+                            .accessibilityAddTraits(.isHeader)
                         Text(release.date)
                             .font(.subheadline)
                             .foregroundStyle(Color.keaserSecondaryText)
@@ -164,7 +174,7 @@ struct ReleaseDetailView: View {
                             SettingsSymbol(symbol: highlight.symbol)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(highlight.title)
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .keaserFont(17, weight: .semibold, relativeTo: .headline)
                                     .foregroundStyle(.white)
                                 Text(highlight.detail)
                                     .font(.subheadline)
@@ -211,7 +221,7 @@ struct HelpFeedbackView: View {
         .settingsListStyle()
         .overlay {
             if rows.isEmpty {
-                EmptyStateView(symbol: "bubble.left.and.bubble.right", title: "No Contact Links", message: "Feedback links will appear here.")
+                EmptyStateView(symbol: "bubble.left.and.bubble.right", title: "No Contact Links", message: "Reach us through the support link on Keaser\u{2019}s App Store page.")
             }
         }
         .settingsPage("Help & Feedback")

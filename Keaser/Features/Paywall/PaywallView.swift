@@ -11,8 +11,14 @@ struct PaywallView: View {
     @Environment(ProStore.self) private var pro
     @Environment(\.dismiss) private var dismiss
     @Environment(\.purchase) private var purchase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedPlan: ProProduct = .yearly
     @State private var legalDocument: LegalDocument?
+    /// The legal links' text height: one footnote line, scaled.
+    @ScaledMetric(relativeTo: .footnote) private var linkTextHeight: CGFloat = UIFont.preferredFont(
+        forTextStyle: .footnote,
+        compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)
+    ).lineHeight
 
     var body: some View {
         NavigationStack {
@@ -33,7 +39,7 @@ struct PaywallView: View {
                 .padding(.bottom, 16)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .safeAreaInset(edge: .bottom) { footer }
+            .keaserBottomBar { footer }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HeaderIconButton("xmark", label: "Close") { dismiss() }
@@ -58,8 +64,9 @@ struct PaywallView: View {
             KeaserLogo(size: 60)
                 .padding(.bottom, 6)
             Text("Keaser Pro")
-                .font(.system(size: 28, weight: .bold))
+                .keaserFont(28, weight: .bold, relativeTo: .title)
                 .foregroundStyle(.white)
+                .accessibilityAddTraits(.isHeader)
             Text(ProStatusText.subtitle(trialDaysRemaining: pro.trialDaysRemaining, hasPurchased: pro.hasPurchased))
                 .font(.subheadline)
                 .foregroundStyle(Color.keaserSecondaryText)
@@ -95,7 +102,12 @@ struct PaywallView: View {
     }
 
     private var plans: some View {
-        HStack(spacing: 10) {
+        // Side by side, or one above the other once the prices would no
+        // longer fit.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
             ForEach(ProProduct.allCases) { kind in
                 PlanCard(
                     kind: kind,
@@ -113,9 +125,11 @@ struct PaywallView: View {
 
     private var thanks: some View {
         VStack(spacing: 8) {
+            // A badge in a fixed spot above the text, not text itself.
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 34))
                 .foregroundStyle(.white)
+                .accessibilityHidden(true)
             Text("You have Keaser Pro")
                 .font(.headline)
                 .foregroundStyle(.white)
@@ -127,7 +141,13 @@ struct PaywallView: View {
         .frame(maxWidth: .infinity)
         .padding(20)
         .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
+
+    /// How far the legal links' 44pt tap targets reach above and below their
+    /// text. The footer's spacing gives it back, so the text sits where the
+    /// design puts it.
+    private var linkSlop: CGFloat { max(0, (44 - linkTextHeight) / 2) }
 
     private var footer: some View {
         VStack(spacing: 12) {
@@ -167,33 +187,17 @@ struct PaywallView: View {
                 .buttonStyle(.keaserPrimary)
                 .disabled(pro.plan(selectedPlan) == nil || pro.purchasingPlan != nil || pro.isRestoring)
 
-                HStack(spacing: 0) {
-                    Button {
-                        restore()
-                    } label: {
-                        if pro.isRestoring {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Text("Restore Purchases")
-                        }
-                    }
-                    .disabled(pro.isRestoring || pro.purchasingPlan != nil)
-                    Text("  \u{00B7}  ").foregroundStyle(Color.keaserTertiaryText)
-                    Button("Terms") { legalDocument = .terms }
-                    Text("  \u{00B7}  ").foregroundStyle(Color.keaserTertiaryText)
-                    Button("Privacy") { legalDocument = .privacy }
-                }
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(Color.keaserSecondaryText)
-                .buttonStyle(.plain)
+                legalLinks
+                    .padding(.top, -linkSlop)
             }
         }
         .padding(.horizontal, KeaserMetrics.screenPadding)
         .padding(.top, 12)
-        .padding(.bottom, 8)
+        .padding(.bottom, pro.hasPurchased ? 8 : 8 - linkSlop)
         .background(alignment: .top) {
             if #available(iOS 26.0, *) {
-                // The system's scroll edge effect already softens the edge.
+                // keaserBottomBar gives the bar the system's scroll edge
+                // effect.
                 EmptyView()
             } else {
                 // Content fades out under the button instead of being cut off.
@@ -204,6 +208,65 @@ struct PaywallView: View {
             }
         }
         .animation(.snappy(duration: 0.2), value: pro.errorMessage)
+    }
+
+    /// Restore Purchases, Terms and Privacy on one line, or stacked when
+    /// they no longer fit.
+    private var legalLinks: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 0) {
+                restoreLink
+                linkSeparator
+                termsLink
+                linkSeparator
+                privacyLink
+            }
+            VStack(spacing: 0) {
+                restoreLink
+                HStack(spacing: 24) {
+                    termsLink
+                    privacyLink
+                }
+            }
+            VStack(spacing: 0) {
+                restoreLink
+                termsLink
+                privacyLink
+            }
+        }
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(Color.keaserSecondaryText)
+        .buttonStyle(.plain)
+    }
+
+    private var linkSeparator: some View {
+        Text("  \u{00B7}  ")
+            .foregroundStyle(Color.keaserTertiaryText)
+            .accessibilityHidden(true)
+    }
+
+    private var restoreLink: some View {
+        Button {
+            restore()
+        } label: {
+            Group {
+                if pro.isRestoring {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Text("Restore Purchases")
+                }
+            }
+            .legalLinkTarget()
+        }
+        .disabled(pro.isRestoring || pro.purchasingPlan != nil)
+    }
+
+    private var termsLink: some View {
+        Button { legalDocument = .terms } label: { Text("Terms").legalLinkTarget() }
+    }
+
+    private var privacyLink: some View {
+        Button { legalDocument = .privacy } label: { Text("Privacy").legalLinkTarget() }
     }
 
     // MARK: Actions
@@ -229,6 +292,7 @@ private struct FeatureRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
+            // A glyph in a fixed tile, sized with the tile.
             Image(systemName: feature.symbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(isHighlighted ? Color.black : Color.white)
@@ -237,9 +301,10 @@ private struct FeatureRow: View {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
                         .fill(isHighlighted ? Color.white : Color.white.opacity(0.08))
                 )
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(feature.title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .keaserFont(16, weight: .semibold, relativeTo: .callout)
                     .foregroundStyle(.white)
                 Text(feature.detail)
                     .font(.footnote)
@@ -262,20 +327,24 @@ private struct PlanCard: View {
     let isSelected: Bool
     let select: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(kind.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .keaserFont(15, weight: .semibold, relativeTo: .subheadline)
                         .foregroundStyle(Color.keaserSecondaryText)
                     Spacer(minLength: 4)
+                    // The selected trait says this; the radio is only drawn.
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 20))
                         .foregroundStyle(isSelected ? Color.white : Color.keaserTertiaryText)
+                        .accessibilityHidden(true)
                 }
                 price
-                    .frame(height: 26, alignment: .leading)
+                    .frame(minHeight: 26, alignment: .leading)
                 Text(kind.detail)
                     .font(.caption)
                     .foregroundStyle(Color.keaserSecondaryText)
@@ -299,10 +368,10 @@ private struct PlanCard: View {
     private var price: some View {
         if let plan {
             Text(plan.priceLabel)
-                .font(.system(size: 20, weight: .bold))
+                .keaserFont(20, weight: .bold, relativeTo: .title3)
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.7)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
         } else if state == .loading || state == .idle {
             ProgressView()
                 .controlSize(.small)
@@ -311,5 +380,13 @@ private struct PlanCard: View {
                 .font(.subheadline)
                 .foregroundStyle(Color.keaserTertiaryText)
         }
+    }
+}
+
+private extension View {
+    /// At least 44pt tall and wide to tap, whatever the text size.
+    func legalLinkTarget() -> some View {
+        frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
     }
 }

@@ -2,9 +2,11 @@ import AppIntents
 import KeaserKit
 import SwiftUI
 
-/// Every ISO currency, searchable, with the current one checked.
+/// Every ISO currency, searchable, with the current one checked. Picking one
+/// goes straight back to Settings, as in the reference.
 struct CurrencyPickerView: View {
     @Environment(KeaserStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var options: [CurrencyOption] = []
 
@@ -16,6 +18,7 @@ struct CurrencyPickerView: View {
                 ForEach(Array(results.enumerated()), id: \.element.id) { index, option in
                     Button {
                         store.updatePreferences { $0.currencyCode = option.code }
+                        dismiss()
                     } label: {
                         CheckRow(title: option.title, isChecked: option.code == current)
                     }
@@ -42,9 +45,11 @@ struct CurrencyPickerView: View {
     }
 }
 
-/// Sunday or Monday. Week totals, charts and widgets follow this.
+/// Sunday or Monday. Week totals, charts and widgets follow this. Picking
+/// one goes straight back to Settings, as in the reference.
 struct StartWeekView: View {
     @Environment(KeaserStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let selected = store.preferences.firstWeekday
@@ -53,6 +58,7 @@ struct StartWeekView: View {
                 ForEach(Array(Weekday.allCases.enumerated()), id: \.element) { index, day in
                     Button {
                         store.updatePreferences { $0.firstWeekday = day }
+                        dismiss()
                     } label: {
                         CheckRow(title: day.title, isChecked: day == selected)
                     }
@@ -107,8 +113,10 @@ struct ShortcutSettingsView: View {
                     SettingsSymbol(symbol: "command", size: 72, pointSize: 32)
                         .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                     Text("Add Expense Shortcut")
-                        .font(.system(size: 22, weight: .bold))
+                        .keaserFont(22, weight: .bold, relativeTo: .title2)
                         .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
                     Text("Keaser adds an \u{201C}\(Tutorials.addExpenseActionTitle)\u{201D} action to the Shortcuts app, so you can log a purchase without opening Keaser first.")
                         .font(.subheadline)
                         .foregroundStyle(Color.keaserSecondaryText)
@@ -194,7 +202,7 @@ struct CheckRow: View {
             Spacer(minLength: 0)
             if isChecked {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 17, weight: .semibold))
+                    .keaserFont(17, weight: .semibold, relativeTo: .body)
                     .foregroundStyle(.white)
                     .accessibilityHidden(true)
             }
@@ -236,34 +244,51 @@ struct InfoRow: View {
 }
 
 /// A 52pt row with a bare symbol (no tile), as on the Tutorials, Help and
-/// Follow Us pages.
+/// Follow Us pages. At accessibility sizes the value moves under the title.
 struct CompactRow: View {
     let symbol: String
     let title: String
-    var value: String? = nil
-    var accessory: String? = nil
+    var value: String?
+    var accessory: String?
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var symbolWidth: CGFloat = 24
+
+    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil) {
+        self.symbol = symbol
+        self.title = title
+        self.value = value
+        self.accessory = accessory
+    }
 
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: symbol)
-                .font(.system(size: 19, weight: .medium))
+                .keaserFont(19, weight: .medium, relativeTo: .body)
                 .foregroundStyle(.white)
-                .frame(width: 24)
-            Text(title)
-                .font(.body)
-                .foregroundStyle(.white)
-                .lineLimit(1)
+                .frame(width: symbolWidth)
+                .accessibilityHidden(true)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 2) {
+                    titleText
+                    if let value { valueText(value) }
+                }
+                .padding(.vertical, 10)
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-            Spacer(minLength: 8)
-            if let value {
-                Text(value)
-                    .font(.body)
-                    .foregroundStyle(Color.keaserSecondaryText)
+                Spacer(minLength: 8)
+            } else {
+                titleText
                     .lineLimit(1)
+                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                Spacer(minLength: 8)
+                if let value {
+                    valueText(value)
+                        .lineLimit(1)
+                }
             }
             if let accessory {
                 Image(systemName: accessory)
-                    .font(.system(size: 13, weight: .semibold))
+                    .keaserFont(13, weight: .semibold, relativeTo: .footnote)
                     .foregroundStyle(Color.keaserSecondaryText)
                     .accessibilityHidden(true)
             }
@@ -271,5 +296,17 @@ struct CompactRow: View {
         .frame(minHeight: 52)
         .cardSeparatorTrailing()
         .contentShape(Rectangle())
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.body)
+            .foregroundStyle(.white)
+    }
+
+    private func valueText(_ value: String) -> some View {
+        Text(value)
+            .font(.body)
+            .foregroundStyle(Color.keaserSecondaryText)
     }
 }

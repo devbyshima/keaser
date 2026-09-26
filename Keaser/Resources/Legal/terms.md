@@ -46,4 +46,4 @@ We may update these terms with a new version of the app. Using the app after an 
 
 ## Contact
 
-Reach us through Settings > Help & Feedback.
+Reach us through the support link on Keaser's App Store page.

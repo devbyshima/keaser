@@ -89,3 +89,18 @@ extension View {
             .keaserGlass(in: Circle(), interactive: true)
     }
 }
+
+extension View {
+    /// Pins `content` under scrolling content, like a toolbar. On iOS 26 it
+    /// is a safe area bar, so the system's scroll edge effect softens what
+    /// scrolls beneath it; plain `safeAreaInset` content gets no such effect.
+    /// Before iOS 26, give `content` its own backing.
+    @ViewBuilder
+    func keaserBottomBar(@ViewBuilder _ content: () -> some View) -> some View {
+        if #available(iOS 26.0, *) {
+            self.safeAreaBar(edge: .bottom, content: content)
+        } else {
+            self.safeAreaInset(edge: .bottom, content: content)
+        }
+    }
+}

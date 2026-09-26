@@ -13,6 +13,8 @@ new-payment-method | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPag
 currency | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage currency
 start-week | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage startWeek
 smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions
+weekly-summary | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage weeklySummary
+weekly-summary-denied | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage weeklySummary -KeaserNotifState denied
 shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
 tutorials | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorials
 tutorial-wallet | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet

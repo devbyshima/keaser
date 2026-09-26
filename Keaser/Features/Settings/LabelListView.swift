@@ -29,6 +29,9 @@ struct LabelListView: View {
     @State private var pendingDelete: LabelItem?
     @State private var editMode: EditMode = .inactive
     @State private var didOpen = false
+    /// Counts saves and deletions, for the same success haptic as deleting
+    /// an expense.
+    @State private var committedChanges = 0
 
     private enum EditorTarget: Identifiable {
         case new
@@ -108,11 +111,16 @@ struct LabelListView: View {
         .sheet(item: $editor) { target in
             switch target {
             case .new:
-                LabelEditorSheet(kind: kind, accountID: accountID, existing: nil, startingSymbol: startingSymbol(items))
+                LabelEditorSheet(kind: kind, accountID: accountID, existing: nil, startingSymbol: startingSymbol(items)) {
+                    committedChanges += 1
+                }
             case .edit(let item):
-                LabelEditorSheet(kind: kind, accountID: accountID, existing: item, startingSymbol: item.symbol)
+                LabelEditorSheet(kind: kind, accountID: accountID, existing: item, startingSymbol: item.symbol) {
+                    committedChanges += 1
+                }
             }
         }
+        .sensoryFeedback(.success, trigger: committedChanges)
         .confirmationDialog(
             "Delete \u{201C}\(pendingDelete?.name ?? "")\u{201D}?",
             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
@@ -121,6 +129,7 @@ struct LabelListView: View {
         ) { item in
             Button("Delete \(kind.singularTitle)", role: .destructive) {
                 withAnimation { store.deleteLabel(kind, id: item.id, in: accountID) }
+                committedChanges += 1
             }
             Button("Cancel", role: .cancel) {}
         } message: { item in
@@ -148,7 +157,7 @@ struct LabelListView: View {
         case .category:
             return uses == 0
                 ? "No expenses use this category."
-                : "\(noun) this category. They will be kept and become uncategorised."
+                : "\(noun) this category. They will be kept and become uncategorized."
         case .paymentMethod:
             return uses == 0
                 ? "No expenses use this payment method."
@@ -161,13 +170,19 @@ struct LabelListView: View {
 private struct LabelRow: View {
     let item: LabelItem
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         HStack(spacing: 16) {
             SettingsSymbol(symbol: item.symbol, size: 44, pointSize: 21)
             Text(item.name)
-                .font(.system(size: 17, weight: .semibold))
+                .keaserFont(17, weight: .semibold, relativeTo: .headline)
                 .foregroundStyle(.white)
-                .lineLimit(1)
+                // At accessibility sizes a name of several words may wrap,
+                // but a single long word ("Transportation") shrinks rather
+                // than break in the middle.
+                .lineLimit(dynamicTypeSize.isAccessibilitySize && item.name.contains(" ") ? 2 : 1)
+                .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 0.6 : 1)
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             Spacer(minLength: 0)
         }

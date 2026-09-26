@@ -85,7 +85,7 @@ private struct MarkdownBlockView: View {
         switch block {
         case .heading(let level, let text):
             Text(inline(text))
-                .font(level == 1 ? .system(size: 28, weight: .bold) : .system(size: 19, weight: .semibold))
+                .keaserFont(level == 1 ? 28 : 19, weight: level == 1 ? .bold : .semibold, relativeTo: level == 1 ? .title : .title3)
                 .foregroundStyle(.white)
                 .padding(.top, level == 1 ? 0 : 10)
                 .accessibilityAddTraits(.isHeader)

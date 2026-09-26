@@ -10,6 +10,7 @@ enum SettingsPage: Hashable {
     case currency
     case startWeek
     case smartSuggestions
+    case weeklySummary
     case shortcut
     case tutorials
     case tutorial(Tutorial.ID)
@@ -29,6 +30,7 @@ enum SettingsPage: Hashable {
         case .currency: CurrencyPickerView()
         case .startWeek: StartWeekView()
         case .smartSuggestions: SmartSuggestionsView()
+        case .weeklySummary: WeeklySummaryView()
         case .shortcut: ShortcutSettingsView()
         case .tutorials: TutorialsView()
         case .tutorial(let id): TutorialDetailView(tutorial: Tutorials.tutorial(id))
@@ -57,6 +59,7 @@ enum SettingsPage: Hashable {
         case "currency": return [.currency]
         case "startWeek": return [.startWeek]
         case "smartSuggestions": return [.smartSuggestions]
+        case "weeklySummary": return [.weeklySummary]
         case "shortcut": return [.shortcut]
         case "tutorials": return [.tutorials]
         case "tutorialShortcut": return [.tutorials, .tutorial(.addExpenseShortcut)]
