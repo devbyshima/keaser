@@ -166,17 +166,28 @@ private struct AccountRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        // At accessibility sizes the decorative icon goes and the name lines
+        // up with the Add Account row; in edit mode it also drops the side
+        // margins, where the list adds its own controls. A name then keeps
+        // enough width to wrap between words.
+        let isLarge = dynamicTypeSize.isAccessibilitySize
+        let leading: CGFloat = isLarge ? (isEditing ? 0 : 16) : 22
+        let trailing: CGFloat = isLarge && isEditing ? 0 : 24
+        // The separator starts under the name.
+        let separatorLeading: CGFloat = isLarge ? leading : 62
         Button(action: action) {
             HStack(spacing: 16) {
-                Image(systemName: "person.fill")
-                    .font(.body)
-                    .foregroundStyle(Color.keaserPrimaryText)
-                    .frame(minWidth: 24)
-                    .accessibilityHidden(true)
+                if !isLarge {
+                    Image(systemName: "person.fill")
+                        .font(.body)
+                        .foregroundStyle(Color.keaserPrimaryText)
+                        .frame(minWidth: 24)
+                        .accessibilityHidden(true)
+                }
                 Text(account.name)
                     .font(.body)
                     .foregroundStyle(Color.keaserPrimaryText)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                    .lineLimit(isLarge ? 3 : 1)
                 Spacer(minLength: 8)
                 if isSelected && !isEditing {
                     Image(systemName: "checkmark")
@@ -187,15 +198,15 @@ private struct AccountRow: View {
                         .accessibilityHidden(true)
                 }
             }
-            .padding(.leading, 22)
-            .padding(.trailing, 24)
+            .padding(.leading, leading)
+            .padding(.trailing, trailing)
             .frame(minHeight: 72)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .overlay(alignment: .bottom) {
             if showsSeparator {
-                KeaserRowSeparator(leading: 62)
+                KeaserRowSeparator(leading: separatorLeading)
             }
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])

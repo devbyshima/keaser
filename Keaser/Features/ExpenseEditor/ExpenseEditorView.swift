@@ -425,15 +425,20 @@ private struct SuggestionRow: View {
     }
 }
 
-/// The trailing value of a menu row: "None" with up and down chevrons.
+/// The trailing value of a menu row: "None" with up and down chevrons. At
+/// accessibility sizes the value has its own line under the label and wraps
+/// there rather than being cut short.
 private struct MenuValueLabel: View {
     let text: String
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(spacing: 4) {
             Text(text)
                 .font(.body)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                .multilineTextAlignment(.trailing)
             Image(systemName: "chevron.up.chevron.down")
                 .font(.caption.weight(.semibold))
         }
