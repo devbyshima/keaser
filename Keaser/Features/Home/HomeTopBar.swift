@@ -15,24 +15,26 @@ struct HomeTopBar<FilterMenu: View>: View {
     let onSettings: () -> Void
     @ViewBuilder var filterMenu: FilterMenu
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         KeaserGlassContainer(spacing: 12) {
             HStack(spacing: 10) {
                 if isSearching {
                     searchField
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(slide(from: .trailing))
                     cancelButton
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(slide(from: .trailing))
                 } else {
                     accountButton
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        .transition(slide(from: .leading))
                     Spacer(minLength: 0)
                     tools
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(slide(from: .trailing))
                 }
             }
         }
-        .frame(height: HomeLayout.topBarHeight)
+        .frame(minHeight: HomeLayout.topBarHeight)
         .padding(.horizontal, KeaserMetrics.screenPadding)
         .background(alignment: .top) {
             // Content scrolling under the bar fades out instead of clashing
@@ -44,18 +46,29 @@ struct HomeTopBar<FilterMenu: View>: View {
         }
     }
 
+    /// Controls slide in from their edge, or only fade with Reduce Motion.
+    private func slide(from edge: Edge) -> AnyTransition {
+        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
+    }
+
+    // Like a system toolbar, the bar's text stops growing at the largest
+    // standard size (it has to stay one row tall); the Large Content Viewer
+    // shows each control bigger at accessibility sizes. The cap is applied to
+    // the labels only, so the buttons still see the real text size.
+
     private var accountButton: some View {
         Button(action: onAccounts) {
             HStack(spacing: 5) {
                 Text(accountName)
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.body.weight(.medium))
                     .lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
             }
             .foregroundStyle(Color.keaserPrimaryText)
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .padding(.horizontal, 17)
-            .frame(height: HomeLayout.topBarHeight)
+            .frame(minHeight: HomeLayout.topBarHeight)
             .frame(maxWidth: 210, alignment: .leading)
             .fixedSize(horizontal: true, vertical: false)
             .contentShape(Capsule())
@@ -64,6 +77,9 @@ struct HomeTopBar<FilterMenu: View>: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Account: \(accountName)")
         .accessibilityHint("Switch or manage accounts")
+        .accessibilityShowsLargeContentViewer {
+            Label(accountName, systemImage: "chevron.up.chevron.down")
+        }
     }
 
     private var tools: some View {
@@ -72,11 +88,17 @@ struct HomeTopBar<FilterMenu: View>: View {
                 HomeToolIcon(symbol: "magnifyingglass")
             }
             .accessibilityLabel("Search")
+            .accessibilityShowsLargeContentViewer {
+                Label("Search", systemImage: "magnifyingglass")
+            }
             filterMenu
             Button(action: onSettings) {
-                HomeToolIcon(symbol: "gearshape")
+                HomeToolIcon(symbol: "gear")
             }
             .accessibilityLabel("Settings")
+            .accessibilityShowsLargeContentViewer {
+                Label("Settings", systemImage: "gear")
+            }
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 0.5)
@@ -86,12 +108,14 @@ struct HomeTopBar<FilterMenu: View>: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 17, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(Color.keaserSecondaryText)
-            TextField("", text: $searchText, prompt: Text("Search").foregroundStyle(Color.keaserSecondaryText))
-                .font(.system(size: 17))
+                .accessibilityHidden(true)
+            TextField("Search", text: $searchText, prompt: Text("Search").foregroundStyle(Color.keaserSecondaryText))
+                .font(.body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .focused(searchFocused)
+                .accessibilityLabel("Search")
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -100,19 +124,22 @@ struct HomeTopBar<FilterMenu: View>: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 17))
+                        .font(.body)
                         .foregroundStyle(Color.keaserSecondaryText)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // Taps across 44pt but takes the drawn 28pt in the row.
+                .padding(-8)
                 .accessibilityLabel("Clear Search")
-                .transition(.opacity.combined(with: .scale(scale: 0.6)))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.6)))
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .padding(.leading, 16)
         .padding(.trailing, 8)
-        .frame(height: HomeLayout.topBarHeight)
+        .frame(minHeight: HomeLayout.topBarHeight)
         .keaserGlass()
         .animation(.snappy(duration: 0.2), value: searchText.isEmpty)
     }
@@ -120,14 +147,16 @@ struct HomeTopBar<FilterMenu: View>: View {
     private var cancelButton: some View {
         Button(action: onCancelSearch) {
             Text("Cancel")
-                .font(.system(size: 17, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(Color.keaserPrimaryText)
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .padding(.horizontal, 16)
-                .frame(height: HomeLayout.topBarHeight)
+                .frame(minHeight: HomeLayout.topBarHeight)
                 .contentShape(Capsule())
                 .keaserGlass(interactive: true)
         }
         .buttonStyle(.plain)
+        .accessibilityShowsLargeContentViewer()
     }
 }
 
@@ -137,9 +166,11 @@ struct HomeToolIcon: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 21, weight: .medium))
+            .keaserFont(21, weight: .medium, relativeTo: .title3)
             .foregroundStyle(Color.keaserPrimaryText)
-            .frame(width: 47, height: HomeLayout.topBarHeight)
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .frame(width: 47)
+            .frame(minHeight: HomeLayout.topBarHeight)
             .contentShape(Rectangle())
     }
 }
@@ -196,6 +227,9 @@ struct HomeFilterMenu: View {
         .menuOrder(.fixed)
         .accessibilityLabel("Filters")
         .accessibilityValue(accessibilitySummary)
+        .accessibilityShowsLargeContentViewer {
+            Label("Filters", systemImage: "line.3.horizontal.decrease")
+        }
     }
 
     private var isNarrowed: Bool { categoryID != nil || paymentMethodID != nil }

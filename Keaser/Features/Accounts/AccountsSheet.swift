@@ -1,6 +1,5 @@
 import KeaserKit
 import SwiftUI
-import UIKit
 
 /// The account switcher: every account with a checkmark on the selected one,
 /// and an Add Account row. Edit reorders and deletes.
@@ -13,20 +12,25 @@ struct AccountsSheet: View {
     @State private var accountToDelete: Account?
     @State private var isAddingAccount = false
     @State private var paywallShown = false
+    @State private var selectedCount = 0
+    @State private var deletedCount = 0
 
     private var isEditing: Bool { editMode.isEditing }
 
     var body: some View {
         VStack(spacing: 0) {
-            HomeSheetHeader(title: "Accounts") {
-                HomeCircleButton(symbol: "xmark", accessibilityLabel: "Close", tint: Color(white: 0.72)) { dismiss() }
+            KeaserSheetHeader(title: "Accounts") {
+                KeaserCircleButton("xmark", label: "Close") { dismiss() }
+                    .accessibilityShowsLargeContentViewer { Label("Close", systemImage: "xmark") }
             } trailing: {
                 Button(isEditing ? "Done" : "Edit") {
                     withAnimation(.smooth(duration: 0.3)) { editMode = isEditing ? .inactive : .active }
                 }
                 .keaserGlassButtonStyle()
                 .disabled(store.accounts.isEmpty)
+                .accessibilityShowsLargeContentViewer()
             }
+            .homeSheetHeader()
             list
         }
         .presentationDetents([.medium, .large])
@@ -40,6 +44,7 @@ struct AccountsSheet: View {
         ) { account in
             Button("Delete Account", role: .destructive) {
                 withAnimation(.smooth(duration: 0.3)) { store.deleteAccount(account.id) }
+                deletedCount += 1
             }
             Button("Cancel", role: .cancel) {}
         } message: { account in
@@ -54,6 +59,8 @@ struct AccountsSheet: View {
         .onChange(of: store.accounts.isEmpty) { _, isEmpty in
             if isEmpty { dismiss() }
         }
+        .sensoryFeedback(.selection, trigger: selectedCount)
+        .sensoryFeedback(.success, trigger: deletedCount)
         #if DEBUG
         .onAppear {
             // `-KeaserAccountsEditing 1` opens in edit mode for screenshots.
@@ -77,7 +84,7 @@ struct AccountsSheet: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(
                     AccountsCardShape(isFirst: index == 0, isLast: index == store.accounts.count - 1)
-                        .fill(Color.keaserCardRaised)
+                        .fill(Color.keaserSheetCard)
                         .padding(.horizontal, 16)
                 )
             }
@@ -90,6 +97,7 @@ struct AccountsSheet: View {
 
             Color.clear
                 .frame(height: 34)
+                .accessibilityHidden(true)
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -98,7 +106,7 @@ struct AccountsSheet: View {
 
             Button(action: addAccount) {
                 Text("Add Account")
-                    .font(.system(size: 17))
+                    .font(.body)
                     .foregroundStyle(Color.keaserPrimaryText)
                     .frame(maxWidth: .infinity, minHeight: 49, alignment: .leading)
                     .padding(.horizontal, 16)
@@ -108,8 +116,8 @@ struct AccountsSheet: View {
             .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             .listRowSeparator(.hidden)
             .listRowBackground(
-                RoundedRectangle(cornerRadius: HomeSheetMetrics.cardRadius, style: .continuous)
-                    .fill(Color.keaserCardRaised)
+                RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous)
+                    .fill(Color.keaserSheetCard)
                     .padding(.horizontal, 16)
             )
             .deleteDisabled(true)
@@ -126,7 +134,7 @@ struct AccountsSheet: View {
     private func select(_ account: Account) {
         guard !isEditing else { return }
         store.selectAccount(account.id)
-        UISelectionFeedbackGenerator().selectionChanged()
+        selectedCount += 1
         dismiss()
     }
 
@@ -157,23 +165,28 @@ private struct AccountRow: View {
     let showsSeparator: Bool
     let action: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
                 Image(systemName: "person.fill")
-                    .font(.system(size: 17))
+                    .font(.body)
                     .foregroundStyle(Color.keaserPrimaryText)
-                    .frame(width: 24)
+                    .frame(minWidth: 24)
+                    .accessibilityHidden(true)
                 Text(account.name)
-                    .font(.system(size: 17))
+                    .font(.body)
                     .foregroundStyle(Color.keaserPrimaryText)
-                    .lineLimit(1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                 Spacer(minLength: 8)
                 if isSelected && !isEditing {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(Color.keaserPrimaryText)
                         .transition(.opacity)
+                        // The row itself carries the selected trait.
+                        .accessibilityHidden(true)
                 }
             }
             .padding(.leading, 22)
@@ -184,7 +197,7 @@ private struct AccountRow: View {
         .buttonStyle(.plain)
         .overlay(alignment: .bottom) {
             if showsSeparator {
-                HomeRowSeparator(leading: 62)
+                KeaserRowSeparator(leading: 62)
             }
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -198,7 +211,7 @@ private struct AccountsCardShape: Shape {
     let isLast: Bool
 
     func path(in rect: CGRect) -> Path {
-        let r = HomeSheetMetrics.cardRadius
+        let r = KeaserMetrics.cardRadius
         return UnevenRoundedRectangle(
             topLeadingRadius: isFirst ? r : 0,
             bottomLeadingRadius: isLast ? r : 0,

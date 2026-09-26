@@ -46,7 +46,9 @@ struct KeaserSheetHeader<Leading: View, Trailing: View>: View {
 
     var body: some View {
         CenteredTitleLayout(spacing: 8) {
-            leading
+            // Wrapped so an empty side (EmptyView) still counts as one
+            // subview; the layout expects exactly three.
+            HStack(spacing: 0) { leading }
             Text(title)
                 .font(.headline)
                 .foregroundStyle(Color.keaserPrimaryText)
@@ -54,7 +56,7 @@ struct KeaserSheetHeader<Leading: View, Trailing: View>: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
                 .accessibilityAddTraits(.isHeader)
-            trailing
+            HStack(spacing: 0) { trailing }
         }
         .frame(minHeight: 44)
     }

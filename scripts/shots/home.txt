@@ -17,3 +17,4 @@ search | -KeaserSeed demo -KeaserSheet search -KeaserSearch co
 search-empty | -KeaserSeed demo -KeaserSheet search -KeaserSearch zzz
 accounts-editing | -KeaserSeed demo -KeaserSheet accounts -KeaserAccountsEditing 1
 suggestions | -KeaserSeed demo -KeaserSheet newExpense -KeaserExpenseTitle G
+guess | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Outing -KeaserExpenseFocus amount

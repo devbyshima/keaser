@@ -8,21 +8,26 @@ struct HomeSummaryCard: View {
     let caption: String
     let total: Decimal
     let currencyCode: String
+    let period: Period
+    let calendar: Calendar
     let buckets: [SpendingChart.Bucket]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(caption)
-                .font(.system(size: 17))
-                .foregroundStyle(Color.keaserSecondaryText)
-            Text(MoneyFormat.string(total, currencyCode: currencyCode))
-                .font(.keaserHero)
-                .foregroundStyle(Color.keaserPrimaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .contentTransition(.numericText(value: total.doubleValue))
-                .padding(.top, 8.5)
-            HomeSpendingChart(buckets: buckets)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(caption)
+                    .keaserFont(17, relativeTo: .body)
+                    .foregroundStyle(Color.keaserSecondaryText)
+                Text(MoneyFormat.string(total, currencyCode: currencyCode))
+                    .keaserFont(40, weight: .bold, relativeTo: .largeTitle)
+                    .foregroundStyle(Color.keaserPrimaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .contentTransition(.numericText(value: total.doubleValue))
+                    .padding(.top, 8.5)
+            }
+            .accessibilityElement(children: .combine)
+            HomeSpendingChart(buckets: buckets, period: period, calendar: calendar, currencyCode: currencyCode)
                 .frame(height: 200)
                 .padding(.top, 40)
         }
@@ -31,14 +36,17 @@ struct HomeSummaryCard: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.keaserCard, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 }
 
 /// White bars with rounded tops over horizontal grid lines, values on the
-/// trailing edge, as in the reference.
+/// trailing edge, as in the reference. VoiceOver reads each bar as its day,
+/// month or hours and the amount spent.
 struct HomeSpendingChart: View {
     let buckets: [SpendingChart.Bucket]
+    let period: Period
+    let calendar: Calendar
+    let currencyCode: String
 
     var body: some View {
         Chart(buckets) { bucket in
@@ -49,13 +57,15 @@ struct HomeSpendingChart: View {
             )
             .foregroundStyle(Color.white)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: barRadius, topTrailingRadius: barRadius, style: .continuous))
+            .accessibilityLabel(SpendingChart.spokenName(of: bucket, period: period, calendar: calendar))
+            .accessibilityValue(MoneyFormat.string(bucket.total, currencyCode: currencyCode))
         }
         .chartXAxis {
             AxisMarks(values: buckets.filter(\.showsLabel).map { key($0.index) }) { value in
                 AxisValueLabel(centered: true, verticalSpacing: 4) {
                     if let key = value.as(String.self), let bucket = bucket(for: key) {
                         Text(bucket.label)
-                            .font(.system(size: 11))
+                            .font(.caption2)
                             .foregroundStyle(Color.keaserSecondaryText)
                             .fixedSize()
                     }
@@ -69,15 +79,18 @@ struct HomeSpendingChart: View {
                 AxisValueLabel {
                     if let amount = value.as(Double.self) {
                         Text(amount, format: .number.notation(.compactName))
-                            .font(.system(size: 11))
+                            .font(.caption2)
                             .foregroundStyle(Color.keaserSecondaryText)
                     }
                 }
             }
         }
         .chartYScale(domain: 0...(ticks.last ?? 20))
+        // The chart has a fixed height and unwrapped axis labels, so its
+        // text stops growing where labels would start to collide; bar values
+        // are read by VoiceOver.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .animation(.smooth(duration: 0.35), value: buckets)
-        .accessibilityLabel("Spending chart")
     }
 
     /// Charts treats strings as categories, which keeps every bar in its own

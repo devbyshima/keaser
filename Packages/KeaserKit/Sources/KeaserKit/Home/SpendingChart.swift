@@ -74,6 +74,33 @@ public enum SpendingChart {
         }
     }
 
+    /// What VoiceOver says for a bar, fuller than its axis label: "4 AM to
+    /// 8 AM", "Monday, September 21", "September 15", "September 2026",
+    /// "2026".
+    public static func spokenName(
+        of bucket: Bucket,
+        period: Period,
+        calendar: Calendar,
+        locale: Locale = .current
+    ) -> String {
+        func string(_ date: Date, _ template: String) -> String {
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.locale = locale
+            formatter.timeZone = calendar.timeZone
+            formatter.setLocalizedDateFormatFromTemplate(template)
+            return formatter.string(from: date)
+        }
+        let start = bucket.interval.start
+        switch period {
+        case .today: return "\(string(start, "j")) to \(string(bucket.interval.end, "j"))"
+        case .thisWeek: return string(start, "EEEEMMMMd")
+        case .thisMonth: return string(start, "MMMMd")
+        case .thisYear: return string(start, "MMMMyyyy")
+        case .allTime: return string(start, "yyyy")
+        }
+    }
+
     /// Only the calendar day of `Expense.date` is meaningful, so the hour
     /// comes from when the expense was logged if that was the same day.
     public static func timeOfDay(of expense: Expense, calendar: Calendar) -> Date {
