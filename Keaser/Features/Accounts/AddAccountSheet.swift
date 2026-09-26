@@ -132,6 +132,7 @@ struct AddAccountSheet: View {
                 .font(.body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .focused($nameFocused)
+                .accessibilityLabel("Account name")
                 .textInputAutocapitalization(.words)
                 .onSubmit(create)
                 .padding(.horizontal, 16)

@@ -108,6 +108,16 @@ struct ExpenseEditorView: View {
             if isNew, let typed = DebugLaunch.string("KeaserExpenseTitle") { title = typed }
             #endif
             focus = .title
+            #if DEBUG
+            // `-KeaserExpenseFocus amount` then moves on to the amount, as
+            // Return does, to screenshot the guessed labels.
+            if DebugLaunch.string("KeaserExpenseFocus") == "amount" {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(600))
+                    focus = .amount
+                }
+            }
+            #endif
         }
         .onChange(of: focus) { old, new in
             // Moving on from the title is when the reference guesses its
@@ -157,6 +167,8 @@ struct ExpenseEditorView: View {
             .font(.body)
             .foregroundStyle(Color.keaserPrimaryText)
             .focused($focus, equals: .title)
+            // With a prompt, the field's title is not read out on its own.
+            .accessibilityLabel("Title")
             .textInputAutocapitalization(.sentences)
             .onSubmit { focus = .amount }
             .editorRow()
@@ -174,6 +186,7 @@ struct ExpenseEditorView: View {
             .multilineTextAlignment(.trailing)
             .keyboardType(.decimalPad)
             .focused($focus, equals: .amount)
+            .accessibilityLabel("Amount")
             .onChange(of: amountDisplay) { _, typed in
                 // Re-derive what the field shows so the symbol stays in front
                 // and stray characters never stick.
@@ -227,7 +240,9 @@ struct ExpenseEditorView: View {
     }
 
     private var dateRow: some View {
-        EditorField("Date") {
+        // The compact picker reads as "Date Picker" whatever its label, so
+        // the row's own label stays spoken here.
+        EditorField("Date", speaksLabel: true) {
             DatePicker("Date", selection: $date, displayedComponents: .date)
                 .datePickerStyle(.compact)
                 .labelsHidden()
@@ -325,18 +340,21 @@ struct ExpenseEditorView: View {
 
 /// A labelled row of the editor card: the label on the leading side and the
 /// control on the trailing side, or the control under the label at
-/// accessibility text sizes. The control carries the label for VoiceOver.
+/// accessibility text sizes. The control carries the label for VoiceOver
+/// unless `speaksLabel` is set.
 private struct EditorField<Control: View>: View {
     let label: String
     /// True for a text field, which takes the rest of the row itself.
     var fillsRow = false
+    var speaksLabel = false
     @ViewBuilder var control: Control
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    init(_ label: String, fillsRow: Bool = false, @ViewBuilder control: () -> Control) {
+    init(_ label: String, fillsRow: Bool = false, speaksLabel: Bool = false, @ViewBuilder control: () -> Control) {
         self.label = label
         self.fillsRow = fillsRow
+        self.speaksLabel = speaksLabel
         self.control = control()
     }
 
@@ -351,7 +369,7 @@ private struct EditorField<Control: View>: View {
                 .foregroundStyle(Color.keaserPrimaryText)
                 .fixedSize()
                 .frame(maxWidth: stacked ? .infinity : nil, alignment: .leading)
-                .accessibilityHidden(true)
+                .accessibilityHidden(!speaksLabel)
             if !stacked && !fillsRow {
                 Spacer(minLength: 8)
             }

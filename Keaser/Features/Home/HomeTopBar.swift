@@ -115,6 +115,7 @@ struct HomeTopBar<FilterMenu: View>: View {
                 .font(.body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .focused(searchFocused)
+                .accessibilityLabel("Search")
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
