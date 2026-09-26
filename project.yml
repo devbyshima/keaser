@@ -37,7 +37,12 @@ targets:
     type: application
     platform: iOS
     sources:
-      - Keaser
+      - path: Keaser
+        excludes:
+          - Resources/Keaser.storekit
+      # Only the scheme uses it (local StoreKit testing); never ship it.
+      - path: Keaser/Resources/Keaser.storekit
+        buildPhase: none
       # Widget views and the account entity, shared so onboarding draws the
       # real widget and the Add Expense shortcut can pick an account.
       - KeaserWidgets/Shared

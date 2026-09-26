@@ -42,7 +42,7 @@ public enum ExpenseQuery {
         let query = normalized(filter.searchText)
         return expenses
             .filter { expense in
-                if let interval, !interval.contains(expense.date) { return false }
+                if let interval, !interval.holds(expense.date) { return false }
                 if let id = filter.categoryID, expense.categoryID != id { return false }
                 if let id = filter.paymentMethodID, expense.paymentMethodID != id { return false }
                 if !query.isEmpty, !normalized(expense.title).contains(query) { return false }

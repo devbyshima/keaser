@@ -16,7 +16,7 @@ struct HomeSummaryCard: View {
                 .font(.system(size: 17))
                 .foregroundStyle(Color.keaserSecondaryText)
             Text(MoneyFormat.string(total, currencyCode: currencyCode))
-                .font(HomeLayout.heroFont)
+                .font(.keaserHero)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)

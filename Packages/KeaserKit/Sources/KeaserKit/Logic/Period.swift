@@ -48,3 +48,12 @@ public enum Period: String, CaseIterable, Codable, Sendable, Identifiable {
     /// feature.
     public var isLongTerm: Bool { self == .thisYear || self == .allTime }
 }
+
+extension DateInterval {
+    /// `start <= date < end`. Use this, never `contains`, for expenses:
+    /// `contains` includes `end`, so an expense dated exactly at midnight
+    /// (the usual case) would land in two adjacent days, weeks or months.
+    public func holds(_ date: Date) -> Bool {
+        date >= start && date < end
+    }
+}

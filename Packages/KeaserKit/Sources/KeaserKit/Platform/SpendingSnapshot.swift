@@ -94,7 +94,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
             state: isPro ? .ready : .locked,
             period: period,
             accountName: account.name,
-            total: account.spending(in: period.interval(containing: now, calendar: calendar)),
+            total: account.total(in: period.interval(containing: now, calendar: calendar)),
             currencyCode: preferences.currencyCode,
             bars: bars(for: account, period: period, now: now, calendar: calendar)
         )
@@ -155,7 +155,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
                 return Bar(
                     id: index,
                     label: symbols[calendar.component(.month, from: start) - 1],
-                    amount: account.spending(in: interval),
+                    amount: account.total(in: interval),
                     isCurrent: interval.holds(now)
                 )
             }
@@ -164,7 +164,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
             let years = (0..<5).reversed().compactMap { calendar.date(byAdding: .year, value: -$0, to: thisYear.start) }
             return years.enumerated().compactMap { index, start in
                 guard let interval = calendar.dateInterval(of: .year, for: start) else { return nil }
-                return Bar(id: index, label: String(calendar.component(.year, from: start) % 100), amount: account.spending(in: interval), isCurrent: interval.holds(now))
+                return Bar(id: index, label: String(calendar.component(.year, from: start) % 100), amount: account.total(in: interval), isCurrent: interval.holds(now))
             }
         }
     }
@@ -178,7 +178,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
     ) -> [Bar] {
         days.enumerated().compactMap { index, day in
             guard let interval = calendar.dateInterval(of: .day, for: day) else { return nil }
-            return Bar(id: index, label: label(day, calendar), amount: account.spending(in: interval), isCurrent: day == today)
+            return Bar(id: index, label: label(day, calendar), amount: account.total(in: interval), isCurrent: day == today)
         }
     }
 

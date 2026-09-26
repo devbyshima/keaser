@@ -75,10 +75,10 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         expenses.sorted { ($0.date, $0.createdAt) > ($1.date, $1.createdAt) }
     }
 
-    /// Sum of expenses whose date falls in `interval`; all expenses when nil.
+    /// Sum of expenses dated in `interval` (half-open); all expenses when nil.
     public func total(in interval: DateInterval?) -> Decimal {
         expenses.reduce(into: Decimal(0)) { sum, expense in
-            if interval.map({ $0.contains(expense.date) }) ?? true { sum += expense.amount }
+            if interval.map({ $0.holds(expense.date) }) ?? true { sum += expense.amount }
         }
     }
 }

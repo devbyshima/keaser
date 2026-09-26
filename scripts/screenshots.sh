@@ -14,7 +14,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE_ID="com.fulltimestudio.keaser"
-SETTLE="${SETTLE:-3}"
+SETTLE="${SETTLE:-5}"
 OUT="${OUT:-$ROOT/screenshots}"
 UDID="$("$ROOT/scripts/sim.sh")"
 
@@ -24,6 +24,10 @@ APP="$ROOT/.build/Build/Products/Debug-iphonesimulator/Keaser.app"
 
 echo "==> Booting $UDID"
 xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || true
+# English only: a long preferred-language list (Thai, Arabic...) makes iOS
+# inflate line heights, so text would not measure like the reference.
+xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array en-US en >/dev/null 2>&1 || true
+xcrun simctl spawn "$UDID" defaults write -g AppleLocale en_US >/dev/null 2>&1 || true
 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 >/dev/null 2>&1 || true
 # A fresh install each run, so no shot inherits state from the previous run.
 xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true

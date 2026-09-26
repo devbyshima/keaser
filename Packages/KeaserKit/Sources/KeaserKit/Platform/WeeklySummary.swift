@@ -57,7 +57,7 @@ public enum WeeklySummary {
             fireDate: fire,
             week: week,
             title: title,
-            body: body(total: account.spending(in: week), currencyCode: preferences.currencyCode, locale: locale)
+            body: body(total: account.total(in: week), currencyCode: preferences.currencyCode, locale: locale)
         )
     }
 

@@ -17,9 +17,6 @@ struct NotionConnectView: View {
 
     var body: some View {
         content
-            // The reference was recorded at a larger text size; keep that
-            // look while still honouring anything larger.
-            .dynamicTypeSize(.xLarge ... .accessibility3)
             .interactiveDismissDisabled(model.isBusy)
             .keaserSheetChrome()
             // Swiping the sheet away counts as cancelling.

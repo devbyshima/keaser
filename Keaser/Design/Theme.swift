@@ -10,7 +10,7 @@ extension Color {
     /// Controls sitting on a card (icon tiles, date pill, text fields).
     static let keaserCardRaised = Color(red: 44 / 255, green: 44 / 255, blue: 46 / 255)
     /// Hairlines between rows.
-    static let keaserSeparator = Color.white.opacity(0.08)
+    static let keaserSeparator = Color.white.opacity(0.12)
     static let keaserPrimaryText = Color.white
     static let keaserSecondaryText = Color(white: 0.56)
     static let keaserTertiaryText = Color(white: 0.36)
@@ -22,12 +22,13 @@ enum KeaserMetrics {
     static let cardRadius: CGFloat = 26
     static let rowRadius: CGFloat = 22
     static let tileRadius: CGFloat = 12
-    static let primaryButtonHeight: CGFloat = 52
+    static let primaryButtonHeight: CGFloat = 58
 }
 
 extension Font {
-    /// The big total on Home ("$20.00").
-    static let keaserHero = Font.system(size: 34, weight: .bold, design: .default)
-    /// Onboarding page titles.
-    static let keaserTitle = Font.system(size: 24, weight: .semibold)
+    /// The big total on Home ("$20.00"): 40pt bold in the reference.
+    static let keaserHero = Font.system(size: 40, weight: .bold)
+    /// Onboarding and sheet page titles: Title 1 semibold (28pt at the
+    /// default text size).
+    static let keaserTitle = Font.title.weight(.semibold)
 }

@@ -4,9 +4,6 @@ import SwiftUI
 /// Home's measurements, taken from the reference recording (points on a
 /// 402pt wide screen).
 enum HomeLayout {
-    /// The total on the summary card. The reference draws it at 40pt bold,
-    /// larger than the shared `Font.keaserHero`.
-    static let heroFont = Font.system(size: 40, weight: .bold)
     /// From the bottom of the top bar to the summary card.
     static let contentTop: CGFloat = 45
     static let topBarHeight: CGFloat = 44
