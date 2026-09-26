@@ -57,10 +57,11 @@ public struct Preferences: Codable, Hashable, Sendable {
     public var trialStartDate: Date?
     /// Cached StoreKit entitlement, so the widget extension can read it.
     public var hasProPurchase: Bool
-    /// When the cached purchase stops granting Pro: the subscription's
-    /// renewal date, or the end of its billing grace period. Nil for a
-    /// lifetime purchase. Lets the widget lock itself when a subscription
-    /// lapses, without asking StoreKit.
+    /// When the cached purchase stops granting Pro. Nil for a lifetime
+    /// purchase. For a subscription it is the period end, plus a short
+    /// allowance when it will auto-renew, or the end of a billing grace
+    /// period. Once it passes, the app and the widget confirm with StoreKit
+    /// before treating the subscription as lapsed.
     public var proExpirationDate: Date?
     public var selectedAccountID: UUID?
 

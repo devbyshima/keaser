@@ -129,7 +129,7 @@ private struct NotionIntroStep: View {
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.keaserSecondaryText)
-                NotionMark(size: 64, style: .outlined)
+                NotionMark(size: 64)
             }
             .accessibilityHidden(true)
             VStack(spacing: 8) {
@@ -485,7 +485,7 @@ private struct NotionReviewStep: View {
                             NotionRow(title: source.displayTitle, subtitle: model.user?.workspaceName ?? "Notion") {
                                 NotionEmojiTile(emoji: source.iconEmoji)
                             } trailing: {
-                                NotionMark(size: 24, style: .outlined)
+                                NotionMark(size: 24)
                             }
                         }
                         .padding(.horizontal, 16)

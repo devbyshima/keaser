@@ -86,7 +86,7 @@ struct AddAccountSheet: View {
                 .homeSheetHeader()
             KeaserCard(fill: .keaserSheetCard) {
                 AddAccountChoiceRow(title: "Connect to Notion") {
-                    NotionMark(size: notionMarkSize, style: .outlined)
+                    NotionMark(size: notionMarkSize)
                 } action: {
                     guard !needsPro else { paywallShown = true; return }
                     isConnectingNotion = true

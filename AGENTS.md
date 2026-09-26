@@ -85,7 +85,10 @@ Seeded launches keep the database in memory and never touch the real file.
 - Pro features (`ProFeature`): Widgets, More Filters (category and payment
   filters), Multiple Accounts (more than one account), Long-term Insights
   (This Year and All Time periods). Gate on `ProStore.isPro` in the app and
-  `ProEntitlement.isPro(_:now:)` in the widget.
+  `ProEntitlement.isPro(_:now:)` in the widget. The purchase is cached in
+  `Preferences` (`hasProPurchase`, `proExpirationDate`); when the cached end
+  passes, the widget confirms with StoreKit before locking
+  (`ProEntitlement.needsStoreKitCheck`).
 
 ## Where things live
 

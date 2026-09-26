@@ -224,7 +224,7 @@ struct NotionIllustration: View {
                 KeaserLogo(size: 90)
                     .frame(width: 100, height: 100)
                 TravellingDots()
-                NotionMark(size: 100, style: .outlined)
+                NotionMark(size: 100)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Keaser linked with Notion")

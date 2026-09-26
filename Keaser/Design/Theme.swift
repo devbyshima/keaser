@@ -35,7 +35,6 @@ enum KeaserMetrics {
     static let screenPadding: CGFloat = 16
     static let cardRadius: CGFloat = 26
     static let rowRadius: CGFloat = 24
-    static let tileRadius: CGFloat = 12
     static let primaryButtonHeight: CGFloat = 58
 }
 
