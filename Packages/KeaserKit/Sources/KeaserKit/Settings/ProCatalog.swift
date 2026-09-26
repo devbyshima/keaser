@@ -25,27 +25,65 @@ public enum ProProduct: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// How long past its renewal date a subscription that is set to renew
+    /// keeps Pro in the cache. The App Store charges a renewal in the day
+    /// before that date, but the new transaction only reaches Keaser when
+    /// the app runs, so without this a paying subscriber would look lapsed
+    /// at every renewal. Once it is over, the widget and the app ask StoreKit
+    /// again before they lock (`ProEntitlement.needsStoreKitCheck`). It is
+    /// also as long as Pro can outlive a cancellation that the app has not
+    /// seen yet.
+    public static let renewalAllowance: TimeInterval = 86_400
+
     /// What one StoreKit transaction grants: nothing for another product or
     /// a refunded or revoked one, Pro for good for a purchase that does not
-    /// expire, and Pro until the later of its expiry and `gracePeriodEnd` for
-    /// the subscription.
+    /// expire, and Pro until the end `renewal` allows for the subscription.
     ///
-    /// Pass `gracePeriodEnd` only while the subscription is in its billing
-    /// grace period: its transaction then carries the original, already past
-    /// expiry, and Pro continues until the grace period ends. A subscription
-    /// in billing retry without a grace period has no `gracePeriodEnd` and
-    /// grants nothing, as Apple recommends.
+    /// Pass `renewal` for the subscription (from its renewal info and
+    /// status). Without it, Pro ends at `expirationDate`.
     public static func grant(
         productID: String,
         revocationDate: Date?,
         expirationDate: Date?,
-        gracePeriodEnd: Date? = nil,
+        renewal: ProRenewal? = nil,
         now: Date
     ) -> ProGrant {
         guard ProProduct(rawValue: productID) != nil, revocationDate == nil else { return .none }
         guard let expirationDate else { return .forever }
-        let end = max(expirationDate, gracePeriodEnd ?? expirationDate)
+        let end = renewal?.end(expiringAt: expirationDate) ?? expirationDate
         return end > now ? .until(end) : .none
+    }
+}
+
+/// What StoreKit says about a subscription's next renewal: its
+/// `RenewalInfo`, and its `RenewalState` for the grace period.
+public struct ProRenewal: Equatable, Sendable {
+    /// Auto-renew is still on.
+    public var willAutoRenew: Bool
+    /// The App Store is retrying a renewal payment that failed.
+    public var isInBillingRetry: Bool
+    /// The end of the billing grace period, only while the subscription is
+    /// in it (`RenewalState.inGracePeriod`).
+    public var gracePeriodEnd: Date?
+
+    public init(willAutoRenew: Bool, isInBillingRetry: Bool = false, gracePeriodEnd: Date? = nil) {
+        self.willAutoRenew = willAutoRenew
+        self.isInBillingRetry = isInBillingRetry
+        self.gracePeriodEnd = gracePeriodEnd
+    }
+
+    /// When Pro ends for a subscription whose current period ends at
+    /// `expiration`:
+    /// - in the billing grace period, at the end of the grace period;
+    /// - in billing retry without a grace period, at `expiration` (already
+    ///   past), so it grants nothing, as Apple recommends;
+    /// - while it will renew, `ProProduct.renewalAllowance` after
+    ///   `expiration`, so the renewal date is not mistaken for a lapse;
+    /// - once auto-renew is off, at `expiration`.
+    public func end(expiringAt expiration: Date) -> Date {
+        if let gracePeriodEnd { return max(expiration, gracePeriodEnd) }
+        if willAutoRenew && !isInBillingRetry { return expiration.addingTimeInterval(ProProduct.renewalAllowance) }
+        return expiration
     }
 }
 
@@ -75,6 +113,12 @@ public enum ProGrant: Equatable, Sendable {
     public var expirationDate: Date? {
         if case .until(let date) = self { return date }
         return nil
+    }
+
+    /// Writes this grant into the cache the widget reads.
+    public func cache(in preferences: inout Preferences) {
+        preferences.hasProPurchase = hasPurchase
+        preferences.proExpirationDate = expirationDate
     }
 }
 
