@@ -9,7 +9,6 @@ enum HomeLayout {
     static let topBarHeight: CGFloat = 44
     static let addButtonSize: CGFloat = 64
     static let addButtonTrailing: CGFloat = 29
-    static let rowRadius: CGFloat = 24
     static let rowSpacing: CGFloat = 8
     /// Where the "No Expenses" block starts, below the top bar (measured
     /// with EmptyStateView, whose symbol takes its own height).
@@ -55,8 +54,8 @@ struct HomeExpenseRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
-        .background(Color.keaserCard, in: RoundedRectangle(cornerRadius: HomeLayout.rowRadius, style: .continuous))
-        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: HomeLayout.rowRadius, style: .continuous))
+        .background(Color.keaserCard, in: RoundedRectangle(cornerRadius: KeaserMetrics.rowRadius, style: .continuous))
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: KeaserMetrics.rowRadius, style: .continuous))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -84,19 +83,10 @@ struct HomeAddButton: View {
                 .background(Circle().fill(Color.white))
                 .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
         }
-        .buttonStyle(HomePressStyle())
+        .buttonStyle(PressScaleButtonStyle())
         .accessibilityLabel("Add Expense")
         .accessibilityShowsLargeContentViewer {
             Label("Add Expense", systemImage: "plus")
         }
-    }
-}
-
-/// A gentle press-down for custom buttons.
-struct HomePressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }

@@ -83,8 +83,7 @@ struct AccountsSheet: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .listRowBackground(
-                    AccountsCardShape(isFirst: index == 0, isLast: index == store.accounts.count - 1)
-                        .fill(Color.keaserSheetCard)
+                    CardRowBackground(position: CardPosition(index: index, count: store.accounts.count), fill: .keaserSheetCard)
                         .padding(.horizontal, 16)
                 )
             }
@@ -116,8 +115,7 @@ struct AccountsSheet: View {
             .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             .listRowSeparator(.hidden)
             .listRowBackground(
-                RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous)
-                    .fill(Color.keaserSheetCard)
+                CardRowBackground(position: .single, fill: .keaserSheetCard)
                     .padding(.horizontal, 16)
             )
             .deleteDisabled(true)
@@ -201,24 +199,5 @@ private struct AccountRow: View {
             }
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-/// A card split across list rows: the first row rounds the top corners, the
-/// last row the bottom ones, so separate rows read as one card.
-private struct AccountsCardShape: Shape {
-    let isFirst: Bool
-    let isLast: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let r = KeaserMetrics.cardRadius
-        return UnevenRoundedRectangle(
-            topLeadingRadius: isFirst ? r : 0,
-            bottomLeadingRadius: isLast ? r : 0,
-            bottomTrailingRadius: isLast ? r : 0,
-            topTrailingRadius: isFirst ? r : 0,
-            style: .continuous
-        )
-        .path(in: rect)
     }
 }
