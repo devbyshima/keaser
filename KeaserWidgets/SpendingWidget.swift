@@ -68,8 +68,9 @@ struct SpendingProvider: AppIntentTimelineProvider {
     func snapshot(for configuration: SpendingWidgetIntent, in context: Context) async -> SpendingEntry {
         let entry = entry(for: configuration, now: .now)
         // The widget gallery should show what the widget does, even before
-        // the first account exists.
-        if context.isPreview, entry.snapshot.state != .ready {
+        // the first account exists. A locked widget stays locked there, so
+        // nobody adds one expecting it to work.
+        if context.isPreview, entry.snapshot.state == .noAccount {
             return SpendingEntry(date: entry.date, snapshot: .sample(currencyCode: entry.snapshot.currencyCode))
         }
         return entry

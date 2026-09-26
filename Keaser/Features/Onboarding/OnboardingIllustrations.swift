@@ -325,7 +325,10 @@ private struct ProFeaturePill: View {
         let width = unfolded ? Self.width : 100
         ZStack {
             Image(systemName: feature.symbol)
-                .font(.system(size: unfolded ? 22 : 30, weight: .semibold))
+                .font(.system(size: 30, weight: .semibold))
+                // Scaled rather than resized: a font change swaps the symbol
+                // instead of animating it, which lets the icon lag the pill.
+                .scaleEffect(unfolded ? 22 / 30 : 1)
                 .frame(width: 34)
                 // Centred in a tile; 42pt from the pill's leading edge.
                 .offset(x: unfolded ? 42 - width / 2 : 0)
@@ -333,7 +336,9 @@ private struct ProFeaturePill: View {
                 .font(.system(size: 19, weight: .semibold))
                 .fixedSize()
                 .frame(width: Self.width - 73, alignment: .leading)
-                .offset(x: unfolded ? 73 + (Self.width - 73) / 2 - width / 2 : 0)
+                // 73pt from the pill's leading edge in both layouts, so it
+                // travels with the edge and never runs under the icon.
+                .offset(x: 73 + (Self.width - 73) / 2 - width / 2)
                 .opacity(unfolded ? 1 : 0)
         }
         .foregroundStyle(.white)
