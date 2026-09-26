@@ -1,0 +1,114 @@
+import Foundation
+
+/// Building expenses that arrive from outside the app: the "Add Expense"
+/// shortcut and the Apple Wallet automation ("Log Wallet Transaction").
+public enum QuickLog {
+    /// Title used when a shortcut leaves the title empty.
+    public static let defaultTitle = "Expense"
+
+    /// A Shortcuts decimal ("16.99" arrives as a `Double`) as money, rounded to
+    /// the currency's own number of fraction digits. Nil for anything that is
+    /// not a positive, finite amount.
+    public static func amount(from value: Double, currencyCode: String) -> Decimal? {
+        guard value.isFinite, value > 0,
+              // `description` is the shortest text that round-trips, so 16.99
+              // becomes exactly 16.99 rather than 16.989999999999998.
+              let decimal = Decimal(string: value.description, locale: Locale(identifier: "en_US_POSIX"))
+        else { return nil }
+        let rounded = round(decimal, currencyCode: currencyCode)
+        return rounded > 0 ? rounded : nil
+    }
+
+    /// Wallet passes the amount as text ("$4.50", "4,50 €"). Nil unless it is a
+    /// positive number.
+    public static func amount(from text: String, currencyCode: String, locale: Locale = .current) -> Decimal? {
+        guard let parsed = MoneyFormat.parse(text, locale: locale) else { return nil }
+        let rounded = round(parsed, currencyCode: currencyCode)
+        return rounded > 0 ? rounded : nil
+    }
+
+    /// "Added $16.99 to Personal"
+    public static func confirmation(amount: Decimal, currencyCode: String, accountName: String, locale: Locale = .current) -> String {
+        "Added \(MoneyFormat.string(amount, currencyCode: currencyCode, locale: locale)) to \(accountName)"
+    }
+
+    /// The most recent expense with this title, ignoring case, accents and
+    /// surrounding spaces. Wallet merchants repeat ("Blue Bottle Coffee"), so
+    /// the last one tells us how the user filed it.
+    public static func mostRecentExpense(titled title: String, in account: Account) -> Expense? {
+        let key = normalized(title)
+        guard !key.isEmpty else { return nil }
+        return account.expensesNewestFirst.first { normalized($0.title) == key }
+    }
+
+    /// The payment method whose name matches the Wallet card name, if any:
+    /// an exact match first, then one name containing the other, then the
+    /// method sharing the most distinctive words ("Debit Mastercard" finds
+    /// "Debit Card").
+    public static func paymentMethod(forCard card: String?, in account: Account) -> PaymentMethod? {
+        guard let card else { return nil }
+        let key = normalized(card)
+        guard !key.isEmpty else { return nil }
+        let methods = account.paymentMethods
+        if let exact = methods.first(where: { normalized($0.name) == key }) { return exact }
+
+        let containing = methods.filter {
+            let name = normalized($0.name)
+            return !name.isEmpty && (key.contains(name) || name.contains(key))
+        }
+        if let longest = containing.max(by: { $0.name.count < $1.name.count }) { return longest }
+
+        let cardWords = distinctiveWords(key)
+        var best: (method: PaymentMethod, score: Int)?
+        for method in methods {
+            let score = distinctiveWords(normalized(method.name)).intersection(cardWords).count
+            if score > 0, score > (best?.score ?? 0) { best = (method, score) }
+        }
+        return best?.method
+    }
+
+    /// The expense for a Wallet transaction: titled after the merchant, filed
+    /// like the last expense with that title, paid with the matching card when
+    /// the card name is recognised.
+    public static func walletExpense(merchant: String, amount: Decimal, card: String?, in account: Account, now: Date = .now) -> Expense {
+        let title = merchant.trimmingCharacters(in: .whitespacesAndNewlines)
+        let previous = mostRecentExpense(titled: title, in: account)
+        // A category or method deleted since the last expense must not come back.
+        let category = account.category(id: previous?.categoryID)
+        let method = paymentMethod(forCard: card, in: account) ?? account.paymentMethod(id: previous?.paymentMethodID)
+        return Expense(
+            title: title.isEmpty ? defaultTitle : title,
+            amount: amount,
+            categoryID: category?.id,
+            paymentMethodID: method?.id,
+            date: now,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
+
+    // MARK: Private
+
+    private static func round(_ amount: Decimal, currencyCode: String) -> Decimal {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode
+        var value = amount
+        var result = Decimal()
+        NSDecimalRound(&result, &value, formatter.maximumFractionDigits, .plain)
+        return result
+    }
+
+    static func normalized(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+    }
+
+    /// Words that say something about which card it is. "Card" says nothing.
+    private static func distinctiveWords(_ text: String) -> Set<String> {
+        let generic: Set<String> = ["card", "cards", "pay", "the", "my"]
+        let words = text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
+        return Set(words.filter { $0.count > 1 && !generic.contains($0) })
+    }
+}
