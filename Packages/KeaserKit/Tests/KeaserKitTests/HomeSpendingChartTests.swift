@@ -110,6 +110,23 @@ struct HomeSpendingChartTests {
             }
         }
     }
+
+    @Test func barsHaveSpokenNamesForVoiceOver() {
+        let c = calendar(firstWeekday: 2)
+        let en = Locale(identifier: "en_US")
+        func names(_ period: Period) -> [String] {
+            SpendingChart.buckets(for: [], period: period, now: now, calendar: c, locale: en)
+                .map { SpendingChart.spokenName(of: $0, period: period, calendar: c, locale: en) }
+                // Recent formatters put a narrow no-break space before "AM".
+                .map { $0.replacingOccurrences(of: "\u{202F}", with: " ") }
+        }
+        #expect(names(.today).first == "12 AM to 4 AM")
+        #expect(names(.today).last == "8 PM to 12 AM")
+        #expect(names(.thisWeek).first == "Monday, September 21")
+        #expect(names(.thisMonth)[14] == "September 15")
+        #expect(names(.thisYear).first == "January 2026")
+        #expect(names(.allTime).last == "2026")
+    }
 }
 
 struct HomeChartAxisTests {
@@ -134,4 +151,5 @@ struct HomeChartAxisTests {
         #expect((ticks.last ?? 0) >= example.highest)
         #expect(ticks.count <= 6)
     }
+
 }

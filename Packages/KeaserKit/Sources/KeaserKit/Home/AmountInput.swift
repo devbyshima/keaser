@@ -72,6 +72,33 @@ public enum AmountInput {
         )
     }
 
+    /// What the field shows when it is filled in from a stored amount (an
+    /// expense being edited, or a Smart Suggestion): "$20.00".
+    public static func field(
+        for amount: Decimal,
+        currencyCode: String,
+        locale: Locale = .current
+    ) -> String {
+        display(editingText(for: amount, currencyCode: currencyCode, locale: locale), currencyCode: currencyCode, locale: locale)
+    }
+
+    /// The amount to save for what the field shows. While the field still
+    /// shows exactly what `seed` was filled in as, `seed` itself comes back:
+    /// an amount with more fraction digits than the currency (from Notion,
+    /// or logged before a currency change) must survive an edit that never
+    /// touched it, even though the field can only show it rounded.
+    public static func amount(
+        from field: String,
+        seed: Decimal?,
+        currencyCode: String,
+        locale: Locale = .current
+    ) -> Decimal? {
+        if let seed, field == self.field(for: seed, currencyCode: currencyCode, locale: locale) {
+            return seed
+        }
+        return MoneyFormat.parse(digits(field, currencyCode: currencyCode, locale: locale), locale: locale)
+    }
+
     /// 2 for USD and EUR, 0 for JPY, 3 for KWD.
     public static func fractionDigits(for currencyCode: String, locale: Locale = .current) -> Int {
         let formatter = NumberFormatter()

@@ -38,4 +38,22 @@ struct HomeAmountInputTests {
         #expect(AmountInput.editingText(for: 1500, currencyCode: "JPY", locale: us) == "1500")
         #expect(AmountInput.editingText(for: Decimal(string: "16.99")!, currencyCode: "EUR", locale: de) == "16,99")
     }
+
+    /// Edit Expense fills its field from the stored amount, which can have
+    /// more fraction digits than the currency (from Notion, or logged before
+    /// a currency change). Saving without touching the field keeps it.
+    @Test(arguments: [("4.555", "USD"), ("20.5", "JPY"), ("1.2345", "KWD"), ("20", "USD")])
+    func anUntouchedFieldSavesTheStoredAmount(_ raw: String, _ code: String) {
+        let stored = Decimal(string: raw)!
+        let field = AmountInput.field(for: stored, currencyCode: code, locale: us)
+        #expect(AmountInput.amount(from: field, seed: stored, currencyCode: code, locale: us) == stored)
+    }
+
+    @Test func anEditedFieldSavesWhatItShows() {
+        let stored = Decimal(string: "4.555")!
+        #expect(AmountInput.field(for: stored, currencyCode: "USD", locale: us) == "$4.56")
+        #expect(AmountInput.amount(from: "$4.5", seed: stored, currencyCode: "USD", locale: us) == Decimal(string: "4.5"))
+        #expect(AmountInput.amount(from: "$12", seed: nil, currencyCode: "USD", locale: us) == 12)
+        #expect(AmountInput.amount(from: "", seed: stored, currencyCode: "USD", locale: us) == nil)
+    }
 }

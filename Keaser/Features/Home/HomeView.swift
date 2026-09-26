@@ -8,6 +8,14 @@ struct HomeView: View {
     @Environment(KeaserStore.self) private var store
     @Environment(ProStore.self) private var pro
     @Environment(AppRouter.self) private var router
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The moment the totals and chart are worked out for. Kept in state and
+    /// refreshed at midnight, on time zone or clock changes and on returning
+    /// to the app, so "Spent today" and "Spent this month" roll over without
+    /// the user touching anything.
+    @State private var now = Date.now
 
     // Filters live here, not in preferences: they reset whenever the account
     // changes. A nil period means "the default for the current plan".
@@ -21,6 +29,7 @@ struct HomeView: View {
 
     @State private var sheet: HomeSheet?
     @State private var expenseToDelete: Expense?
+    @State private var deletedCount = 0
     #if DEBUG
     @State private var didApplyDebugLaunch = false
     #endif
@@ -53,6 +62,13 @@ struct HomeView: View {
         }
         .onChange(of: store.selectedAccount?.id) { _, _ in resetFilters() }
         .onChange(of: router.pendingRoute, initial: true) { _, route in handle(route) }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            now = .now
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { now = .now }
+        }
+        .sensoryFeedback(.success, trigger: deletedCount)
         #if DEBUG
         .onAppear(perform: applyDebugLaunch)
         #endif
@@ -61,13 +77,17 @@ struct HomeView: View {
     // MARK: Screens
 
     private var noAccountScreen: some View {
-        HomeEmptyState(
+        EmptyStateView(
             symbol: "person.crop.circle",
             title: "No Account",
-            message: "Add an account to start tracking expenses."
+            message: "Add an account to start tracking expenses.",
+            style: .large
         ) {
             Button("Add Account") { sheet = .addAccount(startsWithForm: false) }
-                .buttonStyle(HomeCapsuleButtonStyle())
+                .buttonStyle(.keaserCapsule(height: 36, horizontalPadding: 11))
+                // The style taps across 44pt; lay it out at the drawn 36pt so
+                // the block sits where the reference has it.
+                .padding(.vertical, -4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -75,24 +95,25 @@ struct HomeView: View {
     private func accountScreen(_ account: Account) -> some View {
         let filter = currentFilter(for: account)
         let calendar = store.preferences.calendar
-        let now = Date.now
         let expenses = ExpenseQuery.apply(filter, to: account.expenses, now: now, calendar: calendar)
 
         return ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if account.expenses.isEmpty {
-                    HomeEmptyState(
+                    EmptyStateView(
                         symbol: "creditcard",
                         title: "No Expenses",
-                        message: "Add your first expense by tapping the + button"
+                        message: "Add your first expense by tapping the + button",
+                        style: .large
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top, HomeLayout.emptyStateTop - HomeLayout.contentTop)
                 } else if filter.isSearching && expenses.isEmpty {
-                    HomeEmptyState(
+                    EmptyStateView(
                         symbol: "magnifyingglass",
                         title: "No Results",
-                        message: "No expenses match \u{201C}\(filter.searchText.trimmingCharacters(in: .whitespaces))\u{201D}."
+                        message: "No expenses match \u{201C}\(filter.searchText.trimmingCharacters(in: .whitespaces))\u{201D}.",
+                        style: .large
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top, HomeLayout.emptyStateTop - HomeLayout.contentTop)
@@ -101,6 +122,8 @@ struct HomeView: View {
                         caption: filter.period.spentCaption,
                         total: ExpenseQuery.total(of: expenses),
                         currencyCode: store.preferences.currencyCode,
+                        period: filter.period,
+                        calendar: calendar,
                         buckets: SpendingChart.buckets(for: expenses, period: filter.period, now: now, calendar: calendar)
                     )
                     latestSection(expenses, in: account, filter: filter)
@@ -145,15 +168,17 @@ struct HomeView: View {
     @ViewBuilder
     private func latestSection(_ expenses: [Expense], in account: Account, filter: ExpenseQuery.Filter) -> some View {
         Text("Latest")
-            .font(.system(size: 17, weight: .semibold))
+            .keaserFont(17, weight: .semibold, relativeTo: .headline)
             .foregroundStyle(Color.keaserSecondaryText)
+            .accessibilityAddTraits(.isHeader)
             .padding(.leading, 16)
             .padding(.top, 28)
             .padding(.bottom, 9.5)
         if expenses.isEmpty {
             Text(filter.narrowsByLabel ? "No expenses match these filters." : "No expenses \(filter.period.emptyPhrase).")
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .foregroundStyle(Color.keaserSecondaryText)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
         }
@@ -181,7 +206,7 @@ struct HomeView: View {
                 }
             }
             .padding(.bottom, HomeLayout.rowSpacing)
-            .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.97)))
         }
     }
 
@@ -280,7 +305,7 @@ struct HomeView: View {
         withAnimation(.smooth(duration: 0.3)) {
             store.deleteExpense(expense.id, in: account.id)
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        deletedCount += 1
     }
 
     private func handle(_ route: AppRouter.Route?) {
