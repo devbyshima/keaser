@@ -1,14 +1,356 @@
 import KeaserKit
 import SwiftUI
-
-// STUB (owner: home-expenses builder).
+import UIKit
 
 /// The main screen: account switcher, search, filters, settings, the spending
 /// summary with its chart, the latest expenses and the add button.
 struct HomeView: View {
     @Environment(KeaserStore.self) private var store
+    @Environment(ProStore.self) private var pro
+    @Environment(AppRouter.self) private var router
+
+    // Filters live here, not in preferences: they reset whenever the account
+    // changes. A nil period means "the default for the current plan".
+    @State private var periodChoice: Period?
+    @State private var categoryFilter: UUID?
+    @State private var paymentFilter: UUID?
+
+    @State private var isSearching = false
+    @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
+
+    @State private var sheet: HomeSheet?
+    @State private var expenseToDelete: Expense?
+    #if DEBUG
+    @State private var didApplyDebugLaunch = false
+    #endif
 
     var body: some View {
-        EmptyStateView(symbol: "creditcard", title: "No Expenses", message: "Add your first expense by tapping the + button")
+        ZStack {
+            Color.keaserBackground.ignoresSafeArea()
+            if let account = store.selectedAccount {
+                accountScreen(account)
+                    .transition(.opacity)
+            } else {
+                noAccountScreen
+                    .transition(.opacity)
+            }
+        }
+        .animation(.smooth(duration: 0.35), value: store.selectedAccount == nil)
+        .sheet(item: $sheet) { presented in
+            sheetContent(presented)
+        }
+        .confirmationDialog(
+            "Delete Expense?",
+            isPresented: Binding(get: { expenseToDelete != nil }, set: { if !$0 { expenseToDelete = nil } }),
+            titleVisibility: .visible,
+            presenting: expenseToDelete
+        ) { expense in
+            Button("Delete Expense", role: .destructive) { delete(expense) }
+            Button("Cancel", role: .cancel) {}
+        } message: { expense in
+            Text("\u{201C}\(expense.title)\u{201D} will be removed from this account.")
+        }
+        .onChange(of: store.selectedAccount?.id) { _, _ in resetFilters() }
+        .onChange(of: router.pendingRoute, initial: true) { _, route in handle(route) }
+        #if DEBUG
+        .onAppear(perform: applyDebugLaunch)
+        #endif
+    }
+
+    // MARK: Screens
+
+    private var noAccountScreen: some View {
+        HomeEmptyState(
+            symbol: "person.crop.circle",
+            title: "No Account",
+            message: "Add an account to start tracking expenses."
+        ) {
+            Button("Add Account") { sheet = .addAccount(startsWithForm: false) }
+                .buttonStyle(HomeCapsuleButtonStyle())
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func accountScreen(_ account: Account) -> some View {
+        let filter = currentFilter(for: account)
+        let calendar = store.preferences.calendar
+        let now = Date.now
+        let expenses = ExpenseQuery.apply(filter, to: account.expenses, now: now, calendar: calendar)
+
+        return ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if account.expenses.isEmpty {
+                    HomeEmptyState(
+                        symbol: "creditcard",
+                        title: "No Expenses",
+                        message: "Add your first expense by tapping the + button"
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, HomeLayout.emptyStateTop - HomeLayout.contentTop)
+                } else if filter.isSearching && expenses.isEmpty {
+                    HomeEmptyState(
+                        symbol: "magnifyingglass",
+                        title: "No Results",
+                        message: "No expenses match \u{201C}\(filter.searchText.trimmingCharacters(in: .whitespaces))\u{201D}."
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, HomeLayout.emptyStateTop - HomeLayout.contentTop)
+                } else {
+                    HomeSummaryCard(
+                        caption: filter.period.spentCaption,
+                        total: ExpenseQuery.total(of: expenses),
+                        currencyCode: store.preferences.currencyCode,
+                        buckets: SpendingChart.buckets(for: expenses, period: filter.period, now: now, calendar: calendar)
+                    )
+                    latestSection(expenses, in: account, filter: filter)
+                }
+            }
+            .padding(.horizontal, KeaserMetrics.screenPadding)
+            .padding(.top, HomeLayout.contentTop)
+            .padding(.bottom, HomeLayout.addButtonSize + 48)
+            .animation(.smooth(duration: 0.3), value: expenses.map(\.id))
+        }
+        .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.immediately)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HomeTopBar(
+                accountName: account.name,
+                isSearching: isSearching,
+                searchText: $searchText,
+                searchFocused: $searchFocused,
+                onAccounts: { sheet = .accounts },
+                onSearch: beginSearch,
+                onCancelSearch: endSearch,
+                onSettings: { sheet = .settings }
+            ) {
+                HomeFilterMenu(
+                    account: account,
+                    period: filter.period,
+                    categoryID: filter.categoryID,
+                    paymentMethodID: filter.paymentMethodID,
+                    isPro: pro.isPro,
+                    onPeriod: choosePeriod,
+                    onCategory: chooseCategory,
+                    onPaymentMethod: choosePaymentMethod
+                )
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            HomeAddButton { sheet = .newExpense }
+                .padding(.trailing, HomeLayout.addButtonTrailing)
+        }
+    }
+
+    @ViewBuilder
+    private func latestSection(_ expenses: [Expense], in account: Account, filter: ExpenseQuery.Filter) -> some View {
+        Text("Latest")
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Color.keaserSecondaryText)
+            .padding(.leading, 16)
+            .padding(.top, 28)
+            .padding(.bottom, 9.5)
+        if expenses.isEmpty {
+            Text(filter.narrowsByLabel ? "No expenses match these filters." : "No expenses \(filter.period.emptyPhrase).")
+                .font(.system(size: 15))
+                .foregroundStyle(Color.keaserSecondaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+        }
+        ForEach(expenses) { expense in
+            Button {
+                sheet = .editExpense(expense.id)
+            } label: {
+                HomeExpenseRow(
+                    expense: expense,
+                    symbol: account.symbol(for: expense),
+                    currencyCode: store.preferences.currencyCode
+                )
+            }
+            .buttonStyle(HomeRowButtonStyle())
+            .contextMenu {
+                Button {
+                    sheet = .editExpense(expense.id)
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    expenseToDelete = expense
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+            .padding(.bottom, HomeLayout.rowSpacing)
+            .transition(.opacity.combined(with: .scale(scale: 0.97)))
+        }
+    }
+
+    // MARK: Sheets
+
+    @ViewBuilder
+    private func sheetContent(_ presented: HomeSheet) -> some View {
+        switch presented {
+        case .accounts:
+            AccountsSheet()
+        case .addAccount(let startsWithForm):
+            AddAccountSheet(startsWithForm: startsWithForm)
+        case .newExpense:
+            if let account = store.selectedAccount {
+                ExpenseEditorView(accountID: account.id)
+            }
+        case .editExpense(let id):
+            if let account = store.selectedAccount, let expense = account.expenses.first(where: { $0.id == id }) {
+                ExpenseEditorView(accountID: account.id, expense: expense)
+            }
+        case .settings:
+            SettingsView()
+        case .paywall(let feature):
+            PaywallView(highlighting: feature)
+        }
+    }
+
+    // MARK: Filters
+
+    private func currentFilter(for account: Account) -> ExpenseQuery.Filter {
+        let isPro = pro.isPro
+        var period = periodChoice ?? ExpenseQuery.Filter.initial(isPro: isPro).period
+        // A lapsed pass falls back rather than showing locked data.
+        if period.isLongTerm && !isPro { period = ExpenseQuery.Filter.initial(isPro: false).period }
+        let category = isPro ? categoryFilter.flatMap { account.category(id: $0)?.id } : nil
+        let method = isPro ? paymentFilter.flatMap { account.paymentMethod(id: $0)?.id } : nil
+        return ExpenseQuery.Filter(
+            period: period,
+            categoryID: category,
+            paymentMethodID: method,
+            searchText: isSearching ? searchText : ""
+        )
+    }
+
+    private func choosePeriod(_ period: Period) {
+        guard !period.isLongTerm || pro.isPro else {
+            sheet = .paywall(.longTermInsights)
+            return
+        }
+        withAnimation(.smooth(duration: 0.35)) { periodChoice = period }
+    }
+
+    private func chooseCategory(_ id: UUID?) {
+        guard id == nil || pro.isPro else {
+            sheet = .paywall(.moreFilters)
+            return
+        }
+        withAnimation(.smooth(duration: 0.35)) { categoryFilter = id }
+    }
+
+    private func choosePaymentMethod(_ id: UUID?) {
+        guard id == nil || pro.isPro else {
+            sheet = .paywall(.moreFilters)
+            return
+        }
+        withAnimation(.smooth(duration: 0.35)) { paymentFilter = id }
+    }
+
+    private func resetFilters() {
+        periodChoice = nil
+        categoryFilter = nil
+        paymentFilter = nil
+        endSearch()
+    }
+
+    // MARK: Search
+
+    private func beginSearch() {
+        withAnimation(.smooth(duration: 0.3)) { isSearching = true }
+        // The field only exists after this update, so focus it on the next.
+        Task { @MainActor in searchFocused = true }
+    }
+
+    private func endSearch() {
+        searchFocused = false
+        withAnimation(.smooth(duration: 0.3)) {
+            isSearching = false
+            searchText = ""
+        }
+    }
+
+    // MARK: Actions
+
+    private func delete(_ expense: Expense) {
+        guard let account = store.selectedAccount else { return }
+        withAnimation(.smooth(duration: 0.3)) {
+            store.deleteExpense(expense.id, in: account.id)
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func handle(_ route: AppRouter.Route?) {
+        guard let route else { return }
+        switch route {
+        case .newExpense:
+            sheet = store.selectedAccount == nil ? .addAccount(startsWithForm: false) : .newExpense
+        case .settings:
+            sheet = .settings
+        }
+        router.pendingRoute = nil
+    }
+
+    #if DEBUG
+    /// `-KeaserSheet`, `-KeaserPeriod` and `-KeaserSearch`, for screenshots.
+    private func applyDebugLaunch() {
+        guard !didApplyDebugLaunch else { return }
+        didApplyDebugLaunch = true
+        if let period = DebugLaunch.string("KeaserPeriod").flatMap(Period.init(rawValue:)) {
+            periodChoice = period
+        }
+        switch DebugLaunch.sheet {
+        case "accounts": sheet = .accounts
+        case "addAccount": sheet = .addAccount(startsWithForm: false)
+        case "newAccount": sheet = .addAccount(startsWithForm: true)
+        case "newExpense" where store.selectedAccount != nil: sheet = .newExpense
+        case "editExpense":
+            if let newest = store.selectedAccount?.expensesNewestFirst.first {
+                sheet = .editExpense(newest.id)
+            }
+        case "search" where store.selectedAccount != nil:
+            isSearching = true
+            searchText = DebugLaunch.string("KeaserSearch") ?? ""
+        default: break
+        }
+    }
+    #endif
+}
+
+/// Everything Home presents as a sheet.
+enum HomeSheet: Identifiable, Hashable {
+    case accounts
+    case addAccount(startsWithForm: Bool)
+    case newExpense
+    case editExpense(UUID)
+    case settings
+    case paywall(ProFeature)
+
+    var id: Self { self }
+}
+
+/// Rows dim slightly while pressed, like a list cell.
+private struct HomeRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.snappy(duration: 0.18), value: configuration.isPressed)
+    }
+}
+
+private extension Period {
+    /// "No expenses this month."
+    var emptyPhrase: String {
+        switch self {
+        case .today: "today"
+        case .thisWeek: "this week"
+        case .thisMonth: "this month"
+        case .thisYear: "this year"
+        case .allTime: "yet"
+        }
     }
 }
