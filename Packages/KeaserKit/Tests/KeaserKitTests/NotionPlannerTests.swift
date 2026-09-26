@@ -15,15 +15,23 @@ struct NotionPlannerTests {
         NotionTestData.page(id: id, ["Name": .title(title)], edited: edited, removed: removed)
     }
 
-    /// Content compares titles only, to keep each case readable.
-    private func plan(_ local: [Expense], _ remote: [NotionPage], tombstones: [String] = [], lastSyncedAt: Date? = nil) -> NotionSyncPlan {
+    /// Content compares titles only, to keep each case readable. `ids` are
+    /// the Keaser IDs the pages carry, by page ID.
+    private func plan(
+        _ local: [Expense],
+        _ remote: [NotionPage],
+        tombstones: [String] = [],
+        lastSyncedAt: Date? = nil,
+        ids: [String: UUID] = [:]
+    ) -> NotionSyncPlan {
         SyncPlanner.plan(
             local: local,
             remote: remote,
             tombstones: tombstones,
             lastSyncedAt: lastSyncedAt ?? lastSync,
             isSameContent: { $0.title == $1.title },
-            isBlank: { $0.title.isEmpty }
+            isBlank: { $0.title.isEmpty },
+            keaserID: { ids[$0.id] }
         )
     }
 
@@ -108,6 +116,45 @@ struct NotionPlannerTests {
             isSameContent: { $0.title == $1.title }
         )
         #expect(result.operations == [.createRemote(expenseID: local.id), .insertLocal(pageID: "p1")])
+    }
+
+    @Test func anUnlinkedExpenseLinksToThePageCarryingItsIDInsteadOfCreatingAnother() {
+        let taxi = expense("Taxi", updated: at(5))
+        let orphan = page("p1", "Taxi", edited: at(5))
+        #expect(plan([taxi], [orphan], ids: ["p1": taxi.id]).operations == [.linkLocal(expenseID: taxi.id, pageID: "p1")])
+        // Without the ID it would be both created and pulled in.
+        #expect(plan([taxi], [orphan]).operations == [.createRemote(expenseID: taxi.id), .insertLocal(pageID: "p1")])
+    }
+
+    @Test func aLinkedOrphanIsThenComparedLikeAnyLinkedPage() {
+        let editedSince = expense("Taxi home", updated: at(9))
+        #expect(plan([editedSince], [page("p1", "Taxi", edited: at(5))], ids: ["p1": editedSince.id]).operations == [
+            .linkLocal(expenseID: editedSince.id, pageID: "p1"),
+            .updateRemote(expenseID: editedSince.id, pageID: "p1"),
+        ])
+        let editedInNotion = expense("Taxi", updated: at(5))
+        #expect(plan([editedInNotion], [page("p1", "Taxi to airport", edited: at(8))], ids: ["p1": editedInNotion.id]).operations == [
+            .linkLocal(expenseID: editedInNotion.id, pageID: "p1"),
+            .updateLocal(expenseID: editedInNotion.id, pageID: "p1"),
+        ])
+    }
+
+    @Test func anEditOutlivingARemoteDeleteRelinksToALiveCopyOfItsPage() {
+        let edited = expense("Taxi", page: "p1", updated: at(5))
+        let result = plan([edited], [page("p1", "Taxi", edited: at(1), removed: true), page("p2", "Taxi", edited: at(2))], ids: ["p1": edited.id, "p2": edited.id])
+        #expect(result.operations == [.linkLocal(expenseID: edited.id, pageID: "p2")])
+    }
+
+    @Test func aCopyOfALinkedPageIsPulledInAsItsOwnExpense() {
+        let linked = expense("Rent", page: "p1", updated: at(-5))
+        let result = plan([linked], [page("p1", "Rent", edited: at(-9)), page("p2", "Rent", edited: at(3))], ids: ["p1": linked.id, "p2": linked.id])
+        #expect(result.operations == [.insertLocal(pageID: "p2")])
+    }
+
+    @Test func aTombstonedPageIsNeverLinked() {
+        let unlinked = expense("Taxi", updated: at(5))
+        let result = plan([unlinked], [page("p1", "Taxi", edited: at(1))], tombstones: ["p1"], ids: ["p1": unlinked.id])
+        #expect(result.operations == [.archiveRemote(pageID: "p1"), .createRemote(expenseID: unlinked.id)])
     }
 
     @Test func mapperBasedPlanComparesMappedFields() throws {

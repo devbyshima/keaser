@@ -14,6 +14,9 @@ public protocol NotionAPI: Sendable {
     func searchPages() async throws -> [NotionPage]
     func retrieveDatabase(id: String) async throws -> NotionDatabase
     func retrieveDataSource(id: String) async throws -> NotionDataSource
+    /// Adds these properties to the data source's schema (a property with
+    /// the same name is reconfigured). Returns the updated data source.
+    func updateDataSource(id: String, properties: [String: NotionNewProperty]) async throws -> NotionDataSource
     /// Every non-trashed, non-archived row, across all result pages.
     func queryPages(dataSourceID: String) async throws -> [NotionPage]
     func retrievePage(id: String) async throws -> NotionPage

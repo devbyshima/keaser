@@ -82,6 +82,10 @@ public struct NotionClient: NotionAPI {
         try await send("GET", "data_sources/\(id)", retryable: true)
     }
 
+    public func updateDataSource(id: String, properties: [String: NotionNewProperty]) async throws -> NotionDataSource {
+        try await send("PATCH", "data_sources/\(id)", body: ["properties": .object(properties.mapValues(\.json))], retryable: true)
+    }
+
     /// Follows `next_cursor` to the end. A single query stops at 10,000 rows
     /// and reports `request_status: incomplete`; when that happens the next
     /// query starts at the last row's `created_time` (rows sorted by it), and
@@ -126,7 +130,7 @@ public struct NotionClient: NotionAPI {
             "properties": .object(properties.mapValues(\.json)),
         ]
         // Not retried on 5xx: the page may have been created before the
-        // failure, and a retry would duplicate it.
+        // failure. The next sync links it through its Keaser ID instead.
         return try await send("POST", "pages", body: body, retryable: false)
     }
 

@@ -152,7 +152,41 @@ struct NotionAutoMappingTests {
         let schema = NotionKeaserSchema.properties(currencyCode: "GBP", categories: ["Food"], paymentMethods: ["Cash"])
         #expect(schema["Amount"] == .number(format: "pound"))
         #expect(schema["Name"] == .title)
-        #expect(Set(schema.keys) == ["Name", "Amount", "Category", "Payment", "Date"])
+        #expect(Set(schema.keys) == ["Name", "Amount", "Category", "Payment", "Date", "Keaser ID"])
+        #expect(schema["Keaser ID"] == .richText)
+    }
+
+    @Test func theKeaserIDPropertyIsFoundByNameButNeverOfferedForAField() throws {
+        let source = NotionTestData.source([
+            NotionTestData.column("Name", .title),
+            NotionTestData.column("Amount", .number),
+            NotionTestData.column("Keaser ID", .richText),
+        ])
+        #expect(NotionPropertyMatcher.candidates(for: .paymentMethod, in: source).isEmpty)
+        let map = try #require(NotionPropertyMatcher.autoMap(source))
+        #expect(map.paymentMethod == nil)
+        let resolved = try #require(map.resolved(in: source))
+        #expect(resolved.keaserID?.name == "Keaser ID")
+        #expect(resolved.map.keaserIDPropertyID == "id-Keaser ID")
+
+        // Renamed in Notion: followed by its ID.
+        let renamed = NotionTestData.source([
+            NotionTestData.column("Name", .title),
+            NotionTestData.column("Keaser Ref", .richText, id: "id-Keaser ID"),
+        ])
+        #expect(resolved.map.resolved(in: renamed)?.keaserID?.name == "Keaser Ref")
+    }
+
+    @Test func aKeaserIDPropertyOfAnotherTypeOrInUseIsLeftAlone() throws {
+        let number = NotionTestData.source([NotionTestData.column("Name", .title), NotionTestData.column("Keaser ID", .number)])
+        #expect(NotionPropertyMap(title: "Name").resolved(in: number)?.keaserID == nil)
+
+        let text = NotionTestData.source([NotionTestData.column("Name", .title), NotionTestData.column("Keaser ID", .richText)])
+        var map = NotionPropertyMap(title: "Name")
+        map.set(.paymentMethod, to: text.property(named: "Keaser ID"))
+        let resolved = try #require(map.resolved(in: text))
+        #expect(resolved.paymentMethod?.name == "Keaser ID")
+        #expect(resolved.keaserID == nil)
     }
 }
 
@@ -239,6 +273,20 @@ struct ExpenseMapperTests {
         #expect(writes["Card"] == .richText("Cash"))
     }
 
+    @Test func writesAndReadsTheKeaserID() throws {
+        let source = NotionTestData.source([NotionTestData.column("Name", .title), NotionTestData.column("Keaser ID", .richText)])
+        let mapper = ExpenseMapper(map: try #require(NotionPropertyMap(title: "Name").resolved(in: source)), calendar: NotionTestData.utc)
+        let expense = Expense(title: "Bus", amount: 2)
+        let writes = mapper.properties(for: expense, in: Account(name: "Personal"))
+        #expect(writes["Keaser ID"] == .richText(expense.id.uuidString))
+        #expect(mapper.keaserID(of: NotionTestData.page(id: "p", writes, in: source)) == expense.id)
+        #expect(mapper.keaserID(of: NotionTestData.page(id: "p", ["Keaser ID": .richText("  \(expense.id.uuidString.lowercased()) ")], in: source)) == expense.id)
+        #expect(mapper.keaserID(of: NotionTestData.page(id: "p", ["Keaser ID": .richText("")], in: source)) == nil)
+        #expect(mapper.keaserID(of: NotionTestData.page(id: "p", ["Keaser ID": .richText("not an id")], in: source)) == nil)
+        // A page that says the same apart from the ID still matches.
+        #expect(mapper.matches(expense, NotionTestData.page(id: "p", ["Name": .title("Bus")], in: source), in: Account(name: "Personal")))
+    }
+
     @Test func blankRowsAreRecognised() {
         let mapper = NotionTestData.standardMapper
         #expect(mapper.remoteExpense(from: NotionTestData.page(id: "b", [:])).isBlank)
@@ -258,6 +306,7 @@ struct ExpenseMapperTests {
         #expect(connection.dataSourceID == nil)
         #expect(connection.properties.amount == "Amount")
         #expect(connection.properties.amountID == nil)
+        #expect(connection.properties.keaserID == nil)
         #expect(connection.lastSyncedAt == nil)
     }
 }

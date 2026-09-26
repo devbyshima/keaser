@@ -164,6 +164,16 @@ struct NotionClientTests {
         #expect(try body(of: request) == ["in_trash": true])
     }
 
+    @Test func updateDataSourcePatchesTheSchema() async throws {
+        let (client, transport) = client([.init(status: 200, body: NotionFixtures.dataSourceJSON)])
+        let updated = try await client.updateDataSource(id: "ds-1", properties: ["Keaser ID": .richText])
+        #expect(updated.id == "ds-1")
+        let request = try #require(transport.requests.first)
+        #expect(request.httpMethod == "PATCH")
+        #expect(request.url?.path() == "/v1/data_sources/ds-1")
+        #expect(try body(of: request) == ["properties": ["Keaser ID": ["type": "rich_text", "rich_text": [:]]]])
+    }
+
     @Test func createDatabaseNestsSchemaUnderInitialDataSource() async throws {
         let database = #"{"object": "database", "id": "db-9", "title": [{"plain_text": "Keaser"}], "data_sources": [{"id": "ds-9", "name": "Keaser"}]}"#
         let (client, transport) = client([.init(status: 200, body: database)])
@@ -181,6 +191,7 @@ struct NotionClientTests {
         #expect(schema["Name"] == ["type": "title", "title": [:]])
         #expect(schema["Amount"] == ["type": "number", "number": ["format": "euro"]])
         #expect(schema["Date"] == ["type": "date", "date": [:]])
+        #expect(schema["Keaser ID"] == ["type": "rich_text", "rich_text": [:]])
         #expect(schema["Category"]?["select"]?["options"]?.arrayValue?.first?["name"] == "Food Drinks")
     }
 
