@@ -1,0 +1,31 @@
+# Owned by settings-pro. Settings pages open from -KeaserSheet settings plus
+# -KeaserSettingsPage <page>; the paywall from -KeaserSheet paywall.
+root | -KeaserSeed single -KeaserSheet settings
+root-bottom | -KeaserSeed single -KeaserSheet settings -KeaserSettingsScroll bottom
+root-expired | -KeaserSeed single -KeaserSheet settings -KeaserPro expired
+root-purchased | -KeaserSeed single -KeaserSheet settings -KeaserPro purchased
+account | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage account
+categories | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage categories
+new-category | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage newCategory
+edit-category | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editCategory
+payment-methods | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage paymentMethods
+new-payment-method | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage newPaymentMethod
+currency | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage currency
+start-week | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage startWeek
+smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions
+shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
+tutorials | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorials
+tutorial-wallet | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet
+tutorial-shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut
+whats-new | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage whatsNew
+release | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage release
+help | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage help
+follow-us | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage followUs
+privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy
+terms | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage terms
+paywall | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample
+paywall-live | -KeaserSeed single -KeaserSheet paywall
+root-links | -KeaserSeed demo -KeaserSheet settings -KeaserSettingsScroll bottom -KeaserSampleLinks 1
+help-links | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage help -KeaserSampleLinks 1
+follow-us-links | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage followUs -KeaserSampleLinks 1
+paywall-highlight | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample -KeaserPro expired -KeaserPaywallFeature longTermInsights
