@@ -51,15 +51,27 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 
 ## Launch arguments (DEBUG only)
 
-| Argument | Values | Owner |
+| Argument | Values | Area |
 |---|---|---|
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
-| `-KeaserOnboardingPage` | `0`...`5` | onboarding |
-| `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
-| `-KeaserSheet` | `accounts`, `addAccount`, `newAccount`, `newExpense`, `editExpense`, `search` | home |
 | `-KeaserSheet` | `settings`, `paywall`, `notion` (presented by `RootView` over whatever is showing) | foundation |
-| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `paymentMethods`, `currency`, `startWeek`, `smartSuggestions`, `shortcut`, `tutorials`, `whatsNew`, `help`, `followUs`, `privacy`, `terms` | settings |
+| `-KeaserOnboardingPage` | `0`...`5`; `widgetGallery`, `widgetGalleryLocked` (every widget family, needs seed `fresh`) | onboarding |
+| `-KeaserNotifState` | `granted`, `denied`: page 5 in its end state without the system prompt | onboarding |
+| `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
+| `-KeaserLetterPage` | `tldr`, `follow` (sample links, DEBUG only) | onboarding |
+| `-KeaserSheet` | `accounts`, `addAccount`, `newAccount`, `newExpense`, `editExpense`, `search` | home |
 | `-KeaserPeriod` | `today`, `thisWeek`, `thisMonth`, `thisYear`, `allTime` | home |
+| `-KeaserSearch` | search text, with `-KeaserSheet search` | home |
+| `-KeaserExpenseTitle` | text typed into New Expense (shows Smart Suggestions) | home |
+| `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
+| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
+| `-KeaserSettingsScroll` | `bottom` | settings |
+| `-KeaserPro` | `purchased`, `expired`, `never` | settings |
+| `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |
+| `-KeaserPaywallFeature` | a `ProFeature` raw value to highlight | settings |
+| `-KeaserSampleLinks` | `1` fills Help and Follow Us with sample links | settings |
+| `-KeaserNotionDemo` | `1` swaps in an in-memory fake Notion workspace | notion |
+| `-KeaserNotionStep` | `intro`, `tokenError`, `databases`, `newDatabase`, `review`, `created`, `section` | notion |
 
 Seeded launches keep the database in memory and never touch the real file.
 
@@ -74,9 +86,9 @@ Seeded launches keep the database in memory and never touch the real file.
   (This Year and All Time periods). Gate on `ProStore.isPro` in the app and
   `ProEntitlement.isPro(_:now:)` in the widget.
 
-## Ownership (while the parallel build is running)
+## Where things live
 
-| Area | Owns |
+| Area | Files |
 |---|---|
 | foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}` (except `NotionConnection.swift`), `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, app icon |
@@ -84,7 +96,7 @@ Seeded launches keep the database in memory and never touch the real file.
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | notion | `Keaser/Features/Notion/`, `KeaserKit/Models/NotionConnection.swift`, `KeaserKit/Notion/` |
 
-Each area also owns `Packages/KeaserKit/Sources/KeaserKit/<Area>/`,
-`Packages/KeaserKit/Tests/KeaserKitTests/<Area>*Tests.swift` and
-`scripts/shots/<area>.txt`. Files marked `STUB (owner: ...)` keep their type
-name and public signature; replace the body.
+Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
+(`Home`, `Settings`, `Platform`, `Notion`) with tests in
+`Packages/KeaserKit/Tests/KeaserKitTests/<Area>*Tests.swift`, and its
+screenshot list in `scripts/shots/<area>.txt`.
