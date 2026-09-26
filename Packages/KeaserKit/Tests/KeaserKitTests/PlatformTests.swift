@@ -194,6 +194,47 @@ struct QuickLogTests {
     }
 }
 
+/// A shortcut saved while Personal was selected keeps Personal's label IDs.
+/// Once Business is selected, those IDs must still resolve, and the expense
+/// is filed under Business's label with the same name.
+struct ShortcutLabelTests {
+    private let personal = Account(name: "Personal")
+    private let business = Account(name: "Business")
+
+    private var database: Database {
+        Database(accounts: [personal, business], preferences: Preferences(selectedAccountID: business.id))
+    }
+
+    @Test func idsFromAnyAccountResolve() {
+        let food = personal.categories.first { $0.name == "Food & Drinks" }!
+        let cash = personal.paymentMethods.first { $0.name == "Cash" }!
+        #expect(database.selectedAccount?.id == business.id)
+        #expect(QuickLog.categories(withIDs: [food.id], in: database) == [food])
+        #expect(QuickLog.paymentMethods(withIDs: [cash.id], in: database) == [cash])
+        #expect(QuickLog.categories(withIDs: [UUID()], in: database).isEmpty)
+    }
+
+    @Test func anotherAccountsLabelIsFiledByName() {
+        let food = personal.categories.first { $0.name == "Food & Drinks" }!
+        let cash = personal.paymentMethods.first { $0.name == "Cash" }!
+        let category = QuickLog.category(id: food.id, name: food.name, in: business)
+        let method = QuickLog.paymentMethod(id: cash.id, name: cash.name, in: business)
+        #expect(category == business.categories.first { $0.name == "Food & Drinks" })
+        #expect(category?.id != food.id)
+        #expect(method == business.paymentMethods.first { $0.name == "Cash" })
+    }
+
+    @Test func theSameAccountKeepsItsOwnLabel() {
+        var account = personal
+        let food = account.categories.first { $0.name == "Food & Drinks" }!
+        // A second label with the same name must not win over the exact one.
+        account.categories.append(ExpenseCategory(name: "Food & Drinks", symbol: "fork.knife"))
+        #expect(QuickLog.category(id: food.id, name: food.name, in: account)?.id == food.id)
+        #expect(QuickLog.category(id: UUID(), name: "food & drinks", in: account)?.id == food.id)
+        #expect(QuickLog.category(id: UUID(), name: "Rent", in: account) == nil)
+    }
+}
+
 struct SpendingSnapshotTests {
     private let cal = calendar(firstWeekday: 2)
 

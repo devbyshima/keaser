@@ -87,6 +87,38 @@ public enum QuickLog {
         )
     }
 
+    // MARK: Shortcut labels
+
+    // A shortcut remembers its Category and Payment Method by ID, and every
+    // account has its own IDs. The system looks those IDs up again whenever
+    // the shortcut runs or is edited, so the lookup searches every account,
+    // not only the one selected now; the expense is then filed under the
+    // target account's label with the same name.
+
+    /// The categories with these IDs, from any account.
+    public static func categories(withIDs ids: [UUID], in database: Database) -> [ExpenseCategory] {
+        let wanted = Set(ids)
+        return database.accounts.flatMap(\.categories).filter { wanted.contains($0.id) }
+    }
+
+    /// The payment methods with these IDs, from any account.
+    public static func paymentMethods(withIDs ids: [UUID], in database: Database) -> [PaymentMethod] {
+        let wanted = Set(ids)
+        return database.accounts.flatMap(\.paymentMethods).filter { wanted.contains($0.id) }
+    }
+
+    /// The category of `account` a shortcut's choice stands for: the same
+    /// one when it belongs to `account`, otherwise the one with the same name.
+    public static func category(id: UUID, name: String, in account: Account) -> ExpenseCategory? {
+        account.categories.first { $0.id == id } ?? account.categories.first { normalized($0.name) == normalized(name) }
+    }
+
+    /// The payment method of `account` a shortcut's choice stands for, matched
+    /// like `category(id:name:in:)`.
+    public static func paymentMethod(id: UUID, name: String, in account: Account) -> PaymentMethod? {
+        account.paymentMethods.first { $0.id == id } ?? account.paymentMethods.first { normalized($0.name) == normalized(name) }
+    }
+
     // MARK: Private
 
     private static func round(_ amount: Decimal, currencyCode: String) -> Decimal {
