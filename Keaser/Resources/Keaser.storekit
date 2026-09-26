@@ -1,13 +1,59 @@
 {
   "identifier" : "5E0C1A2B",
   "nonRenewingSubscriptions" : [ ],
-  "products" : [ ],
+  "products" : [
+    {
+      "displayPrice" : "29.99",
+      "familyShareable" : true,
+      "internalID" : "6753400002",
+      "localizations" : [
+        {
+          "description" : "Every Keaser Pro feature, paid once.",
+          "displayName" : "Keaser Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.fulltimestudio.keaser.pro.lifetime",
+      "referenceName" : "Keaser Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
   "settings" : {
     "_failTransactionsEnabled" : false,
     "_locale" : "en_US",
     "_storefront" : "USA",
     "_storeKitErrors" : [ ]
   },
-  "subscriptionGroups" : [ ],
+  "subscriptionGroups" : [
+    {
+      "id" : "21753401",
+      "localizations" : [ ],
+      "name" : "Keaser Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "14.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "6753400001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Every Keaser Pro feature, renewed each year.",
+              "displayName" : "Keaser Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.fulltimestudio.keaser.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Keaser Pro Yearly",
+          "subscriptionGroupID" : "21753401",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [ ]
+        }
+      ]
+    }
+  ],
   "version" : { "major" : 4, "minor" : 0 }
 }
