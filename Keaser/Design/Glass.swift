@@ -1,0 +1,66 @@
+import SwiftUI
+
+// Liquid Glass on iOS 26 and later, a close material look-alike on iOS 18.
+// Always go through these helpers instead of calling `glassEffect` directly,
+// so the deployment target can stay at iOS 18.
+
+extension View {
+    /// Glass behind this view, clipped to `shape`.
+    @ViewBuilder
+    func keaserGlass(in shape: some Shape, interactive: Bool = false) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+        }
+    }
+
+    /// Capsule glass, the shape of every toolbar control in the reference.
+    func keaserGlass(interactive: Bool = false) -> some View {
+        keaserGlass(in: Capsule(), interactive: interactive)
+    }
+
+    /// The system glass button style ("Cancel", "Save", the round close
+    /// button), or a translucent capsule before iOS 26.
+    @ViewBuilder
+    func keaserGlassButtonStyle() -> some View {
+        if #available(iOS 26.0, *) {
+            self.buttonStyle(.glass)
+        } else {
+            self.buttonStyle(FallbackGlassButtonStyle())
+        }
+    }
+}
+
+/// Groups glass shapes so they blend and morph together on iOS 26.
+struct KeaserGlassContainer<Content: View>: View {
+    var spacing: CGFloat = 8
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content }
+        } else {
+            content
+        }
+    }
+}
+
+private struct FallbackGlassButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.medium))
+            .foregroundStyle(isEnabled ? Color.white : Color.keaserTertiaryText)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
+    }
+}

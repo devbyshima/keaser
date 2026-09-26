@@ -1,0 +1,9 @@
+.DS_Store
+*.xcodeproj
+.build/
+.swiftpm/
+Packages/KeaserKit/.build/
+xcuserdata/
+screenshots/.stage/
+/.scratch/
+screenshots/
