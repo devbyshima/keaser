@@ -1,0 +1,19 @@
+# Onboarding pages at rest. Entrance animations run for up to about three
+# seconds after launch, so take these with SETTLE=5.
+page0 | -KeaserSeed fresh -KeaserOnboardingPage 0
+page1 | -KeaserSeed fresh -KeaserOnboardingPage 1
+page2 | -KeaserSeed fresh -KeaserOnboardingPage 2
+page3 | -KeaserSeed fresh -KeaserOnboardingPage 3
+page4 | -KeaserSeed fresh -KeaserOnboardingPage 4
+page5 | -KeaserSeed fresh -KeaserOnboardingPage 5
+page5-granted | -KeaserSeed fresh -KeaserOnboardingPage 5 -KeaserNotifState granted
+page5-denied | -KeaserSeed fresh -KeaserOnboardingPage 5 -KeaserNotifState denied
+
+# The welcome letter over Home.
+letter | -KeaserSeed account -KeaserLetter 1
+letter-tldr | -KeaserSeed account -KeaserLetter 1 -KeaserLetterPage tldr
+letter-follow | -KeaserSeed account -KeaserLetter 1 -KeaserLetterPage follow
+
+# Every widget family, drawn by the widget's own views.
+widgets | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery
+widgets-locked | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked

@@ -38,6 +38,9 @@ targets:
     platform: iOS
     sources:
       - Keaser
+      # Widget views and the account entity, shared so onboarding draws the
+      # real widget and the Add Expense shortcut can pick an account.
+      - KeaserWidgets/Shared
     dependencies:
       - package: KeaserKit
       - target: KeaserWidgets
