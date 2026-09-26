@@ -1,133 +1,115 @@
 import SwiftUI
 
-// Building blocks for the Notion sheets, drawn to match the app's other
-// sheets: a round glass button either side of a centred title, charcoal
-// cards with 26pt corners, 68pt rows with an icon column, hairlines inset to
-// the text.
+// Pieces only the Notion sheets use. Headers, cards, hairlines and pressed
+// rows come from Keaser/Design/SheetChrome.swift.
 
-/// Header of a Notion sheet page: round glass buttons and a centred title.
-struct NotionSheetHeader<Trailing: View>: View {
-    enum Leading {
-        case close, back, none
-    }
-
-    let title: String
-    var leading: Leading = .none
-    var action: () -> Void = {}
-    @ViewBuilder var trailing: Trailing
-
-    var body: some View {
-        HStack {
-            switch leading {
-            case .close: headerButton("xmark", label: "Close")
-            case .back: headerButton("chevron.left", label: "Back")
-            case .none: Color.clear.frame(width: 44, height: 44)
-            }
-            Spacer(minLength: 8)
-            trailing.frame(minWidth: 44, minHeight: 44)
-        }
-        .overlay {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .padding(.horizontal, 60)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
-    }
-
-    private func headerButton(_ symbol: String, label: String) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .foregroundStyle(.white)
-                .keaserCircleButton()
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
+extension View {
+    /// Spaces a `KeaserSheetHeader` at the top of a Notion step.
+    func notionHeaderPadding() -> some View {
+        self
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
     }
 }
 
-extension NotionSheetHeader where Trailing == EmptyView {
-    init(title: String, leading: Leading = .none, action: @escaping () -> Void = {}) {
-        self.init(title: title, leading: leading, action: action) { EmptyView() }
-    }
-}
-
-/// A charcoal card holding rows separated by inset hairlines.
-struct NotionCard<Content: View>: View {
-    @ViewBuilder var content: Content
-
+/// Holds the empty side of a `KeaserSheetHeader`. Its layout places
+/// exactly three views, and an `EmptyView` side is not one, which drops the
+/// title.
+struct NotionHeaderSpacer: View {
     var body: some View {
-        VStack(spacing: 0) { content }
-            .background(Color.keaserCardRaised, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
-    }
-}
-
-/// Hairline between rows, starting where the row text starts.
-struct NotionRowDivider: View {
-    var inset: CGFloat = 64
-
-    var body: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.1))
-            .frame(height: 0.5)
-            .padding(.leading, inset)
-            .padding(.trailing, 16)
+        Color.clear
+            .frame(width: 44, height: 44)
+            .accessibilityHidden(true)
     }
 }
 
 /// A card row: icon column, title and optional subtitle, trailing content.
+/// The icon column grows with the text.
 struct NotionRow<Icon: View, Trailing: View>: View {
     let title: String
     var subtitle: String?
+    /// Draws the hairline above the row, from where the text starts. Every
+    /// row of a card but the first.
+    var separated = false
+    /// The trailing view is a control (a menu) that names itself to
+    /// VoiceOver. Otherwise the row reads as one element.
+    var hasControl = false
+    /// The trailing view is a value (a property name) rather than a
+    /// chevron or mark. At accessibility sizes, where the title and value
+    /// do not fit side by side, it moves under the title.
+    var trailingIsValue = false
     @ViewBuilder var icon: Icon
     @ViewBuilder var trailing: Trailing
 
+    @ScaledMetric(relativeTo: .title3) private var iconSize: CGFloat = 36
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        VStack(spacing: 0) {
+            if separated {
+                KeaserRowSeparator(leading: 16 + iconSize + 12)
+            }
+            content
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: hasControl ? .contain : .combine)
+    }
+
+    private var content: some View {
         HStack(spacing: 12) {
             icon
-                .frame(width: 36, height: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.body)
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.keaserSecondaryText)
-                        .lineLimit(1)
+                .frame(width: iconSize, height: iconSize)
+            if trailingIsValue && typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    labels
+                    trailing
                 }
+                Spacer(minLength: 0)
+            } else {
+                labels
+                Spacer(minLength: 8)
+                trailing
             }
-            Spacer(minLength: 8)
-            trailing
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 16)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .frame(minHeight: 64)
-        .contentShape(Rectangle())
+    }
+
+    private var labels: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.white)
+                .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.keaserSecondaryText)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+            }
+        }
+        .accessibilityHidden(hasControl)
     }
 }
 
 extension NotionRow where Trailing == EmptyView {
-    init(title: String, subtitle: String? = nil, @ViewBuilder icon: () -> Icon) {
-        self.init(title: title, subtitle: subtitle, icon: icon) { EmptyView() }
+    init(title: String, subtitle: String? = nil, separated: Bool = false, @ViewBuilder icon: () -> Icon) {
+        self.init(title: title, subtitle: subtitle, separated: separated, icon: icon) { EmptyView() }
     }
 }
 
-/// A white SF Symbol in the row icon column.
+/// A white SF Symbol in the row icon column. Decorative: the row's title
+/// says what it is.
 struct NotionRowSymbol: View {
     let symbol: String
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 19, weight: .semibold))
+            .keaserFont(19, weight: .semibold, relativeTo: .title3)
             .foregroundStyle(.white)
-            .frame(width: 36, height: 36)
+            .accessibilityHidden(true)
     }
 }
 
@@ -135,10 +117,12 @@ struct NotionRowSymbol: View {
 struct NotionEmojiTile: View {
     let emoji: String?
     var fallback: String = "tablecells"
-    var size: CGFloat = 36
+
+    @ScaledMetric(relativeTo: .title3) private var size: CGFloat = 36
 
     var body: some View {
         Group {
+            // Sized from the tile, which already follows Dynamic Type.
             if let emoji, !emoji.isEmpty {
                 Text(emoji).font(.system(size: size * 0.6))
             } else {
@@ -149,6 +133,7 @@ struct NotionEmojiTile: View {
         }
         .frame(width: size, height: size)
         .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+        .accessibilityHidden(true)
     }
 }
 
@@ -156,8 +141,9 @@ struct NotionEmojiTile: View {
 struct NotionChevron: View {
     var body: some View {
         Image(systemName: "chevron.right")
-            .font(.system(size: 14, weight: .semibold))
+            .keaserFont(14, weight: .semibold)
             .foregroundStyle(Color.keaserTertiaryText)
+            .accessibilityHidden(true)
     }
 }
 
@@ -173,6 +159,7 @@ struct NotionSectionTitle: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 32)
             .padding(.bottom, 12)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -209,7 +196,7 @@ struct NotionErrorText: View {
 }
 
 /// The white capsule pinned to the bottom of a step, with a spinner while
-/// it works.
+/// it works. Attach it with `notionBottomBar`.
 struct NotionPrimaryButton: View {
     let title: String
     var isWorking = false
@@ -238,15 +225,21 @@ struct NotionPrimaryButton: View {
         .padding(.top, 8)
         .padding(.bottom, 8)
         .background {
-            // Solid behind the button (the disabled capsule is translucent),
-            // with content fading out just above it.
-            Color.keaserCard
-                .ignoresSafeArea(edges: .bottom)
-                .overlay(alignment: .top) {
-                    LinearGradient(colors: [Color.keaserCard.opacity(0), Color.keaserCard], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 24)
-                        .offset(y: -24)
-                }
+            if #available(iOS 26.0, *) {
+                // Over the glass sheet the bar stays clear; the scroll edge
+                // effect of `notionBottomBar` softens what passes under it.
+                EmptyView()
+            } else {
+                // Solid behind the button (the disabled capsule is
+                // translucent), with content fading out just above it.
+                Color.keaserCard
+                    .ignoresSafeArea(edges: .bottom)
+                    .overlay(alignment: .top) {
+                        LinearGradient(colors: [Color.keaserCard.opacity(0), Color.keaserCard], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 24)
+                            .offset(y: -24)
+                    }
+            }
         }
     }
 }
@@ -260,6 +253,18 @@ extension View {
             self
         } else {
             self.background(Color.keaserCard.ignoresSafeArea())
+        }
+    }
+
+    /// Pins `content` (a `NotionPrimaryButton`) below the page. On iOS 26 a
+    /// safe area bar, so scrolling content gets the system's edge effect
+    /// instead of an opaque slab over the glass; before that, an inset.
+    @ViewBuilder
+    func notionBottomBar<Bar: View>(@ViewBuilder _ content: () -> Bar) -> some View {
+        if #available(iOS 26.0, *) {
+            self.safeAreaBar(edge: .bottom, content: content)
+        } else {
+            self.safeAreaInset(edge: .bottom, content: content)
         }
     }
 }

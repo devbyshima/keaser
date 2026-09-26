@@ -33,7 +33,7 @@ struct NotionConnectView: View {
     private var content: some View {
         #if DEBUG
         if DebugLaunch.string("KeaserNotionStep") == "section" {
-            NotionAccountSectionPreviewHost { finish(nil) }
+            NotionAccountSectionPreviewHost()
         } else {
             flow
         }
@@ -70,29 +70,45 @@ private struct NotionIntroStep: View {
     var onClose: () -> Void
     @FocusState private var tokenFocused: Bool
 
+    private static let tokenFieldID = "token"
+
     var body: some View {
         VStack(spacing: 0) {
-            NotionSheetHeader(title: "Connect to Notion", leading: .close, action: onClose)
-            ScrollView {
-                VStack(spacing: 0) {
-                    hero
-                        .padding(.top, 4)
-                        .padding(.bottom, 24)
-                    steps
-                    tokenField
-                        .padding(.top, 24)
-                }
-                .padding(.bottom, 24)
+            KeaserSheetHeader(title: "Connect to Notion") {
+                KeaserCircleButton("xmark", label: "Close", action: onClose)
+            } trailing: {
+                NotionHeaderSpacer()
             }
-            .scrollDismissesKeyboard(.interactively)
-            .scrollBounceBehavior(.basedOnSize)
+            .notionHeaderPadding()
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        hero
+                            .padding(.top, 4)
+                            .padding(.bottom, 24)
+                        steps
+                        tokenField
+                            .padding(.top, 24)
+                            .id(Self.tokenFieldID)
+                    }
+                    .padding(.bottom, 24)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .scrollBounceBehavior(.basedOnSize)
+                .onChange(of: model.tokenError) { _, error in
+                    // At large text sizes the field may be scrolled away.
+                    guard error != nil else { return }
+                    withAnimation { proxy.scrollTo(Self.tokenFieldID, anchor: .bottom) }
+                }
+            }
         }
-        .safeAreaInset(edge: .bottom) {
+        .notionBottomBar {
+            // A refused token is explained under the field, not here, where
+            // it would push the bar up over the page.
             NotionPrimaryButton(
                 title: "Continue",
                 isWorking: model.isValidating,
-                isEnabled: !model.trimmedToken.isEmpty,
-                error: model.tokenError
+                isEnabled: !model.trimmedToken.isEmpty
             ) {
                 tokenFocused = false
                 Task { await model.validateToken() }
@@ -108,6 +124,8 @@ private struct NotionIntroStep: View {
                 KeaserLogo(size: 50)
                     .frame(width: 64, height: 64)
                     .background(Color.keaserCardRaised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                // Fixed like the 64pt tiles either side of it; the row is
+                // an illustration, hidden from VoiceOver.
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.keaserSecondaryText)
@@ -118,6 +136,8 @@ private struct NotionIntroStep: View {
                 Text("Sync with Notion")
                     .font(.keaserTitle)
                     .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
                 Text("Expenses you add or change in Keaser or in Notion show up in both.")
                     .font(.subheadline)
                     .foregroundStyle(Color.keaserSecondaryText)
@@ -129,23 +149,24 @@ private struct NotionIntroStep: View {
     }
 
     private var steps: some View {
-        NotionCard {
+        KeaserCard {
             NotionStepRow(
                 number: 1,
                 title: "Create a connection",
-                detail: "At [notion.so/my-integrations](https://www.notion.so/my-integrations), make an internal connection."
+                detail: "At [notion.so/my-integrations](https://www.notion.so/my-integrations), make an internal connection.",
+                hasLink: true
             )
-            NotionRowDivider()
             NotionStepRow(
                 number: 2,
                 title: "Copy its token",
-                detail: "Copy the access token from its Configuration tab."
+                detail: "Copy the access token from its Configuration tab.",
+                separated: true
             )
-            NotionRowDivider()
             NotionStepRow(
                 number: 3,
                 title: "Share a database",
-                detail: "In your database, tap ••• then Connections and add it."
+                detail: "In your database, tap ••• then Connections and add it.",
+                separated: true
             )
         }
         .padding(.horizontal, 16)
@@ -157,6 +178,7 @@ private struct NotionIntroStep: View {
                 .font(.headline)
                 .foregroundStyle(Color.keaserSecondaryText)
                 .padding(.horizontal, 32)
+                .accessibilityHidden(true)
             SecureField("Paste your token", text: $model.token)
                 .textContentType(.password)
                 .textInputAutocapitalization(.never)
@@ -167,13 +189,23 @@ private struct NotionIntroStep: View {
                 .font(.body)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
-                .frame(height: 50)
+                .padding(.vertical, 12)
+                .frame(minHeight: 50)
                 .background(Color.keaserCardRaised, in: Capsule())
                 .padding(.horizontal, 16)
-            Text("Kept in your Keychain and only ever sent to Notion.")
-                .font(.footnote)
-                .foregroundStyle(Color.keaserSecondaryText)
-                .padding(.horizontal, 32)
+                .accessibilityLabel("Access token")
+            ZStack(alignment: .topLeading) {
+                if let error = model.tokenError {
+                    NotionErrorText(message: error)
+                } else {
+                    Text("Kept in your Keychain and only ever sent to Notion.")
+                        .font(.footnote)
+                        .foregroundStyle(Color.keaserSecondaryText)
+                        .padding(.horizontal, 32)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.snappy, value: model.tokenError)
         }
     }
 }
@@ -184,25 +216,43 @@ private struct NotionStepRow: View {
     let title: String
     /// Markdown, so the first step can link to Notion.
     let detail: LocalizedStringKey
+    /// The detail holds a link. VoiceOver only offers it when the detail is
+    /// an element of its own, so the step is not read as one.
+    var hasLink = false
+    var separated = false
+
+    @ScaledMetric(relativeTo: .subheadline) private var badge: CGFloat = 30
 
     var body: some View {
+        VStack(spacing: 0) {
+            if separated {
+                KeaserRowSeparator(leading: 16 + badge + 6 + 12)
+            }
+            content
+        }
+    }
+
+    private var content: some View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(number)")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
+                .frame(width: badge, height: badge)
                 .background(Color.white.opacity(0.1), in: Circle())
-                .frame(width: 36)
+                .frame(width: badge + 6)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.white)
+                    .accessibilityLabel("Step \(number): \(title)")
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(Color.keaserSecondaryText)
                     .tint(.white)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .accessibilityElement(children: hasLink ? .contain : .combine)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
@@ -218,7 +268,12 @@ private struct NotionDatabasesStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NotionSheetHeader(title: "Choose Database", leading: .back) { dismiss() }
+            KeaserSheetHeader(title: "Choose Database") {
+                KeaserCircleButton("chevron.left", label: "Back") { dismiss() }
+            } trailing: {
+                NotionHeaderSpacer()
+            }
+            .notionHeaderPadding()
             ScrollView {
                 VStack(spacing: 0) {
                     if let workspace = model.user?.workspaceName {
@@ -290,25 +345,24 @@ private struct NotionDatabasesStep: View {
             .padding(.bottom, 32)
         } else {
             NotionSectionTitle(text: "Shared with Keaser")
-            NotionCard {
+            KeaserCard {
                 ForEach(Array(model.dataSources.enumerated()), id: \.element.id) { index, source in
-                    if index > 0 { NotionRowDivider() }
                     Button {
                         model.choose(source)
                     } label: {
-                        NotionRow(title: source.displayTitle, subtitle: model.matchSummary(for: source)) {
+                        NotionRow(title: source.displayTitle, subtitle: model.matchSummary(for: source), separated: index > 0) {
                             NotionEmojiTile(emoji: source.iconEmoji)
                         } trailing: {
                             NotionChevron()
                         }
                     }
-                    .buttonStyle(NotionRowButtonStyle())
+                    .buttonStyle(HighlightRowButtonStyle())
                 }
             }
             .padding(.horizontal, 16)
         }
 
-        NotionCard {
+        KeaserCard {
             Button {
                 model.path.append(.newDatabase)
             } label: {
@@ -318,7 +372,7 @@ private struct NotionDatabasesStep: View {
                     NotionChevron()
                 }
             }
-            .buttonStyle(NotionRowButtonStyle())
+            .buttonStyle(HighlightRowButtonStyle())
         }
         .padding(.horizontal, 16)
         .padding(.top, 28)
@@ -335,10 +389,15 @@ private struct NotionNewDatabaseStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NotionSheetHeader(title: "New Database", leading: .back) { dismiss() }
+            KeaserSheetHeader(title: "New Database") {
+                KeaserCircleButton("chevron.left", label: "Back") { dismiss() }
+            } trailing: {
+                NotionHeaderSpacer()
+            }
+            .notionHeaderPadding()
             ScrollView {
                 VStack(spacing: 0) {
-                    Text("Keaser will create “\(NotionConnectModel.newDatabaseTitle)” with Name, Amount, Category, Payment and Date properties. Choose the page it goes in.")
+                    Text("Keaser will create “\(NotionConnectModel.newDatabaseTitle)” with Name, Amount, Category, Payment, Date and Keaser ID properties. Choose the page it goes in.")
                         .font(.subheadline)
                         .foregroundStyle(Color.keaserSecondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -372,13 +431,12 @@ private struct NotionNewDatabaseStep: View {
     @ViewBuilder
     private var pageList: some View {
         NotionSectionTitle(text: "Shared pages")
-        NotionCard {
+        KeaserCard {
             ForEach(Array(model.pages.enumerated()), id: \.element.id) { index, page in
-                if index > 0 { NotionRowDivider() }
                 Button {
                     Task { await model.createDatabase(in: page, currencyCode: store.preferences.currencyCode) }
                 } label: {
-                    NotionRow(title: page.displayTitle) {
+                    NotionRow(title: page.displayTitle, separated: index > 0) {
                         NotionEmojiTile(emoji: page.iconEmoji, fallback: "doc.text")
                     } trailing: {
                         if model.creatingInPageID == page.id {
@@ -388,7 +446,7 @@ private struct NotionNewDatabaseStep: View {
                         }
                     }
                 }
-                .buttonStyle(NotionRowButtonStyle())
+                .buttonStyle(HighlightRowButtonStyle())
                 .disabled(model.creatingInPageID != nil)
             }
         }
@@ -409,14 +467,24 @@ private struct NotionReviewStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NotionSheetHeader(title: "Review", leading: model.connectedAccountID == nil ? .back : .none) { dismiss() }
+            KeaserSheetHeader(title: "Review") {
+                // Linked already: there is nothing to go back to.
+                if model.connectedAccountID == nil {
+                    KeaserCircleButton("chevron.left", label: "Back") { dismiss() }
+                } else {
+                    NotionHeaderSpacer()
+                }
+            } trailing: {
+                NotionHeaderSpacer()
+            }
+            .notionHeaderPadding()
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     nameField
                     if let source = model.selected {
                         NotionSectionTitle(text: "Database")
                             .padding(.top, 28)
-                        NotionCard {
+                        KeaserCard {
                             NotionRow(title: source.displayTitle, subtitle: model.user?.workspaceName ?? "Notion") {
                                 NotionEmojiTile(emoji: source.iconEmoji)
                             } trailing: {
@@ -433,7 +501,7 @@ private struct NotionReviewStep: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .safeAreaInset(edge: .bottom) {
+        .notionBottomBar {
             NotionPrimaryButton(
                 title: model.connectedAccountID == nil ? "Connect" : "Done",
                 isWorking: model.isConnecting,
@@ -457,29 +525,31 @@ private struct NotionReviewStep: View {
                 .font(.headline)
                 .foregroundStyle(Color.keaserSecondaryText)
                 .padding(.horizontal, 32)
+                .accessibilityHidden(true)
             TextField("e.g. Personal", text: $model.accountName)
                 .focused($nameFocused)
                 .submitLabel(.done)
                 .font(.body)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
-                .frame(height: 50)
+                .padding(.vertical, 12)
+                .frame(minHeight: 50)
                 .background(Color.keaserCardRaised, in: Capsule())
                 .padding(.horizontal, 16)
+                .accessibilityLabel("Account name")
         }
     }
 
     private var properties: some View {
         VStack(alignment: .leading, spacing: 0) {
             NotionSectionTitle(text: "Properties")
-            NotionCard {
+            KeaserCard {
                 ForEach(Array(NotionExpenseField.allCases.enumerated()), id: \.element) { index, field in
-                    if index > 0 { NotionRowDivider() }
-                    NotionPropertyPickerRow(model: model, field: field)
+                    NotionPropertyPickerRow(model: model, field: field, separated: index > 0)
                 }
             }
             .padding(.horizontal, 16)
-            NotionFootnote(text: "Keaser reads and writes only these properties. Everything else in the database is left as it is.")
+            NotionFootnote(text: "Keaser reads and writes only these properties, plus a Keaser ID it adds to match rows to expenses. Everything else in the database is left as it is.")
         }
     }
 }
@@ -488,10 +558,13 @@ private struct NotionReviewStep: View {
 private struct NotionPropertyPickerRow: View {
     let model: NotionConnectModel
     let field: NotionExpenseField
+    var separated = false
+
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let current = model.property(for: field)
-        NotionRow(title: field.displayName) {
+        NotionRow(title: field.displayName, separated: separated, hasControl: field != .title, trailingIsValue: true) {
             NotionRowSymbol(symbol: field.symbol)
         } trailing: {
             if field == .title {
@@ -514,6 +587,9 @@ private struct NotionPropertyPickerRow: View {
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
+                // The row's title is hidden; the menu says which field it sets.
+                .accessibilityLabel(field.displayName)
+                .accessibilityValue(current?.name ?? "None")
             }
         }
     }
@@ -521,21 +597,14 @@ private struct NotionPropertyPickerRow: View {
     private func valueLabel(_ text: String, showsChevrons: Bool) -> some View {
         HStack(spacing: 6) {
             Text(text)
-                .lineLimit(1)
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
             if showsChevrons {
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 13, weight: .semibold))
+                    .keaserFont(13, weight: .semibold)
+                    .accessibilityHidden(true)
             }
         }
         .font(.body)
         .foregroundStyle(Color.keaserSecondaryText)
-    }
-}
-
-/// Rows highlight while pressed, like list rows.
-struct NotionRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(Color.white.opacity(configuration.isPressed ? 0.06 : 0))
     }
 }
