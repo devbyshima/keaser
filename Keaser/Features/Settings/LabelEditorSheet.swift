@@ -203,8 +203,8 @@ private struct SymbolChoiceButton: View {
 }
 
 /// The round checkmark that confirms a sheet. On iOS 26 the system draws it
-/// as a prominent glass button; before that, a filled circle that dims
-/// while there is nothing valid to save.
+/// as a prominent glass button; before that, the shared `KeaserConfirmButton`
+/// (white once there is something valid to save), as on New Account.
 struct ConfirmIconButton: View {
     let isEnabled: Bool
     let action: () -> Void
@@ -219,19 +219,7 @@ struct ConfirmIconButton: View {
             // The checkmark glyph would otherwise make VoiceOver say "selected".
             .accessibilityRemoveTraits(.isSelected)
         } else {
-            Button(action: action) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isEnabled ? Color.white : Color.keaserTertiaryText)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color.white.opacity(isEnabled ? 0.45 : 0.08)))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!isEnabled)
-            .animation(.snappy(duration: 0.2), value: isEnabled)
-            .accessibilityLabel("Save")
-            .accessibilityRemoveTraits(.isSelected)
+            KeaserConfirmButton("Save", isEnabled: isEnabled, action: action)
         }
     }
 }

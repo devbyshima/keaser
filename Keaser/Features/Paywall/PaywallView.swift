@@ -87,18 +87,15 @@ struct PaywallView: View {
 
     private var features: some View {
         let ordered = ProFeature.ordered(highlighting: highlighted)
-        return VStack(spacing: 0) {
+        return KeaserCard(fill: .keaserSheetCard) {
             ForEach(Array(ordered.enumerated()), id: \.element) { index, feature in
                 FeatureRow(feature: feature, isHighlighted: feature == highlighted)
                 if index < ordered.count - 1 {
-                    Rectangle()
-                        .fill(Color.keaserSeparator)
-                        .frame(height: 1)
-                        .padding(.leading, 64)
+                    // Under the text, past the 36pt tile.
+                    KeaserRowSeparator(leading: 64)
                 }
             }
         }
-        .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
     }
 
     private var plans: some View {
@@ -124,6 +121,13 @@ struct PaywallView: View {
     }
 
     private var thanks: some View {
+        KeaserCard(fill: .keaserSheetCard) {
+            thanksContent
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var thanksContent: some View {
         VStack(spacing: 8) {
             // A badge in a fixed spot above the text, not text itself.
             Image(systemName: "checkmark.seal.fill")
@@ -140,9 +144,10 @@ struct PaywallView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(20)
-        .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
+
+    /// The band above the footer where content fades out (before iOS 26).
+    private static let footerFade: CGFloat = 24
 
     /// How far the legal links' 44pt tap targets reach above and below their
     /// text. The footer's spacing gives it back, so the text sits where the
@@ -200,11 +205,17 @@ struct PaywallView: View {
                 // effect.
                 EmptyView()
             } else {
-                // Content fades out under the button instead of being cut off.
-                LinearGradient(colors: [Color.keaserCard.opacity(0), Color.keaserCard], startPoint: .top, endPoint: .init(x: 0.5, y: 0.3))
-                    .padding(.top, -20)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
+                // Content fades out in a fixed band above the footer, then
+                // the footer is opaque, so nothing scrolls behind its text
+                // however tall a large text size makes it.
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [Color.keaserCard.opacity(0), Color.keaserCard], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Self.footerFade)
+                    Color.keaserCard
+                }
+                .padding(.top, -Self.footerFade)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             }
         }
         .animation(.snappy(duration: 0.2), value: pro.errorMessage)
