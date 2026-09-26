@@ -25,13 +25,56 @@ public enum ProProduct: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Whether one StoreKit transaction still grants Pro: a Keaser Pro product
-    /// that was not refunded or revoked and, for the subscription, has not
-    /// expired.
-    public static func grantsPro(productID: String, revocationDate: Date?, expirationDate: Date?, now: Date) -> Bool {
-        guard ProProduct(rawValue: productID) != nil, revocationDate == nil else { return false }
-        if let expirationDate { return expirationDate > now }
-        return true
+    /// What one StoreKit transaction grants: nothing for another product or
+    /// a refunded or revoked one, Pro for good for a purchase that does not
+    /// expire, and Pro until the later of its expiry and `gracePeriodEnd` for
+    /// the subscription.
+    ///
+    /// Pass `gracePeriodEnd` only while the subscription is in its billing
+    /// grace period: its transaction then carries the original, already past
+    /// expiry, and Pro continues until the grace period ends. A subscription
+    /// in billing retry without a grace period has no `gracePeriodEnd` and
+    /// grants nothing, as Apple recommends.
+    public static func grant(
+        productID: String,
+        revocationDate: Date?,
+        expirationDate: Date?,
+        gracePeriodEnd: Date? = nil,
+        now: Date
+    ) -> ProGrant {
+        guard ProProduct(rawValue: productID) != nil, revocationDate == nil else { return .none }
+        guard let expirationDate else { return .forever }
+        let end = max(expirationDate, gracePeriodEnd ?? expirationDate)
+        return end > now ? .until(end) : .none
+    }
+}
+
+/// Pro ownership worked out from StoreKit, in the shape
+/// `Preferences.hasProPurchase` and `Preferences.proExpirationDate` cache it.
+public enum ProGrant: Equatable, Sendable {
+    case none
+    /// A subscription, through this date.
+    case until(Date)
+    /// A lifetime purchase.
+    case forever
+
+    /// The better of two grants, for combining every current transaction.
+    public func combined(with other: ProGrant) -> ProGrant {
+        switch (self, other) {
+        case (.forever, _), (_, .forever): .forever
+        case (.until(let a), .until(let b)): .until(max(a, b))
+        case (.until, .none): self
+        case (.none, _): other
+        }
+    }
+
+    /// The value for `Preferences.hasProPurchase`.
+    public var hasPurchase: Bool { self != .none }
+
+    /// The value for `Preferences.proExpirationDate`.
+    public var expirationDate: Date? {
+        if case .until(let date) = self { return date }
+        return nil
     }
 }
 

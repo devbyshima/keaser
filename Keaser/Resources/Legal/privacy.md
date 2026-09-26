@@ -57,4 +57,4 @@ If this policy changes, the new version ships with an app update and the date at
 
 ## Contact
 
-Questions about privacy are welcome through Settings > Help & Feedback.
+Questions about privacy are welcome through the support link on Keaser's App Store page.

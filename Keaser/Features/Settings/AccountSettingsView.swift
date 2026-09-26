@@ -10,6 +10,9 @@ struct AccountSettingsView: View {
     @State private var isRenaming = false
     @State private var draftName = ""
     @State private var confirmsDelete = false
+    /// Counts renames and the deletion, for the same success haptic as
+    /// deleting an expense.
+    @State private var committedChanges = 0
 
     var body: some View {
         Group {
@@ -21,6 +24,7 @@ struct AccountSettingsView: View {
             }
         }
         .settingsPage("Account Settings")
+        .sensoryFeedback(.success, trigger: committedChanges)
     }
 
     private func content(for account: Account) -> some View {
@@ -74,13 +78,17 @@ struct AccountSettingsView: View {
             TextField("Account Name", text: $draftName)
                 .textInputAutocapitalization(.words)
             Button("Cancel", role: .cancel) {}
-            Button("Save") { store.renameAccount(account.id, to: draftName) }
+            Button("Save") {
+                store.renameAccount(account.id, to: draftName)
+                if store.account(id: account.id)?.name != account.name { committedChanges += 1 }
+            }
                 .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } message: {
             Text("Choose a new name for this account.")
         }
         .confirmationDialog("Delete \u{201C}\(account.name)\u{201D}?", isPresented: $confirmsDelete, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {
+                committedChanges += 1
                 dismiss()
                 store.deleteAccount(account.id)
             }

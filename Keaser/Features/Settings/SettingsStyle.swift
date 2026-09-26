@@ -5,14 +5,12 @@ import UIKit
 // cards on the sheet background, 68pt rows with a symbol, round glass header
 // buttons.
 
+// The settings names predate the shared sheet tokens in Theme.swift and are
+// kept for the pages (and the Notion section) that use them.
 extension Color {
-    /// Card fill on settings pages. A light veil rather than a solid colour,
-    /// so it reads the same on the iOS 18 charcoal sheet and on iOS 26 glass.
-    static let settingsCard = Color.white.opacity(0.055)
-    /// The barely visible tile behind row symbols and the account monogram.
-    static let settingsTile = Color.white.opacity(0.014)
-    /// Symbol tiles and text fields that sit on the sheet itself.
-    static let settingsField = Color.white.opacity(0.03)
+    static var settingsCard: Color { .keaserSheetCard }
+    static var settingsTile: Color { .keaserSheetTile }
+    static var settingsField: Color { .keaserSheetField }
 }
 
 /// Where a row sits in its card, so its background rounds the right corners.
@@ -101,54 +99,97 @@ extension View {
 }
 
 /// An SF Symbol on the faint square tile the reference puts behind row icons.
+/// Tile and symbol grow with the text beside them, up to half as big again,
+/// so they keep their proportion at large sizes without crowding the row.
 struct SettingsSymbol: View {
     let symbol: String
-    var size: CGFloat = 38
-    var pointSize: CGFloat = 18
+    var size: CGFloat
+    var pointSize: CGFloat
+
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+
+    init(symbol: String, size: CGFloat = 38, pointSize: CGFloat = 18) {
+        self.symbol = symbol
+        self.size = size
+        self.pointSize = pointSize
+    }
 
     var body: some View {
+        let scale = min(textScale, 1.5)
         Image(systemName: symbol)
-            .font(.system(size: pointSize, weight: .medium))
+            .font(.system(size: pointSize * scale, weight: .medium))
             .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+            .frame(width: size * scale, height: size * scale)
+            .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: size * scale * 0.3, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 
 /// Symbol, title and an optional trailing value. Wrap it in a
-/// `NavigationLink` for the chevron, or give it an `accessory` symbol.
+/// `NavigationLink` for the chevron, or give it an `accessory` symbol. At
+/// accessibility sizes the value moves under the title instead of cutting
+/// both short.
 struct SettingsRow: View {
     let symbol: String
     let title: String
-    var value: String? = nil
-    var accessory: String? = nil
+    var value: String?
+    var accessory: String?
     /// Whether a `NavigationLink` chevron follows the row.
-    var hasDisclosure = true
+    var hasDisclosure: Bool
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil, hasDisclosure: Bool = true) {
+        self.symbol = symbol
+        self.title = title
+        self.value = value
+        self.accessory = accessory
+        self.hasDisclosure = hasDisclosure
+    }
 
     var body: some View {
         HStack(spacing: 13) {
             SettingsSymbol(symbol: symbol)
-            Text(title)
-                .font(.body)
-                .foregroundStyle(Color.keaserPrimaryText)
-                .lineLimit(1)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 2) {
+                    titleText
+                    if let value { valueText(value) }
+                }
+                .padding(.vertical, 12)
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-            Spacer(minLength: 8)
-            if let value {
-                Text(value)
-                    .font(.body)
-                    .foregroundStyle(Color.keaserSecondaryText)
+                Spacer(minLength: 8)
+            } else {
+                titleText
                     .lineLimit(1)
+                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                Spacer(minLength: 8)
+                if let value {
+                    valueText(value)
+                        .lineLimit(1)
+                }
             }
             if let accessory {
                 Image(systemName: accessory)
-                    .font(.system(size: 14, weight: .semibold))
+                    .keaserFont(14, weight: .semibold, relativeTo: .footnote)
                     .foregroundStyle(Color.keaserTertiaryText)
+                    .accessibilityHidden(true)
             }
         }
         .frame(minHeight: 68)
         .cardSeparatorTrailing(overChevron: hasDisclosure)
         .contentShape(Rectangle())
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.body)
+            .foregroundStyle(Color.keaserPrimaryText)
+    }
+
+    private func valueText(_ value: String) -> some View {
+        Text(value)
+            .font(.body)
+            .foregroundStyle(Color.keaserSecondaryText)
     }
 }
 
@@ -164,7 +205,7 @@ struct SettingsSectionTitle: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 17, weight: .semibold))
+            .keaserFont(17, weight: .semibold, relativeTo: .headline)
             .foregroundStyle(Color.keaserSecondaryText)
             .padding(.leading, 16)
             .padding(.top, 13)
@@ -183,10 +224,10 @@ struct SettingsFootnote: View {
     }
 
     var body: some View {
-        // A plain 13pt font keeps the tight leading of the reference; the
+        // An exact 13pt font keeps the tight leading of the reference; the
         // footnote text style adds several points between lines.
         Text(text)
-            .font(.system(size: 13))
+            .keaserFont(13, relativeTo: .footnote)
             .foregroundStyle(Color.keaserSecondaryText)
             .textCase(nil)
             .fixedSize(horizontal: false, vertical: true)
@@ -195,9 +236,9 @@ struct SettingsFootnote: View {
 
 // MARK: - Header buttons
 
-/// A round glass icon button for sheet and page headers (close, back, add).
+/// A round glass icon button for toolbar headers (close, back, add, done).
 /// iOS 26 toolbars put their buttons on glass themselves; earlier systems
-/// get the look from `keaserCircleButton()`.
+/// get a `KeaserCircleButton`.
 struct HeaderIconButton: View {
     let symbol: String
     let label: String
@@ -211,19 +252,22 @@ struct HeaderIconButton: View {
 
     var body: some View {
         if #available(iOS 26.0, *) {
-            // Left to the toolbar, which draws its own glass.
+            // Left to the toolbar, which draws its own glass. The close glyph
+            // gets the same grey, lighter look as KeaserCircleButton's.
             Button(action: action) {
-                Image(systemName: symbol)
+                if symbol == "xmark" {
+                    Image(systemName: symbol)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.keaserCloseGlyph)
+                } else {
+                    Image(systemName: symbol)
+                }
             }
             .accessibilityLabel(label)
+            // A checkmark glyph would otherwise make VoiceOver say "selected".
+            .accessibilityRemoveTraits(.isSelected)
         } else {
-            Button(action: action) {
-                Image(systemName: symbol)
-                    .keaserCircleButton()
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.white)
-            .accessibilityLabel(label)
+            KeaserCircleButton(symbol, label: label, action: action)
         }
     }
 }

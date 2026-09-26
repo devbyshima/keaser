@@ -76,6 +76,10 @@ private struct SettingsRootList: View {
                         SettingsRow(symbol: "text.viewfinder", title: "Smart Suggestions", value: preferences.smartSuggestionsEnabled ? "On" : "Off")
                     }
                     .cardRow(.middle)
+                    NavigationLink(value: SettingsPage.weeklySummary) {
+                        SettingsRow(symbol: "bell.fill", title: "Weekly Summary", value: preferences.weeklySummaryEnabled ? "On" : "Off")
+                    }
+                    .cardRow(.middle)
                     NavigationLink(value: SettingsPage.shortcut) {
                         SettingsRow(symbol: "command", title: "Shortcut")
                     }
@@ -166,28 +170,43 @@ private enum SupportRow: Hashable {
 }
 
 /// The selected account: monogram, name, and what the page behind it holds.
+/// At accessibility sizes the text moves under the monogram, where it has
+/// the card's full width.
 private struct AccountSummary: View {
     let account: Account
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// The monogram tile grows with the text, up to half as big again.
+    @ScaledMetric(relativeTo: .title) private var textScale: CGFloat = 1
+
     var body: some View {
-        HStack(spacing: 18) {
+        let isLarge = dynamicTypeSize.isAccessibilitySize
+        let scale = min(textScale, 1.5)
+        let layout = isLarge
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 18))
+        layout {
+            // Sized with the tile rather than as text, so the letter always
+            // fills it the same way.
             Text(account.initial)
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .font(.system(size: 30 * scale, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
-                .frame(width: 70, height: 70)
-                .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .frame(width: 70 * scale, height: 70 * scale)
+                .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(account.name)
-                    .font(.system(size: 22, weight: .bold))
+                    .keaserFont(22, weight: .bold, relativeTo: .title2)
                     .foregroundStyle(.white)
-                    .lineLimit(1)
+                    .lineLimit(isLarge ? 3 : 1)
                 Text("Account info, categories and payments")
-                    .font(.system(size: 14))
+                    .keaserFont(14, relativeTo: .subheadline)
                     .foregroundStyle(Color.keaserSecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: 180, alignment: .leading)
+                    .frame(maxWidth: isLarge ? .infinity : 180, alignment: .leading)
             }
         }
+        .padding(.vertical, isLarge ? 16 : 0)
         .frame(minHeight: 116)
         .accessibilityElement(children: .combine)
     }

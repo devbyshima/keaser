@@ -56,7 +56,7 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
 | `-KeaserSheet` | `settings`, `paywall`, `notion` (presented by `RootView` over whatever is showing) | foundation |
 | `-KeaserOnboardingPage` | `0`...`5`; `widgetGallery`, `widgetGalleryLocked` (every widget family, needs seed `fresh`) | onboarding |
-| `-KeaserNotifState` | `granted`, `denied`: page 5 in its end state without the system prompt | onboarding |
+| `-KeaserNotifState` | `granted`, `denied`: page 5 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
 | `-KeaserLetterPage` | `tldr`, `follow` (sample links, DEBUG only) | onboarding |
 | `-KeaserSheet` | `accounts`, `addAccount`, `newAccount`, `newExpense`, `editExpense`, `search` | home |
@@ -65,7 +65,7 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserExpenseTitle` | text typed into New Expense (shows Smart Suggestions) | home |
 | `-KeaserExpenseFocus` | `amount`: then moves on to Amount (shows the guessed category and payment) | home |
 | `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
-| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
+| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
 | `-KeaserSettingsScroll` | `bottom` | settings |
 | `-KeaserPro` | `purchased`, `expired`, `never` | settings |
 | `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |

@@ -8,6 +8,9 @@ struct LabelEditorSheet: View {
     let accountID: UUID
     /// Nil for a new label.
     let existing: LabelItem?
+    /// Called after a save or a deletion, so the list can play its haptic
+    /// (this sheet is already on its way out).
+    let onCommit: () -> Void
 
     @Environment(KeaserStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -16,10 +19,11 @@ struct LabelEditorSheet: View {
     @State private var confirmsDelete = false
     @FocusState private var nameFocused: Bool
 
-    init(kind: LabelKind, accountID: UUID, existing: LabelItem?, startingSymbol: String?) {
+    init(kind: LabelKind, accountID: UUID, existing: LabelItem?, startingSymbol: String?, onCommit: @escaping () -> Void = {}) {
         self.kind = kind
         self.accountID = accountID
         self.existing = existing
+        self.onCommit = onCommit
         _name = State(initialValue: existing?.name ?? "")
         _symbol = State(initialValue: existing?.symbol ?? startingSymbol)
     }
@@ -89,13 +93,16 @@ struct LabelEditorSheet: View {
             }
             .confirmationDialog("Delete \u{201C}\(existing?.name ?? "")\u{201D}?", isPresented: $confirmsDelete, titleVisibility: .visible) {
                 Button("Delete \(kind.singularTitle)", role: .destructive) {
-                    if let existing { store.deleteLabel(kind, id: existing.id, in: accountID) }
+                    if let existing {
+                        store.deleteLabel(kind, id: existing.id, in: accountID)
+                        onCommit()
+                    }
                     dismiss()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(kind == .category
-                     ? "Expenses in this category are kept and become uncategorised."
+                     ? "Expenses in this category are kept and become uncategorized."
                      : "Expenses paid this way are kept without a payment method.")
             }
         }
@@ -121,14 +128,15 @@ struct LabelEditorSheet: View {
 
     private var nameField: some View {
         TextField(suggestion ?? "Name", text: $name)
-            .font(.system(size: 20))
+            .keaserFont(20, relativeTo: .title3)
             .multilineTextAlignment(.center)
             .textInputAutocapitalization(.words)
             .submitLabel(.done)
             .focused($nameFocused)
             .onSubmit { if canSave { save() } }
             .padding(.horizontal, 20)
-            .frame(height: 56)
+            .padding(.vertical, 8)
+            .frame(minHeight: 56)
             .background(Color.settingsField, in: Capsule())
             .accessibilityLabel("Name")
     }
@@ -163,6 +171,7 @@ struct LabelEditorSheet: View {
         guard canSave, let symbol, let resolvedName else { return }
         let item = LabelItem(id: existing?.id ?? UUID(), name: resolvedName, symbol: symbol)
         store.saveLabel(item, kind: kind, in: accountID)
+        onCommit()
         dismiss()
     }
 }
@@ -207,6 +216,8 @@ struct ConfirmIconButton: View {
             }
             .disabled(!isEnabled)
             .accessibilityLabel("Save")
+            // The checkmark glyph would otherwise make VoiceOver say "selected".
+            .accessibilityRemoveTraits(.isSelected)
         } else {
             Button(action: action) {
                 Image(systemName: "checkmark")
@@ -220,6 +231,7 @@ struct ConfirmIconButton: View {
             .disabled(!isEnabled)
             .animation(.snappy(duration: 0.2), value: isEnabled)
             .accessibilityLabel("Save")
+            .accessibilityRemoveTraits(.isSelected)
         }
     }
 }
