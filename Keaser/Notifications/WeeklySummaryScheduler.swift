@@ -10,6 +10,12 @@ import UserNotifications
 /// text, so the request is replaced after every change to keep the total
 /// right, and again whenever the app becomes active in case a week rolled over
 /// while it was closed.
+///
+/// A summary is scheduled only while both switches are on: the user's choice
+/// (`Preferences.weeklySummaryEnabled`, a store change) and the system
+/// permission. Permission is read again on every refresh, and refreshes run
+/// when the app becomes active (back from the Settings app) and when the
+/// permission prompt is answered.
 @MainActor
 final class WeeklySummaryScheduler {
     static let shared = WeeklySummaryScheduler()
@@ -96,13 +102,17 @@ enum NotificationPermission: Equatable, Sendable {
 
     /// Shows the system prompt if the user has never answered it, and returns
     /// the resulting permission. Once answered, the system does not ask again
-    /// and this just reports the earlier answer.
+    /// and this just reports the earlier answer. The weekly summary is brought
+    /// in line with the answer before this returns.
     static func request() async -> NotificationPermission {
+        let permission: NotificationPermission
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-            return granted ? .granted : .denied
+            permission = granted ? .granted : .denied
         } catch {
-            return await status()
+            permission = await status()
         }
+        await WeeklySummaryScheduler.shared.refreshNow()
+        return permission
     }
 }

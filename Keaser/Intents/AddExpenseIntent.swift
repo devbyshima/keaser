@@ -46,14 +46,10 @@ struct AddExpenseIntent: AppIntent {
         let expense = Expense(
             title: title.isEmpty ? QuickLog.defaultTitle : title,
             amount: value,
-            // Categories and methods are listed from the selected account; when
-            // the shortcut targets another account, match them there by name.
-            categoryID: category.flatMap { chosen in
-                target.categories.first { $0.id == chosen.id } ?? target.categories.first { $0.name == chosen.name }
-            }?.id,
-            paymentMethodID: paymentMethod.flatMap { chosen in
-                target.paymentMethods.first { $0.id == chosen.id } ?? target.paymentMethods.first { $0.name == chosen.name }
-            }?.id
+            // The chosen label may belong to another account (the one selected
+            // when the shortcut was made); file it under the same name here.
+            categoryID: category.flatMap { QuickLog.category(id: $0.id, name: $0.name, in: target) }?.id,
+            paymentMethodID: paymentMethod.flatMap { QuickLog.paymentMethod(id: $0.id, name: $0.name, in: target) }?.id
         )
         let message = await IntentSupport.save(expense, in: target, store: store)
         return .result(dialog: IntentDialog(stringLiteral: message))

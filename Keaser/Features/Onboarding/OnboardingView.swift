@@ -11,6 +11,8 @@ struct OnboardingView: View {
 
     @Environment(KeaserStore.self) private var store
     @Environment(ProStore.self) private var pro
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var page: Int
     @State private var notifications: NotificationStep
 
@@ -44,7 +46,7 @@ struct OnboardingView: View {
             ZStack {
                 currentPage
                     .id(page)
-                    .transition(.push(from: .trailing))
+                    .transition(reduceMotion ? .opacity : .push(from: .trailing))
             }
             .padding(.top, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -57,19 +59,27 @@ struct OnboardingView: View {
         case 0:
             OnboardingPage(
                 title: "Welcome to Keaser",
-                // The break matches the reference's short first line.
-                subtitle: "Your simple, delightful way to\ntrack expenses.",
+                // The break matches the reference's short first line. At
+                // larger sizes the first line would wrap by itself and leave
+                // "to" alone on a line, so the text wraps naturally there.
+                subtitle: dynamicTypeSize <= .xLarge
+                    ? "Your simple, delightful way to\ntrack expenses."
+                    : "Your simple, delightful way to track expenses.",
                 button: "Get Started",
                 illustrationHeight: 374,
+                pictureHeight: 260,
                 action: advance
             ) {
                 SampleExpensesIllustration(currencyCode: store.preferences.currencyCode)
             } accessory: {
                 // A solid tile reads heavier than an outline, so the mark is
                 // drawn a little inside the reference's 140pt logo box.
-                KeaserLogo(size: 120)
-                    .frame(width: 140, height: 140)
+                let scale = OnboardingMetrics.pictureScale(for: dynamicTypeSize)
+                KeaserLogo(size: 120 * scale)
+                    .frame(width: 140 * scale, height: 140 * scale)
                     .padding(.bottom, 13)
+                    // The title right below already says "Keaser".
+                    .accessibilityHidden(true)
             }
         case 1:
             OnboardingPage(
@@ -138,12 +148,15 @@ struct OnboardingView: View {
     }
 
     private func requestNotifications() {
+        // Tapping Enable is the user's choice, whatever the system prompt
+        // answers: the scheduler also needs permission, and re-checks it every
+        // time the app becomes active, so allowing notifications later in the
+        // Settings app starts the summary without another step here.
+        store.updatePreferences { $0.weeklySummaryEnabled = true }
         Task {
             let permission = await NotificationPermission.request()
-            let granted = permission == .granted
-            store.updatePreferences { $0.weeklySummaryEnabled = granted }
             withAnimation(.smooth(duration: 0.55)) {
-                notifications = granted ? .granted : .denied
+                notifications = permission == .granted ? .granted : .denied
             }
         }
     }
@@ -151,8 +164,12 @@ struct OnboardingView: View {
 
 // MARK: - Page layout
 
-/// One onboarding page: an illustration in a fixed band at the top, and the
-/// title, subtitle and button anchored to the bottom.
+/// One onboarding page: an illustration in a fixed band at the top, the title
+/// and subtitle at the bottom, and the button pinned below them.
+///
+/// Everything but the button scrolls, so at large text sizes the page grows
+/// into a scrolling column instead of pushing the button off screen. At the
+/// default size the column exactly fills the screen and nothing moves.
 private struct OnboardingPage<Illustration: View, Accessory: View>: View {
     let title: String
     let subtitle: String
@@ -161,50 +178,86 @@ private struct OnboardingPage<Illustration: View, Accessory: View>: View {
     /// space left over) keeps illustrations at the same height whether the
     /// title takes one line or two.
     var illustrationHeight: CGFloat = 500
+    /// The least the picture needs. The band never shrinks below it, so when
+    /// the text grows the page scrolls rather than drawing text over it.
+    var pictureHeight: CGFloat = 330
     let action: () -> Void
     @ViewBuilder var illustration: Illustration
     @ViewBuilder var accessory: Accessory
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 0) {
-            illustration
-                .frame(maxWidth: .infinity, maxHeight: illustrationHeight)
-                .frame(maxHeight: .infinity, alignment: .top)
-            accessory
-            // Each text sits in a ZStack so that when it changes (the last
-            // page's answer) the old and new copies cross-fade in place
-            // instead of stacking.
-            VStack(spacing: 8) {
-                ZStack {
-                    Text(title)
-                        .font(.title.weight(.semibold))
-                        .foregroundStyle(Color.keaserPrimaryText)
-                        .lineSpacing(1.5)
-                        .id(title)
-                        .transition(.blurReplace)
+            GeometryReader { viewport in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        band
+                        accessory
+                        texts
+                    }
+                    .padding(.bottom, 28)
+                    // Fills the screen when everything fits, so the band
+                    // takes the room left over exactly as a fixed page would.
+                    .frame(minHeight: viewport.size.height)
                 }
-                ZStack {
-                    Text(subtitle)
-                        .font(.body)
-                        .foregroundStyle(Color.keaserSecondaryText)
-                        .id(subtitle)
-                        .transition(.blurReplace)
-                }
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, OnboardingMetrics.horizontalPadding)
-            .padding(.bottom, 28)
             Button(action: action) {
                 ZStack {
                     Text(button)
+                        .multilineTextAlignment(.center)
                         .id(button)
-                        .transition(.blurReplace)
+                        .transition(textTransition)
                 }
             }
             .buttonStyle(.keaserPrimary)
             .padding(.horizontal, OnboardingMetrics.horizontalPadding)
         }
+    }
+
+    /// The illustration is a picture, not text: it keeps its default-size
+    /// look at every text size, and at accessibility sizes the whole picture
+    /// is drawn smaller to leave the screen to the words.
+    private var band: some View {
+        let scale = OnboardingMetrics.pictureScale(for: dynamicTypeSize)
+        let minimum = pictureHeight * scale
+        return illustration
+            .dynamicTypeSize(.large)
+            .scaleEffect(scale)
+            .frame(maxWidth: .infinity, minHeight: minimum, maxHeight: scale < 1 ? minimum : illustrationHeight)
+            .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    // Each text sits in a ZStack so that when it changes (the last page's
+    // answer) the old and new copies cross-fade in place instead of stacking.
+    private var texts: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Text(title)
+                    .font(.keaserTitle)
+                    .foregroundStyle(Color.keaserPrimaryText)
+                    .lineSpacing(1.5)
+                    .accessibilityAddTraits(.isHeader)
+                    .id(title)
+                    .transition(textTransition)
+            }
+            ZStack {
+                Text(subtitle)
+                    .font(.body)
+                    .foregroundStyle(Color.keaserSecondaryText)
+                    .id(subtitle)
+                    .transition(textTransition)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, OnboardingMetrics.horizontalPadding)
+    }
+
+    private var textTransition: AnyTransition {
+        reduceMotion ? .opacity : AnyTransition(.blurReplace)
     }
 }
 
@@ -214,6 +267,7 @@ extension OnboardingPage where Accessory == EmptyView {
         subtitle: String,
         button: String,
         illustrationHeight: CGFloat = 500,
+        pictureHeight: CGFloat = 330,
         action: @escaping () -> Void,
         @ViewBuilder illustration: () -> Illustration
     ) {
@@ -222,6 +276,7 @@ extension OnboardingPage where Accessory == EmptyView {
             subtitle: subtitle,
             button: button,
             illustrationHeight: illustrationHeight,
+            pictureHeight: pictureHeight,
             action: action,
             illustration: illustration,
             accessory: { EmptyView() }
@@ -233,6 +288,7 @@ extension OnboardingPage where Accessory == EmptyView {
 private struct OnboardingPageIndicator: View {
     let count: Int
     let current: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 6) {
@@ -242,7 +298,7 @@ private struct OnboardingPageIndicator: View {
                     .frame(width: index == current ? 24 : 6, height: 6)
             }
         }
-        .animation(.smooth(duration: 0.4), value: current)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: current)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Page \(current + 1) of \(count)")
     }
@@ -264,8 +320,8 @@ enum NotificationStep: Equatable {
 
     var subtitle: String {
         switch self {
-        case .ask: "Enable notifications to stay aware of your spending trends and synced updates."
-        case .granted: "Notifications are enabled. We'll send reminders and spending updates."
+        case .ask: "Get a short summary of your spending at the end of every week."
+        case .granted: "You'll get a summary of your spending at the end of each week."
         case .denied: "You can turn them on anytime in the Settings app, under Keaser."
         }
     }
@@ -273,6 +329,12 @@ enum NotificationStep: Equatable {
 
 enum OnboardingMetrics {
     static let horizontalPadding: CGFloat = 28
+
+    /// How large the illustrations are drawn. At accessibility text sizes
+    /// they shrink so the title, subtitle and button keep most of the screen.
+    static func pictureScale(for size: DynamicTypeSize) -> CGFloat {
+        size.isAccessibilitySize ? 0.6 : 1
+    }
 }
 
 /// Shades used only by the onboarding illustrations, measured from the

@@ -4,14 +4,22 @@ import WidgetKit
 
 // Compiled into both the widget extension and the app, so onboarding and the
 // debug gallery draw the real widget rather than a look-alike.
+//
+// Text uses the text style whose default size is the measured one, so it
+// follows Dynamic Type; `SpendingWidgetView` caps how far, since a widget's
+// frame never grows. The totals and the tiny chart and circular labels keep
+// fixed sizes: they are fitted to that fixed frame and shrink to fit instead.
 
 /// Widget colours. The app's Theme is not part of the extension, so the few
 /// shades a widget needs live here, matched to the reference.
 enum WidgetPalette {
     /// The charcoal widget surface.
     static let background = Color(red: 57 / 255, green: 56 / 255, blue: 59 / 255)
+    /// The period caption ("This Month"), as measured in the reference.
     static let secondaryText = Color(white: 0.53)
-    static let tertiaryText = Color(white: 0.42)
+    /// The account name and chart labels. They are smaller than the caption,
+    /// so they need a lighter grey to stay readable (4.6:1 on the surface).
+    static let smallText = Color(white: 0.64)
     static let inactiveBar = Color.white.opacity(0.2)
     /// The home screen widget corner, for drawing widgets inside the app.
     static let cornerRadius: CGFloat = 24
@@ -25,11 +33,15 @@ struct SpendingWidgetView: View {
     var inApp = false
 
     var body: some View {
-        switch snapshot.state {
-        case .ready: ready
-        case .locked: LockedWidgetView(family: family, inApp: inApp)
-        case .noAccount: NoAccountWidgetView(family: family, inApp: inApp)
+        Group {
+            switch snapshot.state {
+            case .ready: ready
+            case .locked: LockedWidgetView(family: family, inApp: inApp)
+            case .noAccount: NoAccountWidgetView(family: family, inApp: inApp)
+            }
         }
+        // Beyond this the text no longer fits the widget's fixed frame.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
     @ViewBuilder
@@ -46,13 +58,14 @@ struct SpendingWidgetView: View {
     private var small: some View {
         VStack(spacing: 6) {
             Text(snapshot.caption)
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .foregroundStyle(WidgetPalette.secondaryText)
+                .lineLimit(1)
             total(size: 31)
             if let name = snapshot.accountName {
                 Text(name)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(WidgetPalette.tertiaryText)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(WidgetPalette.smallText)
                     .lineLimit(1)
             }
         }
@@ -64,14 +77,15 @@ struct SpendingWidgetView: View {
         HStack(alignment: .top, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(snapshot.caption)
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .foregroundStyle(WidgetPalette.secondaryText)
+                    .lineLimit(1)
                 total(size: 31)
                 Spacer(minLength: 0)
                 if let name = snapshot.accountName {
                     Text(name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(WidgetPalette.tertiaryText)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(WidgetPalette.smallText)
                         .lineLimit(1)
                 }
             }
@@ -86,15 +100,16 @@ struct SpendingWidgetView: View {
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(snapshot.caption)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
             Text(snapshot.formattedTotal)
                 .font(.system(size: 24, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .widgetAccentable()
             Text(snapshot.accountName ?? "Keaser")
-                .font(.system(size: 13))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -155,7 +170,7 @@ struct SpendingBars: View {
                     }
                     Text(bar.id % labelEvery == 0 ? bar.label : " ")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(bar.isCurrent ? Color.white : WidgetPalette.tertiaryText)
+                        .foregroundStyle(bar.isCurrent ? Color.white : WidgetPalette.smallText)
                         .lineLimit(1)
                         .fixedSize()
                         .frame(maxWidth: .infinity)
@@ -178,9 +193,10 @@ struct LockedWidgetView: View {
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
                 Label("Keaser Pro", systemImage: "lock.fill")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
                 Text("Widgets are part of Keaser Pro.")
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -198,10 +214,10 @@ struct LockedWidgetView: View {
                 lockTile
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Widgets are part of Keaser Pro")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(.white)
                     Text("Tap to open Settings and upgrade to keep your spending on the home screen.")
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(WidgetPalette.secondaryText)
                 }
                 Spacer(minLength: 0)
@@ -213,10 +229,11 @@ struct LockedWidgetView: View {
                 lockTile
                 Spacer(minLength: 0)
                 Text("Keaser Pro")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.headline)
                     .foregroundStyle(.white)
+                    .lineLimit(1)
                 Text("Widgets are part of Keaser Pro. Tap to upgrade.")
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(WidgetPalette.secondaryText)
                     .lineLimit(3)
             }
@@ -228,6 +245,7 @@ struct LockedWidgetView: View {
     private var lockTile: some View {
         Image(systemName: "lock.fill")
             .font(.system(size: 17, weight: .semibold))
+            .accessibilityHidden(true)
             .foregroundStyle(.white)
             .frame(width: 36, height: 36)
             .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -244,9 +262,9 @@ struct NoAccountWidgetView: View {
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
                 Text("No Account")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                 Text("Add one in Keaser.")
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,11 +282,12 @@ struct NoAccountWidgetView: View {
                     .font(.system(size: 24))
                     .foregroundStyle(.white)
                     .padding(.bottom, 4)
+                    .accessibilityHidden(true)
                 Text("No Account")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
                 Text("Add an account in Keaser to see your spending.")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(WidgetPalette.secondaryText)
                     .multilineTextAlignment(.center)
             }

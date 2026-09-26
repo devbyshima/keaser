@@ -9,8 +9,13 @@ struct PrimaryButtonStyle: ButtonStyle {
         configuration.label
             .font(.body.weight(.semibold))
             .foregroundStyle(Color.black)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .frame(height: KeaserMetrics.primaryButtonHeight)
+            // The design height, growing only when a large text size makes
+            // the label wrap, so the label is never cut off.
+            .frame(minHeight: KeaserMetrics.primaryButtonHeight)
             .background(Capsule().fill(Color.white.opacity(isEnabled ? 1 : 0.4)))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
