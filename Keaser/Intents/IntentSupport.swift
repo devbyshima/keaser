@@ -7,12 +7,14 @@ enum KeaserIntentError: Error, CustomLocalizedStringResourceConvertible {
     case noAccount
     case invalidAmount
     case dataUnavailable
+    case saveFailed
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .noAccount: "Create an account in Keaser first."
         case .invalidAmount: "Enter an amount greater than zero."
         case .dataUnavailable: "Keaser can't open its data right now. Unlock your iPhone and try again."
+        case .saveFailed: "Keaser couldn't save this expense. Free up space on your iPhone and try again."
         }
     }
 }
@@ -22,12 +24,14 @@ enum KeaserIntentError: Error, CustomLocalizedStringResourceConvertible {
 enum IntentSupport {
     /// The app's store, re-read from disk. Intents may run while the app sits
     /// in the background with an older copy in memory. Throws when the file
-    /// cannot be read (before first unlock), since nothing written then would
-    /// be kept.
+    /// cannot be read (before first unlock), or when an earlier change still
+    /// cannot be written (the reload retried it and failed again), since
+    /// nothing written then would be kept.
     static func freshStore() throws -> KeaserStore {
         let store = AppEnvironment.store
         store.reloadFromDisk()
         if store.loadError != nil { throw KeaserIntentError.dataUnavailable }
+        if store.lastSaveError != nil { throw KeaserIntentError.saveFailed }
         return store
     }
 
@@ -41,8 +45,16 @@ enum IntentSupport {
 
     /// Saves, then brings the widgets and the weekly summary up to date before
     /// the intent returns, since the system may suspend the app right after.
-    static func save(_ expense: Expense, in account: Account, store: KeaserStore) async -> String {
+    ///
+    /// Throws when the expense did not reach the disk. It is taken back out
+    /// of memory as well: kept there, a later save would write it anyway,
+    /// and the person, told it failed, would add it a second time.
+    static func save(_ expense: Expense, in account: Account, store: KeaserStore) async throws -> String {
         store.saveExpense(expense, in: account.id)
+        if store.lastSaveError != nil {
+            store.deleteExpense(expense.id, in: account.id)
+            throw KeaserIntentError.saveFailed
+        }
         WidgetCenter.shared.reloadAllTimelines()
         WeeklySummaryScheduler.shared.attach(to: store)
         await WeeklySummaryScheduler.shared.refreshNow()
