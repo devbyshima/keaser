@@ -155,8 +155,12 @@ public final class KeaserStore {
               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == expenseID })
         else { return }
         let removed = database.accounts[a].expenses.remove(at: e)
-        if let page = removed.notionPageID, database.accounts[a].notion != nil {
-            database.accounts[a].deletedNotionPageIDs.append(page)
+        if database.accounts[a].notion != nil {
+            if let page = removed.notionPageID {
+                database.accounts[a].deletedNotionPageIDs.append(page)
+            } else {
+                database.accounts[a].deletedUnlinkedExpenseIDs.append(removed.id)
+            }
         }
         commit(.expenseDeleted(accountID: accountID, expenseID: expenseID, notionPageID: removed.notionPageID))
     }

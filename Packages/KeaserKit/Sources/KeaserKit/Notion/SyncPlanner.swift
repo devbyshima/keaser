@@ -53,6 +53,8 @@ public struct NotionSyncPlan: Hashable, Sendable {
 ///   to that carries the expense's Keaser ID is linked instead, and then
 ///   compared like any linked page. So a create whose response was lost
 ///   leaves neither a second page nor a second expense.
+/// - A page carrying the Keaser ID of an expense deleted before it was
+///   linked is trashed, not pulled back in.
 public enum SyncPlanner {
     public static func plan(
         local: [Expense],
@@ -61,7 +63,8 @@ public enum SyncPlanner {
         lastSyncedAt: Date?,
         isSameContent: (Expense, NotionPage) -> Bool,
         isBlank: (NotionPage) -> Bool = { _ in false },
-        keaserID: (NotionPage) -> UUID? = { _ in nil }
+        keaserID: (NotionPage) -> UUID? = { _ in nil },
+        deletedExpenseIDs: Set<UUID> = []
     ) -> NotionSyncPlan {
         var remoteByID: [String: NotionPage] = [:]
         for page in remote { remoteByID[NotionID.normalize(page.id)] = page }
@@ -74,11 +77,19 @@ public enum SyncPlanner {
         // in as a new expense.
         let claimed = Set(local.compactMap(\.notionPageID).map(NotionID.normalize))
         var unclaimed: [UUID: NotionPage] = [:]
+        var discarded: Set<String> = []
         for page in remote where !page.isRemoved {
             let key = NotionID.normalize(page.id)
             guard !claimed.contains(key), !tombstoneKeys.contains(key),
-                  let id = keaserID(page), unclaimed[id] == nil
+                  let id = keaserID(page)
             else { continue }
+            if deletedExpenseIDs.contains(id) {
+                // Created for an expense deleted before the link came back.
+                plan.operations.append(.archiveRemote(pageID: page.id))
+                discarded.insert(key)
+                continue
+            }
+            guard unclaimed[id] == nil else { continue }
             unclaimed[id] = page
         }
 
@@ -136,7 +147,7 @@ public enum SyncPlanner {
 
         for page in remote where !page.isRemoved {
             let key = NotionID.normalize(page.id)
-            guard !linked.contains(key), !tombstoneKeys.contains(key), !isBlank(page) else { continue }
+            guard !linked.contains(key), !tombstoneKeys.contains(key), !discarded.contains(key), !isBlank(page) else { continue }
             linked.insert(key)
             plan.operations.append(.insertLocal(pageID: page.id))
         }
@@ -156,7 +167,8 @@ public enum SyncPlanner {
             lastSyncedAt: account.notion?.lastSyncedAt,
             isSameContent: { mapper.matches($0, $1, in: account) },
             isBlank: { mapper.remoteExpense(from: $0).isBlank },
-            keaserID: { mapper.keaserID(of: $0) }
+            keaserID: { mapper.keaserID(of: $0) },
+            deletedExpenseIDs: Set(account.deletedUnlinkedExpenseIDs)
         )
     }
 }

@@ -13,17 +13,6 @@ extension View {
     }
 }
 
-/// Holds the empty side of a `KeaserSheetHeader`. Its layout places
-/// exactly three views, and an `EmptyView` side is not one, which drops the
-/// title.
-struct NotionHeaderSpacer: View {
-    var body: some View {
-        Color.clear
-            .frame(width: 44, height: 44)
-            .accessibilityHidden(true)
-    }
-}
-
 /// A card row: icon column, title and optional subtitle, trailing content.
 /// The icon column grows with the text.
 struct NotionRow<Icon: View, Trailing: View>: View {

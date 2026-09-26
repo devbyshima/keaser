@@ -76,8 +76,6 @@ private struct NotionIntroStep: View {
         VStack(spacing: 0) {
             KeaserSheetHeader(title: "Connect to Notion") {
                 KeaserCircleButton("xmark", label: "Close", action: onClose)
-            } trailing: {
-                NotionHeaderSpacer()
             }
             .notionHeaderPadding()
             ScrollViewReader { proxy in
@@ -270,8 +268,6 @@ private struct NotionDatabasesStep: View {
         VStack(spacing: 0) {
             KeaserSheetHeader(title: "Choose Database") {
                 KeaserCircleButton("chevron.left", label: "Back") { dismiss() }
-            } trailing: {
-                NotionHeaderSpacer()
             }
             .notionHeaderPadding()
             ScrollView {
@@ -391,8 +387,6 @@ private struct NotionNewDatabaseStep: View {
         VStack(spacing: 0) {
             KeaserSheetHeader(title: "New Database") {
                 KeaserCircleButton("chevron.left", label: "Back") { dismiss() }
-            } trailing: {
-                NotionHeaderSpacer()
             }
             .notionHeaderPadding()
             ScrollView {
@@ -471,11 +465,7 @@ private struct NotionReviewStep: View {
                 // Linked already: there is nothing to go back to.
                 if model.connectedAccountID == nil {
                     KeaserCircleButton("chevron.left", label: "Back") { dismiss() }
-                } else {
-                    NotionHeaderSpacer()
                 }
-            } trailing: {
-                NotionHeaderSpacer()
             }
             .notionHeaderPadding()
             ScrollView {

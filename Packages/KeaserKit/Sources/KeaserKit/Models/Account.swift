@@ -15,6 +15,11 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
     /// Notion pages whose expenses were deleted locally and still need to be
     /// archived in Notion. The sync engine drains this list.
     public var deletedNotionPageIDs: [String]
+    /// Expenses deleted in a Notion-linked account before they were linked
+    /// to a page. A page for one may still exist (its create reached Notion
+    /// but the response was lost); the next sync trashes any page carrying
+    /// one of these Keaser IDs instead of pulling it back in.
+    public var deletedUnlinkedExpenseIDs: [UUID]
 
     public init(
         id: UUID = UUID(),
@@ -24,7 +29,8 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         paymentMethods: [PaymentMethod] = PaymentMethod.defaults(),
         expenses: [Expense] = [],
         notion: NotionConnection? = nil,
-        deletedNotionPageIDs: [String] = []
+        deletedNotionPageIDs: [String] = [],
+        deletedUnlinkedExpenseIDs: [UUID] = []
     ) {
         self.id = id
         self.name = name
@@ -34,6 +40,7 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         self.expenses = expenses
         self.notion = notion
         self.deletedNotionPageIDs = deletedNotionPageIDs
+        self.deletedUnlinkedExpenseIDs = deletedUnlinkedExpenseIDs
     }
 
     public init(from decoder: any Decoder) throws {
@@ -46,6 +53,7 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         expenses = try c.decodeIfPresent([Expense].self, forKey: .expenses) ?? []
         notion = try c.decodeIfPresent(NotionConnection.self, forKey: .notion)
         deletedNotionPageIDs = try c.decodeIfPresent([String].self, forKey: .deletedNotionPageIDs) ?? []
+        deletedUnlinkedExpenseIDs = try c.decodeIfPresent([UUID].self, forKey: .deletedUnlinkedExpenseIDs) ?? []
     }
 
     /// First letter of the name, for the monogram tile in Settings.

@@ -40,7 +40,13 @@ public struct NotionSyncOutcome: Sendable {
                 current.properties = connection.properties
             }
         }
-        if succeeded { current.lastSyncedAt = startedAt }
+        if succeeded {
+            current.lastSyncedAt = startedAt
+            // The full listing this sync read settled every deletion known
+            // when it began: any page carrying one of these IDs was trashed.
+            let settled = Set(snapshot.deletedUnlinkedExpenseIDs)
+            account.deletedUnlinkedExpenseIDs.removeAll { settled.contains($0) }
+        }
         account.notion = current
 
         let unchanged: (Expense) -> Bool = { expense in

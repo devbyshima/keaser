@@ -44,8 +44,6 @@ extension Font {
     // size, use `keaserFont(_:weight:)` instead of Font.system(size:), so the
     // size still follows Dynamic Type.
 
-    /// The big total on Home ("$20.00"): 40pt bold in the reference.
-    static let keaserHero = Font.system(size: 40, weight: .bold)
     /// Onboarding and sheet page titles: Title 1 semibold (28pt at the
     /// default text size).
     static let keaserTitle = Font.title.weight(.semibold)

@@ -94,8 +94,10 @@ struct SmartSuggestionsView: View {
                 SettingsFootnote("""
                 As you type a title in New Expense or Edit Expense, Keaser offers expenses you have logged before \
                 that match it. Pick one to fill in the title, amount, category and payment method in a single tap, \
-                then change anything you like before saving. Suggestions are worked out on this iPhone from your own \
-                history, so they get more useful the more you log. Turn this off to always start from an empty form.
+                then change anything you like before saving. For a title you haven't used yet, Keaser picks a likely \
+                category and payment method when you move on from the title, and never replaces one you chose. \
+                Suggestions are worked out on this iPhone from your own history, so they get more useful the more \
+                you log. Turn this off to always start from an empty form.
                 """)
             }
         }

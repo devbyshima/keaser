@@ -252,6 +252,7 @@ final class NotionSyncEngine {
         store?.updateAccount(accountID) { account in
             account.notion = nil
             account.deletedNotionPageIDs = []
+            account.deletedUnlinkedExpenseIDs = []
             for index in account.expenses.indices { account.expenses[index].notionPageID = nil }
         }
         forget(accountID)
