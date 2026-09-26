@@ -312,3 +312,48 @@ private struct Workspace {
         return workspace
     }
 }
+
+/// The demo workspace seen through one token. Tokens that start with "bad"
+/// are refused the way Notion refuses a revoked token, so the error path of
+/// the connect flow can be shown offline.
+public struct NotionDemoClient: NotionAPI {
+    public let service: NotionDemoService
+    public let token: String
+
+    public init(service: NotionDemoService, token: String) {
+        self.service = service
+        self.token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func check() throws {
+        if token.isEmpty || token.lowercased().hasPrefix("bad") { throw NotionError.invalidToken }
+    }
+
+    public func currentUser() async throws -> NotionUser { try check(); return try await service.currentUser() }
+    public func searchDataSources() async throws -> [NotionDataSource] { try check(); return try await service.searchDataSources() }
+    public func searchPages() async throws -> [NotionPage] { try check(); return try await service.searchPages() }
+    public func retrieveDatabase(id: String) async throws -> NotionDatabase { try check(); return try await service.retrieveDatabase(id: id) }
+    public func retrieveDataSource(id: String) async throws -> NotionDataSource { try check(); return try await service.retrieveDataSource(id: id) }
+    public func queryPages(dataSourceID: String) async throws -> [NotionPage] { try check(); return try await service.queryPages(dataSourceID: dataSourceID) }
+    public func retrievePage(id: String) async throws -> NotionPage { try check(); return try await service.retrievePage(id: id) }
+
+    public func createPage(dataSourceID: String, properties: [String: NotionPropertyWrite]) async throws -> NotionPage {
+        try check()
+        return try await service.createPage(dataSourceID: dataSourceID, properties: properties)
+    }
+
+    public func updatePage(id: String, properties: [String: NotionPropertyWrite]) async throws -> NotionPage {
+        try check()
+        return try await service.updatePage(id: id, properties: properties)
+    }
+
+    public func trashPage(id: String) async throws {
+        try check()
+        try await service.trashPage(id: id)
+    }
+
+    public func createDatabase(parentPageID: String, title: String, iconEmoji: String?, properties: [String: NotionNewProperty]) async throws -> NotionDatabase {
+        try check()
+        return try await service.createDatabase(parentPageID: parentPageID, title: title, iconEmoji: iconEmoji, properties: properties)
+    }
+}
