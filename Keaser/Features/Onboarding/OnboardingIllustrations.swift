@@ -4,7 +4,12 @@ import WidgetKit
 
 // The animated pictures at the top of each onboarding page. Each one plays its
 // entrance once, when its page appears, and then rests in the state the
-// screenshots capture.
+// screenshots capture. With Reduce Motion they either start in that resting
+// state or only fade their parts in.
+//
+// These are pictures drawn at sizes measured from the reference, so their
+// text uses fixed point sizes: the page pins them to the default text size
+// and shrinks the whole picture at accessibility sizes instead.
 
 // MARK: - Page 0: sample expenses
 
@@ -12,6 +17,7 @@ import WidgetKit
 /// re-centres as each one arrives.
 struct SampleExpensesIllustration: View {
     let currencyCode: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = 0
 
     private struct Sample: Identifiable {
@@ -28,8 +34,11 @@ struct SampleExpensesIllustration: View {
     ]
 
     var body: some View {
+        // The stack re-centres as rows arrive, which is movement, so Reduce
+        // Motion shows all three from the start.
+        let visible = reduceMotion ? samples.count : shown
         VStack(spacing: 14) {
-            ForEach(samples.prefix(shown)) { sample in
+            ForEach(samples.prefix(visible)) { sample in
                 SampleExpenseRow(
                     title: sample.title,
                     amount: MoneyFormat.string(sample.amount, currencyCode: currencyCode),
@@ -41,6 +50,7 @@ struct SampleExpensesIllustration: View {
         .frame(width: 320)
         .accessibilityElement(children: .combine)
         .task {
+            guard !reduceMotion else { return }
             for index in samples.indices {
                 try? await Task.sleep(for: .milliseconds(index == 0 ? 400 : 800))
                 withAnimation(.spring(duration: 0.6, bounce: 0.2)) { shown = index + 1 }
@@ -58,6 +68,7 @@ private struct SampleExpenseRow: View {
     var body: some View {
         HStack(spacing: 13) {
             SymbolTile(symbol: symbol, size: 47, background: OnboardingPalette.tile)
+                .accessibilityHidden(true)
             Text(title)
                 .font(.system(size: 19, weight: .medium))
             Spacer(minLength: 8)
@@ -78,6 +89,7 @@ private struct SampleExpenseRow: View {
 /// A lock screen; then the "Add Expense" shortcut's amount prompt floats in
 /// over the clock.
 struct ShortcutsIllustration: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsPrompt = false
 
     var body: some View {
@@ -88,13 +100,13 @@ struct ShortcutsIllustration: View {
                     ShortcutPrompt()
                         .padding(.horizontal, 15)
                         .padding(.top, 20)
-                        .transition(.promptIn)
+                        .transition(reduceMotion ? .opacity : .promptIn)
                 }
             }
         }
         .task {
             try? await Task.sleep(for: .milliseconds(600))
-            withAnimation(.spring(duration: 0.5, bounce: 0.22)) { showsPrompt = true }
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.4) : .spring(duration: 0.5, bounce: 0.22)) { showsPrompt = true }
         }
     }
 }
@@ -144,9 +156,13 @@ private struct ShortcutPrompt: View {
 /// widens to the medium size, then settles small on the right.
 struct WidgetsIllustration: View {
     let currencyCode: String
-    @State private var stage = Stage.smallLeading
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animatedStage = Stage.smallLeading
 
     private enum Stage { case smallLeading, medium, smallTrailing }
+
+    /// Reduce Motion skips the resizing and rests where it would end.
+    private var stage: Stage { reduceMotion ? .smallTrailing : animatedStage }
 
     var body: some View {
         LockScreenPanel(height: 325) {
@@ -176,11 +192,14 @@ struct WidgetsIllustration: View {
                 .offset(x: x, y: 20)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("A Spending widget on a home screen, showing this month's total")
         .task {
+            guard !reduceMotion else { return }
             try? await Task.sleep(for: .milliseconds(450))
-            withAnimation(.spring(duration: 0.55, bounce: 0.15)) { stage = .medium }
+            withAnimation(.spring(duration: 0.55, bounce: 0.15)) { animatedStage = .medium }
             try? await Task.sleep(for: .milliseconds(950))
-            withAnimation(.spring(duration: 0.55, bounce: 0.15)) { stage = .smallTrailing }
+            withAnimation(.spring(duration: 0.55, bounce: 0.15)) { animatedStage = .smallTrailing }
         }
     }
 }
@@ -190,6 +209,7 @@ struct WidgetsIllustration: View {
 /// Keaser and Notion linked by travelling dots, then what the link brings,
 /// one line at a time.
 struct NotionIllustration: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shownLines = 0
 
     private let lines = [
@@ -204,8 +224,10 @@ struct NotionIllustration: View {
                 KeaserLogo(size: 90)
                     .frame(width: 100, height: 100)
                 TravellingDots()
-                NotionTile(size: 100)
+                NotionMark(size: 100, style: .outlined)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Keaser linked with Notion")
             // Every line is laid out from the start, hidden, so the picture
             // does not move as they appear.
             VStack(alignment: .leading, spacing: 16) {
@@ -215,14 +237,16 @@ struct NotionIllustration: View {
                         Image(systemName: "checkmark")
                             .font(.system(size: 17, weight: .medium))
                             .frame(width: 13)
+                            .accessibilityHidden(true)
                         Text(line)
                             .font(.body)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(Color.keaserSecondaryText)
                     .opacity(visible ? 1 : 0)
-                    .blur(radius: visible ? 0 : 6)
-                    .offset(y: visible ? 0 : 8)
+                    // Reduce Motion keeps the fade and drops the drift.
+                    .blur(radius: visible || reduceMotion ? 0 : 6)
+                    .offset(y: visible || reduceMotion ? 0 : 8)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,15 +263,19 @@ struct NotionIllustration: View {
 }
 
 /// Five dots with a bright one running from Keaser to Notion, on a loop.
+/// With Reduce Motion the loop stops and the dots brighten towards Notion.
 private struct TravellingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
             // The head moves 4.5 dots a second over 5 dots plus a short rest.
             let head = (context.date.timeIntervalSinceReferenceDate * 4.5).truncatingRemainder(dividingBy: 7)
             HStack(spacing: 6) {
                 ForEach(0..<5, id: \.self) { index in
                     let behind = head - Double(index)
-                    let glow = behind >= 0 && behind < 1.6 ? 1 - behind / 1.6 : 0
+                    let moving = behind >= 0 && behind < 1.6 ? 1 - behind / 1.6 : 0
+                    let glow = reduceMotion ? Double(index) / 4 : moving
                     Circle()
                         .fill(Color.white.opacity(0.27 + 0.61 * glow))
                         .frame(width: 8, height: 8)
@@ -258,35 +286,18 @@ private struct TravellingDots: View {
     }
 }
 
-/// A neutral stand-in for the Notion mark: an outlined tile with a plain "N".
-struct NotionTile: View {
-    var size: CGFloat
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-            .fill(Color.black)
-            .overlay(
-                RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-                    .strokeBorder(Color.white, lineWidth: size * 0.07)
-            )
-            .overlay(
-                Text("N")
-                    .font(.system(size: size * 0.56, weight: .bold))
-                    .foregroundStyle(.white)
-            )
-            .frame(width: size, height: size)
-            .accessibilityLabel("Notion")
-    }
-}
-
 // MARK: - Page 4: Pro pass
 
 /// The four Pro features as a 2x2 grid of icon tiles, unfolding into a list of
 /// labelled pills.
 struct ProPassIllustration: View {
-    @State private var unfolded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animatedUnfold = false
 
     private let features = ProFeature.allCases
+
+    /// Reduce Motion shows the list without the unfolding.
+    private var unfolded: Bool { reduceMotion || animatedUnfold }
 
     var body: some View {
         ZStack {
@@ -299,8 +310,9 @@ struct ProPassIllustration: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
         .task {
+            guard !reduceMotion else { return }
             try? await Task.sleep(for: .milliseconds(500))
-            unfolded = true
+            animatedUnfold = true
         }
     }
 
@@ -329,6 +341,7 @@ private struct ProFeaturePill: View {
                 // Scaled rather than resized: a font change swaps the symbol
                 // instead of animating it, which lets the icon lag the pill.
                 .scaleEffect(unfolded ? 22 / 30 : 1)
+                .accessibilityHidden(true)
                 .frame(width: 34)
                 // Centred in a tile; 42pt from the pill's leading edge.
                 .offset(x: unfolded ? 42 - width / 2 : 0)
@@ -354,6 +367,7 @@ private struct ProFeaturePill: View {
 struct NotificationsIllustration: View {
     let step: NotificationStep
     let currencyCode: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsBanner = false
 
     var body: some View {
@@ -366,11 +380,11 @@ struct NotificationsIllustration: View {
                             NotificationBanner(currencyCode: currencyCode)
                                 .padding(.horizontal, 14.7)
                                 .padding(.top, 175.7)
-                                .transition(.riseIn)
+                                .transition(reduceMotion ? .opacity : .riseIn)
                         }
                     }
                 }
-                .transition(.blurReplace)
+                .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             } else {
                 Circle()
                     .fill(Color.white.opacity(0.21))
@@ -381,14 +395,14 @@ struct NotificationsIllustration: View {
                             .foregroundStyle(.white)
                     )
                     .offset(y: 14)
-                    .transition(.scale(0.6).combined(with: .opacity).combined(with: .blurReplace))
+                    .transition(reduceMotion ? .opacity : AnyTransition(.scale(0.6).combined(with: .opacity).combined(with: .blurReplace)))
                     .accessibilityHidden(true)
             }
         }
         .task {
             guard step == .ask else { return }
             try? await Task.sleep(for: .milliseconds(500))
-            withAnimation(.spring(duration: 0.55, bounce: 0.2)) { showsBanner = true }
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.4) : .spring(duration: 0.55, bounce: 0.2)) { showsBanner = true }
         }
     }
 }
@@ -418,6 +432,7 @@ private struct NotificationBanner: View {
         .padding(.horizontal, 14)
         .frame(height: 68)
         .illustrationGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
