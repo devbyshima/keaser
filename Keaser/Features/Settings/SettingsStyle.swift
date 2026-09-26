@@ -71,9 +71,9 @@ extension View {
             .contentMargins(.horizontal, KeaserMetrics.screenPadding, for: .scrollContent)
             .contentMargins(.top, topMargin, for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
-            // Rows set their own heights (52, 68 or 74pt); title rows are
-            // shorter than the system minimum.
-            .environment(\.defaultMinListRowHeight, 1)
+            // Card rows set their own heights (52, 68 or 74pt); this floor
+            // is for title rows and for sections other features embed.
+            .environment(\.defaultMinListRowHeight, 44)
     }
 
     /// Places a row in a card at `position`.
@@ -167,8 +167,8 @@ struct SettingsSectionTitle: View {
             .font(.system(size: 17, weight: .semibold))
             .foregroundStyle(Color.keaserSecondaryText)
             .padding(.leading, 16)
-            .padding(.top, 7)
-            .frame(maxWidth: .infinity, minHeight: 38, alignment: .topLeading)
+            .padding(.top, 13)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
             .accessibilityAddTraits(.isHeader)
             .plainListRow()
     }

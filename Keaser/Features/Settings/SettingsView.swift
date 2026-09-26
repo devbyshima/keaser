@@ -49,7 +49,7 @@ private struct SettingsRootList: View {
                     ) {
                         showsPaywall = true
                     }
-                    .padding(.bottom, 15)
+                    .padding(.bottom, 21)
                     .plainListRow()
                 }
 
@@ -111,7 +111,7 @@ private struct SettingsRootList: View {
                         .id(Self.footerID)
                 }
             }
-            .settingsListStyle(sectionSpacing: 20)
+            .settingsListStyle(sectionSpacing: 14)
             .task {
                 #if DEBUG
                 // `-KeaserSettingsScroll bottom` starts at the end of the page.
@@ -206,7 +206,7 @@ private struct SettingsFooter: View {
             .foregroundStyle(Color.keaserSecondaryText)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 30)
+        .padding(.top, 36)
         .padding(.bottom, 24)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Keaser version \(AppVersion.current.display)")

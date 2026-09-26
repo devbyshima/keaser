@@ -13,13 +13,22 @@ struct LabelItem: Identifiable, Hashable {
 struct LabelListView: View {
     let kind: LabelKind
     let accountID: UUID
-    var startsAdding = false
+    var opening: Opening = .list
+
+    /// What the screen shows when it first appears.
+    enum Opening: Hashable {
+        case list
+        /// The New sheet.
+        case newLabel
+        /// The Edit sheet for the first label.
+        case firstLabel
+    }
 
     @Environment(KeaserStore.self) private var store
     @State private var editor: EditorTarget?
     @State private var pendingDelete: LabelItem?
     @State private var editMode: EditMode = .inactive
-    @State private var didStartAdding = false
+    @State private var didOpen = false
 
     private enum EditorTarget: Identifiable {
         case new
@@ -39,11 +48,12 @@ struct LabelListView: View {
             Section {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     Button {
+                        // While reordering, taps belong to the edit controls.
+                        guard !editMode.isEditing else { return }
                         editor = .edit(item)
                     } label: {
                         LabelRow(item: item)
                     }
-                    .disabled(editMode.isEditing)
                     .cardRow(CardPosition(index: index, count: items.count), insets: EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button {
@@ -117,9 +127,13 @@ struct LabelListView: View {
             Text(deleteMessage(for: item))
         }
         .onAppear {
-            guard startsAdding, !didStartAdding else { return }
-            didStartAdding = true
-            editor = .new
+            guard !didOpen else { return }
+            didOpen = true
+            switch opening {
+            case .list: break
+            case .newLabel: editor = .new
+            case .firstLabel: editor = items.first.map { .edit($0) }
+            }
         }
     }
 

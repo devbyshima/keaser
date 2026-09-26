@@ -59,7 +59,7 @@ private struct UpgradeCapsuleStyle: ButtonStyle {
 struct StarfieldBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private static let stars = Star.field(count: 170, seed: 0x5EED_4B45)
+    private static let stars = Star.field(count: 260, seed: 0x5EED_4B45)
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
@@ -80,9 +80,9 @@ struct StarfieldBackground: View {
         // glow's centre wanders across the card on a slower loop.
         let swing = (sin(time * 2 * .pi / 24) + 1) / 2
         let glow = Color(
-            red: 0.07 + 0.17 * swing,
-            green: 0.10 - 0.04 * swing,
-            blue: 0.24 + 0.04 * swing
+            red: 0.06 + 0.10 * swing,
+            green: 0.08 - 0.03 * swing,
+            blue: 0.19 + 0.02 * swing
         )
         let wander = time * 2 * .pi / 37
         let center = CGPoint(
@@ -157,8 +157,8 @@ struct StarfieldBackground: View {
                     x: next(),
                     y: next(),
                     // Sparkles: radius of the four points. Dots: diameter.
-                    size: sparkle ? 1.5 + next() * 0.9 : 0.5 + next() * 1.0,
-                    brightness: 0.35 + next() * 0.65,
+                    size: sparkle ? 1.4 + next() * 0.8 : 0.6 + next() * 0.9,
+                    brightness: 0.5 + next() * 0.5,
                     drift: 1.5 + next() * 3,
                     twinkleSpeed: 0.6 + next() * 1.8,
                     phase: next() * 2 * .pi,

@@ -4,9 +4,9 @@ import SwiftUI
 /// Every page that can be pushed inside the Settings sheet.
 enum SettingsPage: Hashable {
     case account(UUID)
-    /// Categories or payment methods of an account. `startsAdding` opens the
-    /// New sheet on arrival (used by screenshots).
-    case labels(LabelKind, accountID: UUID, startsAdding: Bool = false)
+    /// Categories or payment methods of an account. `opening` shows the
+    /// editor on arrival (used by screenshots).
+    case labels(LabelKind, accountID: UUID, opening: LabelListView.Opening = .list)
     case currency
     case startWeek
     case smartSuggestions
@@ -24,8 +24,8 @@ enum SettingsPage: Hashable {
     var destination: some View {
         switch self {
         case .account(let id): AccountSettingsView(accountID: id)
-        case .labels(let kind, let accountID, let startsAdding):
-            LabelListView(kind: kind, accountID: accountID, startsAdding: startsAdding)
+        case .labels(let kind, let accountID, let opening):
+            LabelListView(kind: kind, accountID: accountID, opening: opening)
         case .currency: CurrencyPickerView()
         case .startWeek: StartWeekView()
         case .smartSuggestions: SmartSuggestionsView()
@@ -50,9 +50,10 @@ enum SettingsPage: Hashable {
         switch name {
         case "account": return account.map { [.account($0)] } ?? []
         case "categories": return account.map { [.account($0), .labels(.category, accountID: $0)] } ?? []
-        case "newCategory": return account.map { [.account($0), .labels(.category, accountID: $0, startsAdding: true)] } ?? []
+        case "newCategory": return account.map { [.account($0), .labels(.category, accountID: $0, opening: .newLabel)] } ?? []
+        case "editCategory": return account.map { [.account($0), .labels(.category, accountID: $0, opening: .firstLabel)] } ?? []
         case "paymentMethods": return account.map { [.account($0), .labels(.paymentMethod, accountID: $0)] } ?? []
-        case "newPaymentMethod": return account.map { [.account($0), .labels(.paymentMethod, accountID: $0, startsAdding: true)] } ?? []
+        case "newPaymentMethod": return account.map { [.account($0), .labels(.paymentMethod, accountID: $0, opening: .newLabel)] } ?? []
         case "currency": return [.currency]
         case "startWeek": return [.startWeek]
         case "smartSuggestions": return [.smartSuggestions]

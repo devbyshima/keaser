@@ -140,7 +140,7 @@ struct ShortcutSettingsView: View {
                 .cardRow(.single)
             }
         }
-        .settingsListStyle(sectionSpacing: 20, topMargin: 24)
+        .settingsListStyle(sectionSpacing: 14, topMargin: 24)
         .settingsPage("Shortcut")
     }
 

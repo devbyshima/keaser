@@ -48,7 +48,10 @@ struct AccountSettingsView: View {
             }
 
             if account.notion != nil {
+                // Card fill and hairlines for rows that do not bring their own.
                 NotionAccountSection(accountID: account.id)
+                    .listRowBackground(Color.settingsCard)
+                    .listRowSeparatorTint(Color.keaserSeparator)
             }
 
             Section {
