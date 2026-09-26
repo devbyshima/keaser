@@ -83,6 +83,11 @@ public actor NotionDemoService: NotionAPI {
         return try workspace.dataSource(id)
     }
 
+    public func updateDataSource(id: String, properties: [String: NotionNewProperty]) async throws -> NotionDataSource {
+        try await pause()
+        return try workspace.setProperties(properties, in: id)
+    }
+
     public func queryPages(dataSourceID: String) async throws -> [NotionPage] {
         try await pause()
         _ = try workspace.dataSource(dataSourceID)
@@ -169,6 +174,29 @@ private struct Workspace {
         databases.append(database)
         rowsBySource[NotionID.normalize(sourceID)] = []
         return database
+    }
+
+    /// Adds or retypes schema properties. Existing rows get an empty value
+    /// for a new property, as Notion reports them.
+    mutating func setProperties(_ properties: [String: NotionNewProperty], in id: String) throws -> NotionDataSource {
+        let source = try dataSource(id)
+        guard let s = dataSources.firstIndex(where: { $0.id == source.id }) else { throw NotionError.notShared }
+        var schema = dataSources[s].properties
+        for (name, property) in properties {
+            if let p = schema.firstIndex(where: { $0.name == name }) {
+                schema[p].type = property.type
+            } else {
+                let column = NotionPropertySchema(id: String(UUID().uuidString.prefix(4)), name: name, type: property.type)
+                schema.append(column)
+                let isText = property.type == .title || property.type == .richText
+                let key = NotionID.normalize(source.id)
+                for r in rowsBySource[key, default: []].indices {
+                    rowsBySource[key]?[r].properties[name] = NotionPropertyValue(id: column.id, type: column.type, text: isText ? "" : nil)
+                }
+            }
+        }
+        dataSources[s].properties = NotionDataSource.ordered(schema)
+        return dataSources[s]
     }
 
     mutating func insert(dataSourceID: String, properties: [String: NotionPropertyWrite], at time: Date) throws -> NotionPage {
@@ -334,6 +362,10 @@ public struct NotionDemoClient: NotionAPI {
     public func searchPages() async throws -> [NotionPage] { try check(); return try await service.searchPages() }
     public func retrieveDatabase(id: String) async throws -> NotionDatabase { try check(); return try await service.retrieveDatabase(id: id) }
     public func retrieveDataSource(id: String) async throws -> NotionDataSource { try check(); return try await service.retrieveDataSource(id: id) }
+    public func updateDataSource(id: String, properties: [String: NotionNewProperty]) async throws -> NotionDataSource {
+        try check()
+        return try await service.updateDataSource(id: id, properties: properties)
+    }
     public func queryPages(dataSourceID: String) async throws -> [NotionPage] { try check(); return try await service.queryPages(dataSourceID: dataSourceID) }
     public func retrievePage(id: String) async throws -> NotionPage { try check(); return try await service.retrievePage(id: id) }
 

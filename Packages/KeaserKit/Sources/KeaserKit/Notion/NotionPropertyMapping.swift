@@ -83,10 +83,11 @@ public enum NotionPropertyMatcher {
         )
     }
 
-    /// Properties the user may pick for a field, best guess first.
+    /// Properties the user may pick for a field, best guess first. Keaser's
+    /// own ID property is never offered.
     public static func candidates(for field: NotionExpenseField, in dataSource: NotionDataSource) -> [NotionPropertySchema] {
         dataSource.properties
-            .filter { field.supportedTypes.contains($0.type) }
+            .filter { field.supportedTypes.contains($0.type) && $0.name != NotionKeaserSchema.keaserID }
             .sorted { score($0, for: field) > score($1, for: field) }
     }
 
@@ -95,7 +96,9 @@ public enum NotionPropertyMatcher {
         in properties: [NotionPropertySchema],
         excluding used: Set<String>
     ) -> NotionPropertySchema? {
-        let typed = properties.filter { field.supportedTypes.contains($0.type) && !used.contains($0.id) }
+        let typed = properties.filter {
+            field.supportedTypes.contains($0.type) && !used.contains($0.id) && $0.name != NotionKeaserSchema.keaserID
+        }
         let scored = typed.map { ($0, score($0, for: field)) }.filter { $0.1 > 0 }
         if let best = scored.max(by: { a, b in
             if a.1 != b.1 { return a.1 < b.1 }
@@ -146,7 +149,8 @@ extension NotionPropertyMap {
         amount: NotionPropertySchema? = nil,
         category: NotionPropertySchema? = nil,
         paymentMethod: NotionPropertySchema? = nil,
-        date: NotionPropertySchema? = nil
+        date: NotionPropertySchema? = nil,
+        keaserID: NotionPropertySchema? = nil
     ) {
         self.init(
             title: title.name,
@@ -158,7 +162,9 @@ extension NotionPropertyMap {
             amountID: amount?.id,
             categoryID: category?.id,
             paymentMethodID: paymentMethod?.id,
-            dateID: date?.id
+            dateID: date?.id,
+            keaserID: keaserID?.name,
+            keaserIDPropertyID: keaserID?.id
         )
     }
 
@@ -199,21 +205,36 @@ extension NotionPropertyMap {
     /// rename in Notion is followed, then by name. A property that is gone or
     /// changed to a type Keaser cannot use drops out of the map. Nil when the
     /// schema has no title property.
+    ///
+    /// The Keaser ID property is also found by its standard name, so a
+    /// database Keaser created (or added the property to) needs no setup. It
+    /// is left out when it is not text or when a field already uses it.
     public func resolved(in dataSource: NotionDataSource) -> NotionResolvedMap? {
         guard let title = dataSource.properties.first(where: { $0.type == .title }) else { return nil }
+        func find(id: String?, name: String?) -> NotionPropertySchema? {
+            let byID = id.flatMap { id in dataSource.properties.first { $0.id == id } }
+            let byName = name.flatMap { name in dataSource.properties.first { $0.name == name } }
+            return byID ?? byName
+        }
         func find(_ field: NotionExpenseField) -> NotionPropertySchema? {
-            let byID = propertyID(for: field).flatMap { id in dataSource.properties.first { $0.id == id } }
-            let byName = name(for: field).flatMap { name in dataSource.properties.first { $0.name == name } }
-            guard let property = byID ?? byName, field.supportedTypes.contains(property.type) else { return nil }
+            guard let property = find(id: propertyID(for: field), name: name(for: field)),
+                  field.supportedTypes.contains(property.type)
+            else { return nil }
             return property
         }
-        return NotionResolvedMap(
+        var resolved = NotionResolvedMap(
             title: title,
             amount: find(.amount),
             category: find(.category),
             paymentMethod: find(.paymentMethod),
             date: find(.date)
         )
+        let used = Set([title, resolved.amount, resolved.category, resolved.paymentMethod, resolved.date].compactMap { $0?.id })
+        if let property = find(id: keaserIDPropertyID, name: keaserID) ?? dataSource.property(named: NotionKeaserSchema.keaserID),
+           property.type == .richText, !used.contains(property.id) {
+            resolved.keaserID = property
+        }
+        return resolved
     }
 }
 
@@ -225,24 +246,28 @@ public struct NotionResolvedMap: Hashable, Sendable {
     public var category: NotionPropertySchema?
     public var paymentMethod: NotionPropertySchema?
     public var date: NotionPropertySchema?
+    /// Where each page records the ID of the expense it mirrors.
+    public var keaserID: NotionPropertySchema?
 
     public init(
         title: NotionPropertySchema,
         amount: NotionPropertySchema? = nil,
         category: NotionPropertySchema? = nil,
         paymentMethod: NotionPropertySchema? = nil,
-        date: NotionPropertySchema? = nil
+        date: NotionPropertySchema? = nil,
+        keaserID: NotionPropertySchema? = nil
     ) {
         self.title = title
         self.amount = amount
         self.category = category
         self.paymentMethod = paymentMethod
         self.date = date
+        self.keaserID = keaserID
     }
 
     /// The stored form, with current names and IDs.
     public var map: NotionPropertyMap {
-        NotionPropertyMap(title: title, amount: amount, category: category, paymentMethod: paymentMethod, date: date)
+        NotionPropertyMap(title: title, amount: amount, category: category, paymentMethod: paymentMethod, date: date, keaserID: keaserID)
     }
 }
 
@@ -254,6 +279,9 @@ public enum NotionKeaserSchema {
     public static let category = "Category"
     public static let paymentMethod = "Payment"
     public static let date = "Date"
+    /// Text property holding the Keaser expense ID of each row. Added to
+    /// linked databases that lack it.
+    public static let keaserID = "Keaser ID"
 
     public static func properties(
         currencyCode: String,
@@ -266,6 +294,7 @@ public enum NotionKeaserSchema {
             category: .select(options: categories.map(NotionSelectName.sanitized)),
             paymentMethod: .select(options: paymentMethods.map(NotionSelectName.sanitized)),
             date: .date,
+            keaserID: .richText,
         ]
     }
 

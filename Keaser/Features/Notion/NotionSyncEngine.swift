@@ -199,6 +199,10 @@ final class NotionSyncEngine {
             throw NotionError.missingToken
         }
         statuses[accountID, default: NotionSyncStatus()].isSyncing = true
+        // A push starts two seconds after an edit, often as the person
+        // leaves the app: ask for time to finish and save what it did.
+        let background = BackgroundTime(name: "Notion sync")
+        defer { background.end() }
         let outcome = await NotionSync.run(
             account: account,
             api: makeClient(token),
@@ -258,6 +262,25 @@ final class NotionSyncEngine {
         pushTasks.removeValue(forKey: accountID)?.cancel()
         tokens.removeToken(for: accountID)
         statuses[accountID] = nil
+    }
+}
+
+/// A UIKit background task, ended exactly once: by the caller, or by the
+/// system when the time runs out.
+@MainActor
+private final class BackgroundTime {
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    init(name: String) {
+        id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            self?.end()
+        }
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
     }
 }
 

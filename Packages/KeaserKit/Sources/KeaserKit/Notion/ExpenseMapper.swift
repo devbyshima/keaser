@@ -57,6 +57,9 @@ public struct ExpenseMapper: Sendable {
         if let date = map.date {
             result[date.name] = .date(dayString(expense.date))
         }
+        if let keaserID = map.keaserID {
+            result[keaserID.name] = .richText(expense.id.uuidString)
+        }
         return result
     }
 
@@ -71,10 +74,20 @@ public struct ExpenseMapper: Sendable {
 
     // MARK: Notion to expense
 
+    /// The expense ID the page carries in its Keaser ID property, if any.
+    public func keaserID(of page: NotionPage) -> UUID? {
+        guard let text = Self.value(of: map.keaserID, in: page)?.text else { return nil }
+        return UUID(uuidString: text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private static func value(of property: NotionPropertySchema?, in page: NotionPage) -> NotionPropertyValue? {
+        guard let property else { return nil }
+        return page.properties[property.name] ?? page.properties.values.first { $0.id == property.id }
+    }
+
     public func remoteExpense(from page: NotionPage) -> RemoteExpense {
         func value(_ property: NotionPropertySchema?) -> NotionPropertyValue? {
-            guard let property else { return nil }
-            return page.properties[property.name] ?? page.properties.values.first { $0.id == property.id }
+            Self.value(of: property, in: page)
         }
         func label(_ property: NotionPropertySchema?) -> String?? {
             guard let property else { return nil }

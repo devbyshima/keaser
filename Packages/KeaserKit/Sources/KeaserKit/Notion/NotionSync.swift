@@ -47,11 +47,16 @@ public struct NotionSyncOutcome: Sendable {
             snapshot.expenses.first { $0.id == expense.id }?.updatedAt == expense.updatedAt
         }
 
-        for (expenseID, pageID) in createdPages {
+        var links = createdPages
+        for case .linkLocal(let expenseID, let pageID) in plan.operations {
+            links[expenseID] = pageID
+        }
+        for (expenseID, pageID) in links {
             if let index = account.expenses.firstIndex(where: { $0.id == expenseID }) {
                 account.expenses[index].notionPageID = pageID
             } else {
-                // Deleted while its page was being created: trash it next time.
+                // Deleted while its page was being created or linked: trash
+                // it next time.
                 account.deletedNotionPageIDs.append(pageID)
             }
         }
@@ -85,7 +90,7 @@ public struct NotionSyncOutcome: Sendable {
                       unchanged(account.expenses[index])
                 else { continue }
                 account.expenses.remove(at: index)
-            case .createRemote, .updateRemote, .archiveRemote:
+            case .createRemote, .updateRemote, .archiveRemote, .linkLocal:
                 continue
             }
         }
@@ -133,7 +138,10 @@ public enum NotionSync {
         }
         let dataSource = try await api.retrieveDataSource(id: dataSourceID)
         guard !dataSource.inTrash else { throw NotionError.notShared }
-        guard let resolved = connection.properties.resolved(in: dataSource) else { throw NotionError.noTitleProperty }
+        guard var resolved = connection.properties.resolved(in: dataSource) else { throw NotionError.noTitleProperty }
+        if resolved.keaserID == nil {
+            resolved.keaserID = try await addKeaserIDProperty(to: dataSource, api: api)
+        }
         connection.dataSourceID = dataSourceID
         connection.databaseTitle = dataSource.displayTitle
         connection.iconEmoji = dataSource.iconEmoji
@@ -193,9 +201,32 @@ public enum NotionSync {
                 } catch NotionError.notShared {
                     // Deleted in Notion since the query; the next sync sees it gone.
                 }
-            case .updateLocal, .insertLocal, .deleteLocal:
+            case .updateLocal, .insertLocal, .deleteLocal, .linkLocal:
                 continue
             }
+        }
+    }
+
+    /// Adds the Keaser ID property, so every page Keaser creates can be
+    /// matched to its expense even when the create's response is lost. Nil
+    /// when that is not possible, and the sync goes on without it: the name
+    /// is taken by a property of another type (converting it would change
+    /// the person's data), or the connection may not edit the schema.
+    static func addKeaserIDProperty(to dataSource: NotionDataSource, api: any NotionAPI) async throws -> NotionPropertySchema? {
+        let name = NotionKeaserSchema.keaserID
+        guard dataSource.property(named: name) == nil else { return nil }
+        do {
+            var updated = try await api.updateDataSource(id: dataSource.id, properties: [name: .richText])
+            if updated.property(named: name) == nil {
+                // A partial response: read the schema back.
+                updated = try await api.retrieveDataSource(id: dataSource.id)
+            }
+            guard let property = updated.property(named: name), property.type == .richText else { return nil }
+            return property
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return nil
         }
     }
 }

@@ -73,6 +73,13 @@ public struct NotionPropertyMap: Codable, Hashable, Sendable {
     public var paymentMethodID: String?
     public var dateID: String?
 
+    /// The text property that holds each row's Keaser expense ID, so a row
+    /// whose creation was never confirmed is linked, not created again.
+    /// Keaser adds it to the database itself; nil until then, or when it
+    /// cannot.
+    public var keaserID: String?
+    public var keaserIDPropertyID: String?
+
     public init(
         title: String,
         amount: String? = nil,
@@ -83,7 +90,9 @@ public struct NotionPropertyMap: Codable, Hashable, Sendable {
         amountID: String? = nil,
         categoryID: String? = nil,
         paymentMethodID: String? = nil,
-        dateID: String? = nil
+        dateID: String? = nil,
+        keaserID: String? = nil,
+        keaserIDPropertyID: String? = nil
     ) {
         self.title = title
         self.amount = amount
@@ -95,6 +104,8 @@ public struct NotionPropertyMap: Codable, Hashable, Sendable {
         self.categoryID = categoryID
         self.paymentMethodID = paymentMethodID
         self.dateID = dateID
+        self.keaserID = keaserID
+        self.keaserIDPropertyID = keaserIDPropertyID
     }
 
     public init(from decoder: any Decoder) throws {
@@ -109,5 +120,7 @@ public struct NotionPropertyMap: Codable, Hashable, Sendable {
         categoryID = try c.decodeIfPresent(String.self, forKey: .categoryID)
         paymentMethodID = try c.decodeIfPresent(String.self, forKey: .paymentMethodID)
         dateID = try c.decodeIfPresent(String.self, forKey: .dateID)
+        keaserID = try c.decodeIfPresent(String.self, forKey: .keaserID)
+        keaserIDPropertyID = try c.decodeIfPresent(String.self, forKey: .keaserIDPropertyID)
     }
 }

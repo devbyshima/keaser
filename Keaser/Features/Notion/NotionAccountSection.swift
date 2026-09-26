@@ -2,8 +2,9 @@ import KeaserKit
 import SwiftUI
 
 /// Notion status and actions for a linked account (sync now, last synced,
-/// disconnect). Returns `Section`s: embed it directly inside a `List` in
-/// Account Settings, only when `account.notion != nil`.
+/// disconnect). Returns `Section`s drawn with the Settings card style: embed
+/// it directly inside Account Settings' `List`, only when
+/// `account.notion != nil`.
 struct NotionAccountSection: View {
     let accountID: UUID
 
@@ -14,28 +15,32 @@ struct NotionAccountSection: View {
     var body: some View {
         if let notion = store.account(id: accountID)?.notion {
             let status = engine.status(for: accountID)
+            let error = status.isSyncing ? nil : status.lastError
             Section {
+                SettingsSectionTitle("Notion")
                 databaseRow(notion)
-                lastSyncedRow(notion, status: status)
+                    .cardRow(.first)
+                lastSyncedRow(notion)
+                    .cardRow(.middle)
                 syncButton(status: status)
-                if let error = status.lastError, !status.isSyncing {
+                    .cardRow(error == nil ? .last : .middle)
+                if let error {
                     errorRow(error)
+                        .cardRow(.last)
                 }
-            } header: {
-                Text("Notion")
-                    .font(.headline)
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .textCase(nil)
             }
-            .listRowBackground(Color.keaserCardRaised)
 
             Section {
                 Button(role: .destructive) {
                     confirmingDisconnect = true
                 } label: {
                     Text("Disconnect Notion")
+                        .font(.body)
                         .foregroundStyle(Color.keaserDestructive)
+                        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
+                .cardRow(.single, insets: .settingsTextRow)
                 .confirmationDialog(
                     "Disconnect \(notion.databaseTitle)?",
                     isPresented: $confirmingDisconnect,
@@ -49,99 +54,130 @@ struct NotionAccountSection: View {
                     Text("Your expenses stay in Keaser and the Notion database stays as it is. They just stop syncing.")
                 }
             } footer: {
-                Text("Keaser stops syncing with this database. Nothing is deleted in Keaser or in Notion.")
+                SettingsFootnote("Keaser stops syncing with this database. Nothing is deleted in Keaser or in Notion.")
             }
-            .listRowBackground(Color.keaserCardRaised)
         }
     }
 
     private func databaseRow(_ notion: NotionConnection) -> some View {
-        HStack(spacing: Self.iconSpacing) {
-            NotionEmojiTile(emoji: notion.iconEmoji, size: Self.iconWidth)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(notion.databaseTitle)
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                Text(notion.workspaceName ?? "Notion")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .lineLimit(1)
+        HStack(spacing: 13) {
+            HStack(spacing: 13) {
+                emojiTile(notion.iconEmoji)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(notion.databaseTitle)
+                        .font(.body)
+                        .foregroundStyle(Color.keaserPrimaryText)
+                        .lineLimit(2)
+                    Text(notion.workspaceName ?? "Notion")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.keaserSecondaryText)
+                        .lineLimit(2)
+                }
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             }
+            .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
             if let url = notion.url {
                 Link(destination: url) {
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 14, weight: .semibold))
+                        .keaserFont(14, weight: .semibold)
                         .foregroundStyle(Color.keaserSecondaryText)
-                        .frame(width: 32, height: 32)
+                        // Drawn small, tapped at a full 44pt.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Open in Notion")
             }
         }
-        .frame(minHeight: 44)
+        .padding(.vertical, 10)
+        .frame(minHeight: 68)
+        .cardSeparatorTrailing()
     }
 
-    private func lastSyncedRow(_ notion: NotionConnection, status: NotionSyncStatus) -> some View {
-        HStack(spacing: Self.iconSpacing) {
-            icon("clock.fill")
+    /// The database's emoji on the same faint tile as the symbols of the
+    /// other rows, or its symbol when it has none.
+    @ViewBuilder
+    private func emojiTile(_ emoji: String?) -> some View {
+        if let emoji, !emoji.isEmpty {
+            // Fixed with the 38pt SettingsSymbol tiles in the rows below it.
+            Text(emoji)
+                .font(.system(size: 21))
+                .frame(width: 38, height: 38)
+                .background(Color.keaserSheetTile, in: RoundedRectangle(cornerRadius: 38 * 0.3, style: .continuous))
+                .accessibilityHidden(true)
+        } else {
+            SettingsSymbol(symbol: "tablecells")
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func lastSyncedRow(_ notion: NotionConnection) -> some View {
+        HStack(spacing: 13) {
+            SettingsSymbol(symbol: "clock.fill")
+                .accessibilityHidden(true)
             Text("Last Synced")
-                .foregroundStyle(.white)
+                .font(.body)
+                .foregroundStyle(Color.keaserPrimaryText)
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             Spacer(minLength: 8)
             // Re-rendered every half minute so "2 min ago" stays true.
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 Text(Self.relative(notion.lastSyncedAt, now: context.date))
+                    .font(.body)
                     .foregroundStyle(Color.keaserSecondaryText)
                     .contentTransition(.numericText())
             }
         }
-        .frame(minHeight: 44)
+        .frame(minHeight: 68)
+        .cardSeparatorTrailing()
+        .accessibilityElement(children: .combine)
     }
 
     private func syncButton(status: NotionSyncStatus) -> some View {
         Button {
             Task { try? await engine.syncNow(accountID: accountID) }
         } label: {
-            HStack(spacing: Self.iconSpacing) {
-                icon("arrow.triangle.2.circlepath")
+            HStack(spacing: 13) {
+                SettingsSymbol(symbol: "arrow.triangle.2.circlepath")
+                    .accessibilityHidden(true)
                 Text(status.isSyncing ? "Syncing…" : "Sync Now")
-                    .foregroundStyle(.white)
+                    .font(.body)
+                    .foregroundStyle(Color.keaserPrimaryText)
+                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
                 Spacer(minLength: 8)
                 if status.isSyncing {
                     ProgressView().tint(.white)
                 }
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: 68)
+            .cardSeparatorTrailing()
             .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
         .disabled(status.isSyncing)
     }
 
     private func errorRow(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: Self.iconSpacing) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color.keaserDestructive)
-                .frame(width: Self.iconWidth)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(Color.keaserSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 13) {
+            SettingsSymbol(symbol: "exclamationmark.triangle.fill")
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Last Sync Failed")
+                    .font(.body)
+                    .foregroundStyle(Color.keaserDestructive)
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(Color.keaserSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 8)
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            Spacer(minLength: 0)
         }
-        .frame(minHeight: 44)
-    }
-
-    // With the list's 16pt row inset this puts icons 31pt and text 62pt
-    // from the card edge, as in the other Settings rows.
-    private static let iconWidth: CGFloat = 30
-    private static let iconSpacing: CGFloat = 16
-
-    private func icon(_ symbol: String) -> some View {
-        Image(systemName: symbol)
-            .font(.system(size: 19, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: Self.iconWidth)
+        .padding(.vertical, 15)
+        .frame(minHeight: 68)
+        .cardSeparatorTrailing()
+        .accessibilityElement(children: .combine)
     }
 
     static func relative(_ date: Date?, now: Date) -> String {
@@ -152,26 +188,24 @@ struct NotionAccountSection: View {
 }
 
 #if DEBUG
-/// `-KeaserSheet notion -KeaserNotionStep section`: the section inside a
-/// list, on a demo-linked account, so it can be screenshotted without the
-/// Settings sheet.
+/// `-KeaserSheet notion -KeaserNotionStep section`: Account Settings for a
+/// demo-linked account, so the section can be screenshotted where it lives
+/// without opening the Settings sheet.
 struct NotionAccountSectionPreviewHost: View {
-    var onClose: () -> Void
     @Environment(KeaserStore.self) private var store
     @State private var accountID: UUID?
 
     var body: some View {
-        VStack(spacing: 0) {
-            NotionSheetHeader(title: "Account Settings", leading: .back, action: onClose)
-            List {
+        NavigationStack {
+            Group {
                 if let accountID {
-                    NotionAccountSection(accountID: accountID)
+                    AccountSettingsView(accountID: accountID)
+                } else {
+                    Color.clear
                 }
             }
-            .scrollContentBackground(.hidden)
-            .listSectionSpacing(28)
+            .navigationDestination(for: SettingsPage.self) { $0.destination }
         }
-        .notionPageBackground()
         .task { await link() }
     }
 
