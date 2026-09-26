@@ -1,20 +1,34 @@
 import KeaserKit
 import StoreKit
 import SwiftUI
+import UIKit
 import os
 
 /// Pro status for the UI: the 7-day pass plus StoreKit purchases.
 ///
 /// StoreKit is the source of truth for purchases. Its verdict is cached in
-/// `Preferences.hasProPurchase` so the widget extension, which cannot ask
-/// StoreKit cheaply, sees the same answer.
+/// `Preferences.hasProPurchase`, with the subscription's end in
+/// `Preferences.proExpirationDate`, so the widget extension, which cannot ask
+/// StoreKit cheaply, sees the same answer and locks itself when a
+/// subscription lapses.
 @MainActor
 @Observable
 final class ProStore {
     @ObservationIgnored private let store: KeaserStore
+    @ObservationIgnored private let passRecord: any ProPassRecord
 
-    init(store: KeaserStore) {
+    init(store: KeaserStore, passRecord: (any ProPassRecord)? = nil) {
         self.store = store
+        self.passRecord = passRecord ?? Self.defaultPassRecord
+    }
+
+    private static var defaultPassRecord: any ProPassRecord {
+        #if DEBUG
+        // Seeded launches keep their data in memory, and their pass too, so
+        // screenshots never leave a pass behind in the simulator.
+        if DebugLaunch.seed != nil { return InMemoryProPassRecord() }
+        #endif
+        return KeychainProPassRecord()
     }
 
     /// True while the pass is live or after a purchase. Gate Pro features on this.
@@ -25,14 +39,30 @@ final class ProStore {
         ProEntitlement.trialDaysRemaining(trialStart: store.preferences.trialStartDate, now: .now)
     }
 
-    /// True once the user has bought Pro (not merely trialling).
-    var hasPurchased: Bool { store.preferences.hasProPurchase }
+    /// True while a purchase grants Pro (not merely the pass): a lifetime
+    /// purchase, or a subscription that has not lapsed.
+    var hasPurchased: Bool { ProEntitlement.hasActivePurchase(store.preferences, now: .now) }
 
     /// Starts the 7-day pass if it has never been started. Called by
     /// onboarding when the user continues past the "7-Day Pro Pass" page.
+    /// A pass started before a reinstall is picked up again rather than
+    /// restarted.
     func startTrialIfNeeded(now: Date = .now) {
         guard store.preferences.trialStartDate == nil else { return }
-        store.updatePreferences { $0.trialStartDate = now }
+        let remembered = passRecord.firstStart
+        let start = ProPass.startDate(database: nil, remembered: remembered) ?? now
+        if remembered == nil { passRecord.remember(start) }
+        store.updatePreferences { $0.trialStartDate = start }
+    }
+
+    /// Keeps the database and the Keychain on the same, earliest pass start.
+    /// Also records passes that began before the Keychain copy existed.
+    private func reconcilePass() {
+        let stored = store.preferences.trialStartDate
+        let remembered = passRecord.firstStart
+        guard let start = ProPass.startDate(database: stored, remembered: remembered) else { return }
+        if remembered != start { passRecord.remember(start) }
+        if let stored, stored != start { store.updatePreferences { $0.trialStartDate = start } }
     }
 
     // MARK: Products
@@ -73,6 +103,7 @@ final class ProStore {
 
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
+    @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?
     @ObservationIgnored private let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "ProStore")
 
     func plan(_ kind: ProProduct) -> Plan? {
@@ -80,7 +111,8 @@ final class ProStore {
     }
 
     /// Called once at launch: loads products, listens for transactions and
-    /// refreshes entitlements.
+    /// refreshes entitlements, then refreshes them again every time the app
+    /// becomes active (a subscription that lapses sends no transaction).
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
@@ -88,6 +120,8 @@ final class ProStore {
         if applyDebugOverrides() { return }
         #endif
         listenForTransactions()
+        refreshWhenActive()
+        reconcilePass()
         await refreshEntitlements()
         await loadProducts()
     }
@@ -170,24 +204,50 @@ final class ProStore {
 
     // MARK: Entitlements
 
-    /// Recomputes ownership from the verified, unrevoked, unexpired
-    /// transactions StoreKit reports, and caches it for the widget.
+    /// Recomputes ownership from the verified, unrevoked transactions
+    /// StoreKit reports (a subscription counts through its billing grace
+    /// period), and caches it and the subscription's end for the widget.
     func refreshEntitlements() async {
         let now = Date.now
-        var entitled = false
+        var grant = ProGrant.none
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-            if ProProduct.grantsPro(
+            grant = grant.combined(with: ProProduct.grant(
                 productID: transaction.productID,
                 revocationDate: transaction.revocationDate,
                 expirationDate: transaction.expirationDate,
+                gracePeriodEnd: await Self.gracePeriodEnd(of: transaction, now: now),
                 now: now
-            ) {
-                entitled = true
-            }
+            ))
         }
-        if store.preferences.hasProPurchase != entitled {
-            store.updatePreferences { $0.hasProPurchase = entitled }
+        store.updatePreferences {
+            $0.hasProPurchase = grant.hasPurchase
+            $0.proExpirationDate = grant.expirationDate
+        }
+    }
+
+    /// The end of the billing grace period for a subscription whose renewal
+    /// payment failed. Nil otherwise, including in billing retry without a
+    /// grace period, which does not keep Pro.
+    private static func gracePeriodEnd(of transaction: StoreKit.Transaction, now: Date) async -> Date? {
+        guard transaction.productType == .autoRenewable,
+              let expiration = transaction.expirationDate, expiration <= now,
+              let status = await transaction.subscriptionStatus,
+              status.state == .inGracePeriod,
+              case .verified(let renewal) = status.renewalInfo
+        else { return nil }
+        return renewal.gracePeriodExpirationDate
+    }
+
+    private func refreshWhenActive() {
+        guard activationObserver == nil else { return }
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Task { await self.refreshEntitlements() }
+            }
         }
     }
 
@@ -232,7 +292,10 @@ final class ProStore {
         var overridden = false
         switch DebugLaunch.string("KeaserPro") {
         case "purchased":
-            store.updatePreferences { $0.hasProPurchase = true }
+            store.updatePreferences {
+                $0.hasProPurchase = true
+                $0.proExpirationDate = nil
+            }
             overridden = true
         case "expired":
             store.updatePreferences { $0.trialStartDate = Calendar.current.date(byAdding: .day, value: -10, to: .now) }

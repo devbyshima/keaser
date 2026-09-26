@@ -101,18 +101,15 @@ public struct SpendingSnapshot: Equatable, Sendable {
     }
 
     /// When the widget must redraw on its own: the next midnight (totals move
-    /// to a new day, week, month or year) or the moment the Pro pass runs out,
-    /// whichever comes first. Edits reload the widget from the app.
+    /// to a new day, week, month or year) or the moment the Pro pass or a
+    /// subscription runs out, whichever comes first. Edits reload the widget
+    /// from the app.
     public static func nextRefresh(after now: Date, preferences: Preferences, calendar: Calendar? = nil) -> Date {
         let calendar = calendar ?? preferences.calendar
         let midnight = calendar.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .nextTime)
             ?? now.addingTimeInterval(86_400)
-        guard !preferences.hasProPurchase,
-              let start = preferences.trialStartDate,
-              let passEnd = calendar.date(byAdding: .day, value: ProEntitlement.trialDays, to: start),
-              passEnd > now
-        else { return midnight }
-        return min(midnight, passEnd)
+        guard let change = ProEntitlement.nextChange(after: now, preferences: preferences, calendar: calendar) else { return midnight }
+        return min(midnight, change)
     }
 
     /// A believable total for the onboarding illustration, before any data

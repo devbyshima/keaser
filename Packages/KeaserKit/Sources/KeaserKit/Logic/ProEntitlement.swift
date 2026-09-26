@@ -49,7 +49,32 @@ public enum ProEntitlement {
         (trialDaysRemaining(trialStart: trialStart, now: now, calendar: calendar) ?? 0) > 0
     }
 
+    /// Whether the cached purchase still grants Pro: a lifetime purchase
+    /// always, a subscription until its cached end.
+    public static func hasActivePurchase(_ preferences: Preferences, now: Date) -> Bool {
+        guard preferences.hasProPurchase else { return false }
+        guard let end = preferences.proExpirationDate else { return true }
+        return end > now
+    }
+
     public static func isPro(_ preferences: Preferences, now: Date) -> Bool {
-        preferences.hasProPurchase || isTrialActive(trialStart: preferences.trialStartDate, now: now)
+        hasActivePurchase(preferences, now: now) || isTrialActive(trialStart: preferences.trialStartDate, now: now)
+    }
+
+    /// The next moment `isPro` can change without anything being written:
+    /// the end of a subscription or of the 7-day pass. Nil when neither is
+    /// ahead (nothing to wait for, or a lifetime purchase).
+    public static func nextChange(after now: Date, preferences: Preferences, calendar: Calendar = .current) -> Date? {
+        if preferences.hasProPurchase && preferences.proExpirationDate == nil { return nil }
+        var moments: [Date] = []
+        if preferences.hasProPurchase, let end = preferences.proExpirationDate, end > now {
+            moments.append(end)
+        }
+        if let start = preferences.trialStartDate,
+           let passEnd = calendar.date(byAdding: .day, value: trialDays, to: start),
+           passEnd > now {
+            moments.append(passEnd)
+        }
+        return moments.min()
     }
 }

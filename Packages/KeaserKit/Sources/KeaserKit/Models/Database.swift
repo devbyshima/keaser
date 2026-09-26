@@ -57,6 +57,11 @@ public struct Preferences: Codable, Hashable, Sendable {
     public var trialStartDate: Date?
     /// Cached StoreKit entitlement, so the widget extension can read it.
     public var hasProPurchase: Bool
+    /// When the cached purchase stops granting Pro: the subscription's
+    /// renewal date, or the end of its billing grace period. Nil for a
+    /// lifetime purchase. Lets the widget lock itself when a subscription
+    /// lapses, without asking StoreKit.
+    public var proExpirationDate: Date?
     public var selectedAccountID: UUID?
 
     public init(
@@ -68,6 +73,7 @@ public struct Preferences: Codable, Hashable, Sendable {
         weeklySummaryEnabled: Bool = false,
         trialStartDate: Date? = nil,
         hasProPurchase: Bool = false,
+        proExpirationDate: Date? = nil,
         selectedAccountID: UUID? = nil
     ) {
         self.currencyCode = currencyCode
@@ -78,6 +84,7 @@ public struct Preferences: Codable, Hashable, Sendable {
         self.weeklySummaryEnabled = weeklySummaryEnabled
         self.trialStartDate = trialStartDate
         self.hasProPurchase = hasProPurchase
+        self.proExpirationDate = proExpirationDate
         self.selectedAccountID = selectedAccountID
     }
 
@@ -92,6 +99,7 @@ public struct Preferences: Codable, Hashable, Sendable {
         weeklySummaryEnabled = try c.decodeIfPresent(Bool.self, forKey: .weeklySummaryEnabled) ?? d.weeklySummaryEnabled
         trialStartDate = try c.decodeIfPresent(Date.self, forKey: .trialStartDate)
         hasProPurchase = try c.decodeIfPresent(Bool.self, forKey: .hasProPurchase) ?? d.hasProPurchase
+        proExpirationDate = try c.decodeIfPresent(Date.self, forKey: .proExpirationDate)
         selectedAccountID = try c.decodeIfPresent(UUID.self, forKey: .selectedAccountID)
     }
 

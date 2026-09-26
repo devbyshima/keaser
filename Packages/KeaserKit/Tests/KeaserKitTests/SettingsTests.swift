@@ -215,11 +215,100 @@ struct SettingsProTests {
     @Test func onlyLiveKeaserTransactionsGrantPro() {
         let lifetime = ProProduct.lifetime.rawValue
         let yearly = ProProduct.yearly.rawValue
-        #expect(ProProduct.grantsPro(productID: lifetime, revocationDate: nil, expirationDate: nil, now: now))
-        #expect(!ProProduct.grantsPro(productID: lifetime, revocationDate: now, expirationDate: nil, now: now))
-        #expect(ProProduct.grantsPro(productID: yearly, revocationDate: nil, expirationDate: now.addingTimeInterval(60), now: now))
-        #expect(!ProProduct.grantsPro(productID: yearly, revocationDate: nil, expirationDate: now.addingTimeInterval(-60), now: now))
-        #expect(!ProProduct.grantsPro(productID: "com.example.other", revocationDate: nil, expirationDate: nil, now: now))
+        let renews = now.addingTimeInterval(60)
+        #expect(ProProduct.grant(productID: lifetime, revocationDate: nil, expirationDate: nil, now: now) == .forever)
+        #expect(ProProduct.grant(productID: lifetime, revocationDate: now, expirationDate: nil, now: now) == .none)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: renews, now: now) == .until(renews))
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: now.addingTimeInterval(-60), now: now) == .none)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: now, expirationDate: renews, now: now) == .none)
+        #expect(ProProduct.grant(productID: "com.example.other", revocationDate: nil, expirationDate: nil, now: now) == .none)
+    }
+
+    /// Transaction.currentEntitlements yields subscriptions in the billing
+    /// grace period with their original, already past expiry; the grace end
+    /// comes from RenewalInfo.gracePeriodExpirationDate.
+    @Test func aSubscriptionInBillingGracePeriodStillGrantsPro() {
+        let expiredTwoDaysAgo = now.addingTimeInterval(-2 * 86_400)
+        let graceEnds = now.addingTimeInterval(4 * 86_400)
+        let grant = ProProduct.grant(
+            productID: ProProduct.yearly.rawValue, revocationDate: nil,
+            expirationDate: expiredTwoDaysAgo, gracePeriodEnd: graceEnds, now: now
+        )
+        #expect(grant == .until(graceEnds))
+        #expect(grant.hasPurchase)
+        #expect(grant.expirationDate == graceEnds)
+    }
+
+    /// Billing retry without a grace period (or after it ends) keeps no Pro.
+    @Test func billingRetryWithoutGraceGrantsNothing() {
+        let yearly = ProProduct.yearly.rawValue
+        let expired = now.addingTimeInterval(-2 * 86_400)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: expired, gracePeriodEnd: nil, now: now) == .none)
+        let graceOver = now.addingTimeInterval(-60)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: expired, gracePeriodEnd: graceOver, now: now) == .none)
+    }
+
+    @Test func grantsCombineToTheBestOne() {
+        let soon = now.addingTimeInterval(60)
+        let later = now.addingTimeInterval(600)
+        #expect(ProGrant.none.combined(with: .until(soon)) == .until(soon))
+        #expect(ProGrant.until(later).combined(with: .until(soon)) == .until(later))
+        #expect(ProGrant.until(soon).combined(with: .forever) == .forever)
+        #expect(ProGrant.forever.combined(with: .none) == .forever)
+        #expect(!ProGrant.none.hasPurchase)
+        #expect(ProGrant.forever.expirationDate == nil)
+    }
+
+    /// The cached flag alone never expired, so a lapsed yearly subscription
+    /// kept Pro, and the widget unlocked, until the next UI cold launch.
+    @Test func aLapsedYearlySubscriptionStopsGrantingPro() {
+        let purchased = Date(timeIntervalSince1970: 1_760_000_000)
+        let renewal = purchased.addingTimeInterval(365 * 86_400)
+        let prefs = Preferences(trialStartDate: purchased, hasProPurchase: true, proExpirationDate: renewal)
+        #expect(ProEntitlement.isPro(prefs, now: renewal.addingTimeInterval(-60)))
+        let twoYearsLater = purchased.addingTimeInterval(2 * 365 * 86_400)
+        #expect(!ProEntitlement.isPro(prefs, now: twoYearsLater))
+        let database = Database(accounts: [Account(name: "P")], preferences: prefs)
+        let snap = SpendingSnapshot.make(database: database, accountID: nil, period: .thisMonth, now: twoYearsLater)
+        #expect(snap.state == .locked)
+    }
+
+    @Test func aLifetimePurchaseNeverLapses() {
+        let purchased = Date(timeIntervalSince1970: 1_760_000_000)
+        let prefs = Preferences(trialStartDate: purchased, hasProPurchase: true, proExpirationDate: nil)
+        #expect(ProEntitlement.isPro(prefs, now: purchased.addingTimeInterval(20 * 365 * 86_400)))
+        #expect(ProEntitlement.nextChange(after: purchased, preferences: prefs) == nil)
+    }
+
+    @Test func theWidgetRedrawsWhenTheSubscriptionEnds() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let noon = Date(timeIntervalSince1970: 1_790_000_000 - 1_790_000_000.truncatingRemainder(dividingBy: 86_400) + 43_200)
+        let renewsTonight = noon.addingTimeInterval(6 * 3_600)
+        let prefs = Preferences(trialStartDate: noon.addingTimeInterval(-30 * 86_400), hasProPurchase: true, proExpirationDate: renewsTonight)
+        #expect(SpendingSnapshot.nextRefresh(after: noon, preferences: prefs, calendar: cal) == renewsTonight)
+        // Already lapsed: nothing ahead but midnight.
+        let lapsed = Preferences(hasProPurchase: true, proExpirationDate: noon.addingTimeInterval(-60))
+        #expect(SpendingSnapshot.nextRefresh(after: noon, preferences: lapsed, calendar: cal) == noon.addingTimeInterval(12 * 3_600))
+    }
+
+    @Test func thePassStartsAtTheEarliestRecord() {
+        let first = Date(timeIntervalSince1970: 1_780_000_000)
+        let later = first.addingTimeInterval(30 * 86_400)
+        #expect(ProPass.startDate(database: nil, remembered: nil) == nil)
+        #expect(ProPass.startDate(database: later, remembered: nil) == later)
+        // After a reinstall the database is empty; the Keychain remembers.
+        #expect(ProPass.startDate(database: nil, remembered: first) == first)
+        #expect(ProPass.startDate(database: later, remembered: first) == first)
+        #expect(ProPass.startDate(database: first, remembered: later) == first)
+    }
+
+    @Test func theInMemoryPassRecordRemembers() {
+        let record = InMemoryProPassRecord()
+        #expect(record.firstStart == nil)
+        record.remember(now)
+        #expect(record.firstStart == now)
+        #expect(InMemoryProPassRecord(now).firstStart == now)
     }
 
     @Test func paywallLeadsWithTheHighlightedFeature() {
