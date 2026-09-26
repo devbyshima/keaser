@@ -28,8 +28,9 @@ public enum ProFeature: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
-/// Pure trial arithmetic, shared by the app and the widget extension. StoreKit
-/// lives in the app; this only reads what the app cached in `Preferences`.
+/// Pure trial arithmetic, shared by the app and the widget extension. It only
+/// reads what the app cached in `Preferences`; `needsStoreKitCheck` says when
+/// that cache should be confirmed with StoreKit first.
 public enum ProEntitlement {
     public static let trialDays = 7
 
@@ -59,6 +60,16 @@ public enum ProEntitlement {
 
     public static func isPro(_ preferences: Preferences, now: Date) -> Bool {
         hasActivePurchase(preferences, now: now) || isTrialActive(trialStart: preferences.trialStartDate, now: now)
+    }
+
+    /// Whether the cache says a subscription has run out while nothing else
+    /// keeps Pro, so the reader should ask StoreKit before it locks: a
+    /// renewal or a billing grace period can begin while the app is closed,
+    /// and only the app writes the cache. The widget and `ProStore` apply
+    /// what StoreKit reports with `ProGrant.cache(in:)`.
+    public static func needsStoreKitCheck(_ preferences: Preferences, now: Date, calendar: Calendar = .current) -> Bool {
+        guard preferences.hasProPurchase, let end = preferences.proExpirationDate, end <= now else { return false }
+        return !isTrialActive(trialStart: preferences.trialStartDate, now: now, calendar: calendar)
     }
 
     /// The next moment `isPro` can change without anything being written:

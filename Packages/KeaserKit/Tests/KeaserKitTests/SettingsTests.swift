@@ -230,22 +230,117 @@ struct SettingsProTests {
     @Test func aSubscriptionInBillingGracePeriodStillGrantsPro() {
         let expiredTwoDaysAgo = now.addingTimeInterval(-2 * 86_400)
         let graceEnds = now.addingTimeInterval(4 * 86_400)
+        let inGrace = ProRenewal(willAutoRenew: true, isInBillingRetry: true, gracePeriodEnd: graceEnds)
         let grant = ProProduct.grant(
             productID: ProProduct.yearly.rawValue, revocationDate: nil,
-            expirationDate: expiredTwoDaysAgo, gracePeriodEnd: graceEnds, now: now
+            expirationDate: expiredTwoDaysAgo, renewal: inGrace, now: now
         )
         #expect(grant == .until(graceEnds))
         #expect(grant.hasPurchase)
         #expect(grant.expirationDate == graceEnds)
     }
 
-    /// Billing retry without a grace period (or after it ends) keeps no Pro.
+    /// Billing retry without a grace period (or after it ends) keeps no Pro,
+    /// even though auto-renew is still on.
     @Test func billingRetryWithoutGraceGrantsNothing() {
         let yearly = ProProduct.yearly.rawValue
         let expired = now.addingTimeInterval(-2 * 86_400)
-        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: expired, gracePeriodEnd: nil, now: now) == .none)
-        let graceOver = now.addingTimeInterval(-60)
-        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: expired, gracePeriodEnd: graceOver, now: now) == .none)
+        let retrying = ProRenewal(willAutoRenew: true, isInBillingRetry: true)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: expired, renewal: retrying, now: now) == .none)
+        // Retry began at the renewal date, an hour ago: no allowance either.
+        let justExpired = now.addingTimeInterval(-3_600)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: justExpired, renewal: retrying, now: now) == .none)
+        var graceOver = retrying
+        graceOver.gracePeriodEnd = now.addingTimeInterval(-60)
+        #expect(ProProduct.grant(productID: yearly, revocationDate: nil, expirationDate: expired, renewal: graceOver, now: now) == .none)
+    }
+
+    /// The renewal transaction only reaches Keaser while the app runs, so the
+    /// cache must not read the renewal date of a subscription that is set to
+    /// renew as a lapse. This is what `ProStore.refreshEntitlements` caches.
+    @Test func aRenewingSubscriberKeepsTheWidgetPastTheRenewalDate() {
+        let purchased = Date(timeIntervalSince1970: 1_760_000_000)
+        let renewal = purchased.addingTimeInterval(365 * 86_400)
+        let grant = ProProduct.grant(
+            productID: ProProduct.yearly.rawValue, revocationDate: nil, expirationDate: renewal,
+            renewal: ProRenewal(willAutoRenew: true), now: purchased.addingTimeInterval(86_400)
+        )
+        var cached = Preferences(trialStartDate: purchased)
+        grant.cache(in: &cached)
+        #expect(cached.hasProPurchase)
+        #expect(cached.proExpirationDate == renewal.addingTimeInterval(ProProduct.renewalAllowance))
+
+        let database = Database(accounts: [Account(name: "Personal")], preferences: cached)
+        let anHourAfterRenewal = renewal.addingTimeInterval(3_600)
+        let snapshot = SpendingSnapshot.make(database: database, accountID: nil, period: .thisMonth, now: anHourAfterRenewal)
+        #expect(snapshot.state == .ready)
+        #expect(!ProEntitlement.needsStoreKitCheck(cached, now: anHourAfterRenewal))
+        // The widget next redraws when the allowance runs out, and asks
+        // StoreKit then.
+        #expect(ProEntitlement.nextChange(after: anHourAfterRenewal, preferences: cached) == cached.proExpirationDate)
+    }
+
+    /// A subscriber who turned auto-renew off keeps Pro to the end of the
+    /// period they paid for, and no longer.
+    @Test func aCancelledSubscriptionLocksAtItsEnd() {
+        let purchased = Date(timeIntervalSince1970: 1_760_000_000)
+        let end = purchased.addingTimeInterval(365 * 86_400)
+        let grant = ProProduct.grant(
+            productID: ProProduct.yearly.rawValue, revocationDate: nil, expirationDate: end,
+            renewal: ProRenewal(willAutoRenew: false), now: purchased.addingTimeInterval(86_400)
+        )
+        #expect(grant == .until(end))
+        var cached = Preferences(trialStartDate: purchased)
+        grant.cache(in: &cached)
+        let database = Database(accounts: [Account(name: "Personal")], preferences: cached)
+        let before = SpendingSnapshot.make(database: database, accountID: nil, period: .thisMonth, now: end.addingTimeInterval(-60))
+        #expect(before.state == .ready)
+        let after = SpendingSnapshot.make(database: database, accountID: nil, period: .thisMonth, now: end.addingTimeInterval(60))
+        #expect(after.state == .locked)
+        // Unless StoreKit says otherwise (a resubscribe the app has not seen).
+        #expect(ProEntitlement.needsStoreKitCheck(cached, now: end.addingTimeInterval(60)))
+    }
+
+    /// A cache written before the renewal (by an older version, or a missed
+    /// update) looks lapsed; the widget confirms it with StoreKit and uses
+    /// what StoreKit reports instead of locking.
+    @Test func theWidgetConfirmsALapsedCacheWithStoreKit() {
+        let purchased = Date(timeIntervalSince1970: 1_760_000_000)
+        let renewal = purchased.addingTimeInterval(365 * 86_400)
+        let stale = Preferences(trialStartDate: purchased, hasProPurchase: true, proExpirationDate: renewal)
+        let anHourAfterRenewal = renewal.addingTimeInterval(3_600)
+        #expect(!ProEntitlement.needsStoreKitCheck(stale, now: renewal.addingTimeInterval(-60)))
+        #expect(ProEntitlement.needsStoreKitCheck(stale, now: anHourAfterRenewal))
+
+        // StoreKit has the renewal: the next period's transaction.
+        let nextYear = renewal.addingTimeInterval(365 * 86_400)
+        let renewed = ProProduct.grant(
+            productID: ProProduct.yearly.rawValue, revocationDate: nil, expirationDate: nextYear,
+            renewal: ProRenewal(willAutoRenew: true), now: anHourAfterRenewal
+        )
+        var confirmed = stale
+        renewed.cache(in: &confirmed)
+        let account = [Account(name: "Personal")]
+        let ready = SpendingSnapshot.make(database: Database(accounts: account, preferences: confirmed), accountID: nil, period: .thisMonth, now: anHourAfterRenewal)
+        #expect(ready.state == .ready)
+
+        // StoreKit has nothing: it really lapsed.
+        var lapsed = stale
+        ProGrant.none.cache(in: &lapsed)
+        let locked = SpendingSnapshot.make(database: Database(accounts: account, preferences: lapsed), accountID: nil, period: .thisMonth, now: anHourAfterRenewal)
+        #expect(locked.state == .locked)
+    }
+
+    /// Nothing to confirm without a purchase, for a lifetime purchase, for a
+    /// subscription still running, or while the pass keeps Pro anyway.
+    @Test func onlyALapsedSubscriptionNeedsAStoreKitCheck() {
+        #expect(!ProEntitlement.needsStoreKitCheck(Preferences(), now: now))
+        #expect(!ProEntitlement.needsStoreKitCheck(Preferences(hasProPurchase: true), now: now))
+        #expect(!ProEntitlement.needsStoreKitCheck(Preferences(hasProPurchase: true, proExpirationDate: now.addingTimeInterval(60)), now: now))
+        let passRunning = Preferences(trialStartDate: now.addingTimeInterval(-86_400), hasProPurchase: true, proExpirationDate: now.addingTimeInterval(-60))
+        #expect(!ProEntitlement.needsStoreKitCheck(passRunning, now: now))
+        // Not offered for purchases Keaser does not sell.
+        #expect(ProProduct.grant(productID: "com.example.other", revocationDate: nil, expirationDate: now.addingTimeInterval(60), renewal: ProRenewal(willAutoRenew: true), now: now) == .none)
     }
 
     @Test func grantsCombineToTheBestOne() {

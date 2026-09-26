@@ -1,5 +1,6 @@
 import AppIntents
 import KeaserKit
+import StoreKit
 import SwiftUI
 import WidgetKit
 
@@ -66,7 +67,8 @@ struct SpendingProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: SpendingWidgetIntent, in context: Context) async -> SpendingEntry {
-        let entry = entry(for: configuration, now: .now)
+        let now = Date.now
+        let entry = entry(for: configuration, database: await WidgetDatabase.load(now: now), now: now)
         // The widget gallery should show what the widget does, even before
         // the first account exists. A locked widget stays locked there, so
         // nobody adds one expecting it to work.
@@ -78,21 +80,58 @@ struct SpendingProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: SpendingWidgetIntent, in context: Context) async -> Timeline<SpendingEntry> {
         let now = Date.now
-        let database = DatabaseFile.shared.load()
-        let entry = SpendingEntry(
+        let database = await WidgetDatabase.load(now: now)
+        // The app reloads timelines after every edit; this covers the day
+        // (or the Pro pass) turning over while nobody touches the app.
+        return Timeline(
+            entries: [entry(for: configuration, database: database, now: now)],
+            policy: .after(SpendingSnapshot.nextRefresh(after: now, preferences: database.preferences))
+        )
+    }
+
+    private func entry(for configuration: SpendingWidgetIntent, database: Database, now: Date) -> SpendingEntry {
+        SpendingEntry(
             date: now,
             snapshot: SpendingSnapshot.make(database: database, accountID: configuration.account?.id, period: configuration.period.period, now: now)
         )
-        // The app reloads timelines after every edit; this covers the day
-        // (or the Pro pass) turning over while nobody touches the app.
-        return Timeline(entries: [entry], policy: .after(SpendingSnapshot.nextRefresh(after: now, preferences: database.preferences)))
+    }
+}
+
+/// The database the app wrote, with its Pro cache confirmed by StoreKit when
+/// it says a subscription has run out. Only the app writes the cache, so a
+/// renewal (or a billing grace period) that began while Keaser was closed
+/// would otherwise lock a paying subscriber's widget until they open the
+/// app. The confirmed status is used for this redraw only; the app still
+/// owns the file.
+enum WidgetDatabase {
+    static func load(now: Date) async -> Database {
+        var database = DatabaseFile.shared.load()
+        guard ProEntitlement.needsStoreKitCheck(database.preferences, now: now) else { return database }
+        var grant = ProGrant.none
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            grant = grant.combined(with: ProProduct.grant(
+                productID: transaction.productID,
+                revocationDate: transaction.revocationDate,
+                expirationDate: transaction.expirationDate,
+                renewal: await renewal(of: transaction),
+                now: now
+            ))
+        }
+        grant.cache(in: &database.preferences)
+        return database
     }
 
-    private func entry(for configuration: SpendingWidgetIntent, now: Date) -> SpendingEntry {
-        let database = DatabaseFile.shared.load()
-        return SpendingEntry(
-            date: now,
-            snapshot: SpendingSnapshot.make(database: database, accountID: configuration.account?.id, period: configuration.period.period, now: now)
+    /// The same reading of the renewal info as `ProStore` in the app.
+    private static func renewal(of transaction: StoreKit.Transaction) async -> ProRenewal? {
+        guard transaction.productType == .autoRenewable,
+              let status = await transaction.subscriptionStatus,
+              case .verified(let info) = status.renewalInfo
+        else { return nil }
+        return ProRenewal(
+            willAutoRenew: info.willAutoRenew,
+            isInBillingRetry: info.isInBillingRetry,
+            gracePeriodEnd: status.state == .inGracePeriod ? info.gracePeriodExpirationDate : nil
         )
     }
 }

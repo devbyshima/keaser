@@ -8,8 +8,8 @@ import os
 ///
 /// StoreKit is the source of truth for purchases. Its verdict is cached in
 /// `Preferences.hasProPurchase`, with the subscription's end in
-/// `Preferences.proExpirationDate`, so the widget extension, which cannot ask
-/// StoreKit cheaply, sees the same answer and locks itself when a
+/// `Preferences.proExpirationDate`, so the widget extension sees the same
+/// answer without asking StoreKit on every redraw, and locks itself when a
 /// subscription lapses.
 @MainActor
 @Observable
@@ -20,6 +20,7 @@ final class ProStore {
     init(store: KeaserStore, passRecord: (any ProPassRecord)? = nil) {
         self.store = store
         self.passRecord = passRecord ?? Self.defaultPassRecord
+        watchEntitlementEnd()
     }
 
     private static var defaultPassRecord: any ProPassRecord {
@@ -31,17 +32,101 @@ final class ProStore {
         return KeychainProPassRecord()
     }
 
-    /// True while the pass is live or after a purchase. Gate Pro features on this.
-    var isPro: Bool { store.isPro() }
+    /// True while the pass is live or after a purchase. Gate Pro features on
+    /// this. It turns false on its own when the pass or a subscription runs
+    /// out, and views reading it redraw then.
+    var isPro: Bool {
+        _ = entitlementClock
+        return store.isPro()
+    }
 
     /// Whole days left in the pass; nil if no pass was started, 0 once over.
     var trialDaysRemaining: Int? {
-        ProEntitlement.trialDaysRemaining(trialStart: store.preferences.trialStartDate, now: .now)
+        _ = entitlementClock
+        return ProEntitlement.trialDaysRemaining(trialStart: store.preferences.trialStartDate, now: .now)
     }
 
     /// True while a purchase grants Pro (not merely the pass): a lifetime
     /// purchase, or a subscription that has not lapsed.
-    var hasPurchased: Bool { ProEntitlement.hasActivePurchase(store.preferences, now: .now) }
+    var hasPurchased: Bool {
+        _ = entitlementClock
+        return ProEntitlement.hasActivePurchase(store.preferences, now: .now)
+    }
+
+    // MARK: Entitlement end
+
+    /// Moved on when the pass or a subscription runs out. The properties
+    /// above depend on the time as well as on the cache, and Observation
+    /// only sees the cache; reading this makes every view that shows Pro
+    /// state redraw at that moment instead of at the next edit.
+    private var entitlementClock = 0
+    @ObservationIgnored private var entitlementEnd: Date?
+    @ObservationIgnored private var entitlementEndTask: Task<Void, Never>?
+    @ObservationIgnored private var timeChangeObserver: (any NSObjectProtocol)?
+    /// False in DEBUG launches that force a Pro state, which StoreKit must
+    /// not overwrite.
+    @ObservationIgnored private var readsStoreKit = false
+
+    /// Keeps a timer on the next moment `isPro` can change by itself
+    /// (`ProEntitlement.nextChange`), rescheduled whenever the cache changes
+    /// or the clock is set.
+    private func watchEntitlementEnd() {
+        store.addObserver { [weak self] change in
+            switch change {
+            case .preferencesChanged, .reloaded: self?.scheduleEntitlementEnd()
+            default: break
+            }
+        }
+        timeChangeObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.significantTimeChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // The timer counts elapsed time; a new wall clock moves the end.
+                self.entitlementEndTask?.cancel()
+                self.entitlementEndTask = nil
+                self.entitlementEnd = nil
+                self.entitlementClock &+= 1
+                self.scheduleEntitlementEnd()
+            }
+        }
+        scheduleEntitlementEnd()
+    }
+
+    private func scheduleEntitlementEnd() {
+        let end = ProEntitlement.nextChange(after: .now, preferences: store.preferences)
+        guard end != entitlementEnd || entitlementEndTask == nil else { return }
+        entitlementEndTask?.cancel()
+        entitlementEnd = end
+        guard let end else {
+            entitlementEndTask = nil
+            return
+        }
+        entitlementEndTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(max(0, end.timeIntervalSinceNow)))
+            } catch {
+                return
+            }
+            await self?.entitlementEndReached()
+        }
+    }
+
+    private func entitlementEndReached() async {
+        // Detached from the timer first, so the reschedule that the refresh
+        // below triggers cannot cancel it halfway through.
+        entitlementEndTask = nil
+        entitlementEnd = nil
+        // A subscription that looks over may have renewed, or entered its
+        // grace period, while nothing was listening. Ask before locking.
+        if readsStoreKit, ProEntitlement.needsStoreKitCheck(store.preferences, now: .now) {
+            await refreshEntitlements()
+        }
+        entitlementClock &+= 1
+        scheduleEntitlementEnd()
+    }
+
+    // MARK: Pass
 
     /// Starts the 7-day pass if it has never been started. Called by
     /// onboarding when the user continues past the "7-Day Pro Pass" page.
@@ -119,6 +204,7 @@ final class ProStore {
         #if DEBUG
         if applyDebugOverrides() { return }
         #endif
+        readsStoreKit = true
         listenForTransactions()
         refreshWhenActive()
         reconcilePass()
@@ -205,8 +291,10 @@ final class ProStore {
     // MARK: Entitlements
 
     /// Recomputes ownership from the verified, unrevoked transactions
-    /// StoreKit reports (a subscription counts through its billing grace
-    /// period), and caches it and the subscription's end for the widget.
+    /// StoreKit reports, and caches it and the subscription's end for the
+    /// widget. A subscription that is set to renew is cached past its
+    /// renewal date (`ProRenewal.end(expiringAt:)`), so it does not look
+    /// lapsed before the renewal reaches the app.
     func refreshEntitlements() async {
         let now = Date.now
         var grant = ProGrant.none
@@ -216,27 +304,26 @@ final class ProStore {
                 productID: transaction.productID,
                 revocationDate: transaction.revocationDate,
                 expirationDate: transaction.expirationDate,
-                gracePeriodEnd: await Self.gracePeriodEnd(of: transaction, now: now),
+                renewal: await Self.renewal(of: transaction),
                 now: now
             ))
         }
-        store.updatePreferences {
-            $0.hasProPurchase = grant.hasPurchase
-            $0.proExpirationDate = grant.expirationDate
-        }
+        store.updatePreferences { grant.cache(in: &$0) }
     }
 
-    /// The end of the billing grace period for a subscription whose renewal
-    /// payment failed. Nil otherwise, including in billing retry without a
-    /// grace period, which does not keep Pro.
-    private static func gracePeriodEnd(of transaction: StoreKit.Transaction, now: Date) async -> Date? {
+    /// What StoreKit says about the subscription's next renewal. Nil for a
+    /// lifetime purchase, or when StoreKit cannot tell (Pro then ends at the
+    /// transaction's expiry).
+    private static func renewal(of transaction: StoreKit.Transaction) async -> ProRenewal? {
         guard transaction.productType == .autoRenewable,
-              let expiration = transaction.expirationDate, expiration <= now,
               let status = await transaction.subscriptionStatus,
-              status.state == .inGracePeriod,
-              case .verified(let renewal) = status.renewalInfo
+              case .verified(let info) = status.renewalInfo
         else { return nil }
-        return renewal.gracePeriodExpirationDate
+        return ProRenewal(
+            willAutoRenew: info.willAutoRenew,
+            isInBillingRetry: info.isInBillingRetry,
+            gracePeriodEnd: status.state == .inGracePeriod ? info.gracePeriodExpirationDate : nil
+        )
     }
 
     private func refreshWhenActive() {
