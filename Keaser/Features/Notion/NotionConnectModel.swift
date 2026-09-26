@@ -67,6 +67,9 @@ final class NotionConnectModel {
         defer { isValidating = false }
         do {
             user = try await client.currentUser()
+            // A different token may see a different workspace.
+            dataSources = []
+            pages = []
             hasLoadedSources = false
             path = [.databases]
         } catch {
@@ -145,6 +148,9 @@ final class NotionConnectModel {
             var source = try await client.retrieveDataSource(id: reference.id)
             if source.databaseID == nil { source.databaseID = database.id }
             dataSources.insert(source, at: 0)
+            // Back from review should lead to the list (now showing the new
+            // database), not to a page picker that would create another.
+            path = [.databases]
             choose(source)
         } catch {
             pagesError = Self.message(for: error)
@@ -220,14 +226,15 @@ final class NotionConnectModel {
     #if DEBUG
     /// `-KeaserNotionStep databases|newDatabase|review` opens that step with
     /// the demo workspace already loaded; `tokenError` shows the intro after
-    /// a refused token.
-    func openDebugStep(_ step: String) async {
+    /// a refused token; `created` creates a Keaser database in the first
+    /// shared page and opens its review.
+    func openDebugStep(_ step: String, currencyCode: String) async {
         if step == "tokenError" {
             token = "bad-demo-token"
             await validateToken()
             return
         }
-        guard ["databases", "newDatabase", "review"].contains(step) else { return }
+        guard ["databases", "newDatabase", "review", "created"].contains(step) else { return }
         token = "demo-token"
         user = try? await client.currentUser()
         path = [.databases]
@@ -238,6 +245,9 @@ final class NotionConnectModel {
             await loadPages()
         case "review":
             if let first = dataSources.first { choose(first) }
+        case "created":
+            await loadPages()
+            if let page = pages.first { await createDatabase(in: page, currencyCode: currencyCode) }
         default:
             break
         }

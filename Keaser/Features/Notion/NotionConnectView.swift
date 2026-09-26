@@ -13,6 +13,7 @@ struct NotionConnectView: View {
 
     @State private var model = NotionConnectModel()
     @State private var didFinish = false
+    @Environment(KeaserStore.self) private var store
 
     var body: some View {
         content
@@ -57,7 +58,9 @@ struct NotionConnectView: View {
         }
         #if DEBUG
         .task {
-            if let step = DebugLaunch.string("KeaserNotionStep") { await model.openDebugStep(step) }
+            if let step = DebugLaunch.string("KeaserNotionStep") {
+                await model.openDebugStep(step, currencyCode: store.preferences.currencyCode)
+            }
         }
         #endif
     }
