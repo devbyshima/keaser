@@ -24,6 +24,17 @@ public enum ExpenseQuery {
             Filter(period: isPro ? .allTime : .thisMonth)
         }
 
+        /// This filter without Pro: This Year and All Time fall back to This
+        /// Month, and the category and payment filters go back to All. The
+        /// search stays.
+        public var withoutPro: Filter {
+            var filter = self
+            if filter.period.isLongTerm { filter.period = Filter.initial(isPro: false).period }
+            filter.categoryID = nil
+            filter.paymentMethodID = nil
+            return filter
+        }
+
         /// True when a category or payment method narrows the list, so the
         /// filter button can show that something is hidden.
         public var narrowsByLabel: Bool { categoryID != nil || paymentMethodID != nil }

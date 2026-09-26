@@ -90,6 +90,16 @@ struct HomeExpenseQueryTests {
         #expect(!ExpenseQuery.Filter(period: .today, searchText: "  ").isSearching)
     }
 
+    @Test func losingProDropsOnlyTheProFilters() {
+        for period in [Period.thisYear, .allTime] {
+            let lapsed = ExpenseQuery.Filter(period: period, categoryID: food, paymentMethodID: card, searchText: "tea").withoutPro
+            #expect(lapsed == ExpenseQuery.Filter(period: .thisMonth, searchText: "tea"))
+        }
+        for period in [Period.today, .thisWeek, .thisMonth] {
+            #expect(ExpenseQuery.Filter(period: period, categoryID: food).withoutPro == ExpenseQuery.Filter(period: period))
+        }
+    }
+
     @Test func menusListLabelsAlphabetically() {
         let names = ExpenseQuery.alphabetical(ExpenseCategory.defaults()).map(\.name)
         #expect(names == ["Entertainment", "Food & Drinks", "Health", "Services", "Shopping", "Transportation", "Travel"])

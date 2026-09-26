@@ -68,6 +68,12 @@ struct HomeView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { now = .now }
         }
+        // The pass or a subscription can run out while Home is open; wake at
+        // that moment rather than at midnight, and drop Pro-only filters.
+        .task(id: nextProChange) { await refreshNow(at: nextProChange) }
+        .onChange(of: pro.isPro) { _, isPro in
+            if !isPro { dropProFilters() }
+        }
         .sensoryFeedback(.success, trigger: deletedCount)
         #if DEBUG
         .onAppear(perform: applyDebugLaunch)
@@ -238,17 +244,15 @@ struct HomeView: View {
 
     private func currentFilter(for account: Account) -> ExpenseQuery.Filter {
         let isPro = pro.isPro
-        var period = periodChoice ?? ExpenseQuery.Filter.initial(isPro: isPro).period
-        // A lapsed pass falls back rather than showing locked data.
-        if period.isLongTerm && !isPro { period = ExpenseQuery.Filter.initial(isPro: false).period }
-        let category = isPro ? categoryFilter.flatMap { account.category(id: $0)?.id } : nil
-        let method = isPro ? paymentFilter.flatMap { account.paymentMethod(id: $0)?.id } : nil
-        return ExpenseQuery.Filter(
-            period: period,
-            categoryID: category,
-            paymentMethodID: method,
+        let filter = ExpenseQuery.Filter(
+            period: periodChoice ?? ExpenseQuery.Filter.initial(isPro: isPro).period,
+            categoryID: categoryFilter.flatMap { account.category(id: $0)?.id },
+            paymentMethodID: paymentFilter.flatMap { account.paymentMethod(id: $0)?.id },
             searchText: isSearching ? searchText : ""
         )
+        // A lapsed pass never shows locked data, even before
+        // `dropProFilters` has reset the choices.
+        return isPro ? filter : filter.withoutPro
     }
 
     private func choosePeriod(_ period: Period) {
@@ -273,6 +277,39 @@ struct HomeView: View {
             return
         }
         withAnimation(.smooth(duration: 0.35)) { paymentFilter = id }
+    }
+
+    /// Pro ended while Home was open: a long-term period goes back to This
+    /// Month and the category and payment filters to All. The fallback is
+    /// kept as the choice, so buying Pro later does not switch the period
+    /// under the user.
+    private func dropProFilters() {
+        let shown = ExpenseQuery.Filter(
+            period: periodChoice ?? ExpenseQuery.Filter.initial(isPro: true).period,
+            categoryID: categoryFilter,
+            paymentMethodID: paymentFilter
+        ).withoutPro
+        withAnimation(.smooth(duration: 0.35)) {
+            periodChoice = shown.period
+            categoryFilter = shown.categoryID
+            paymentFilter = shown.paymentMethodID
+        }
+    }
+
+    /// When Pro next ends by itself (the pass or a cached subscription
+    /// running out), or nil when nothing is due to end.
+    private var nextProChange: Date? {
+        ProEntitlement.nextChange(after: now, preferences: store.preferences)
+    }
+
+    /// Moves `now` on once `date` has passed, which re-checks Pro and starts
+    /// the wait for the next change.
+    private func refreshNow(at date: Date?) async {
+        guard let date else { return }
+        // A second late, so the entitlement has certainly ended by then.
+        try? await Task.sleep(for: .seconds(max(0, date.timeIntervalSinceNow) + 1))
+        guard !Task.isCancelled else { return }
+        now = .now
     }
 
     private func resetFilters() {
