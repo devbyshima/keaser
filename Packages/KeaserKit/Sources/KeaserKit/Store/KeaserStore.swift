@@ -150,7 +150,7 @@ public final class KeaserStore {
         commit(.expenseSaved(accountID: accountID, expenseID: expense.id))
     }
 
-    public func deleteExpense(_ expenseID: UUID, in accountID: UUID) {
+    public func deleteExpense(_ expenseID: UUID, in accountID: UUID, now: Date = .now) {
         guard let a = database.accounts.firstIndex(where: { $0.id == accountID }),
               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == expenseID })
         else { return }
@@ -159,7 +159,7 @@ public final class KeaserStore {
             if let page = removed.notionPageID {
                 database.accounts[a].deletedNotionPageIDs.append(page)
             } else {
-                database.accounts[a].deletedUnlinkedExpenseIDs.append(removed.id)
+                database.accounts[a].unlinkedDeletions.append(UnlinkedDeletion(expenseID: removed.id, deletedAt: now))
             }
         }
         commit(.expenseDeleted(accountID: accountID, expenseID: expenseID, notionPageID: removed.notionPageID))
