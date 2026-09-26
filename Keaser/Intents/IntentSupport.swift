@@ -6,11 +6,13 @@ import WidgetKit
 enum KeaserIntentError: Error, CustomLocalizedStringResourceConvertible {
     case noAccount
     case invalidAmount
+    case dataUnavailable
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .noAccount: "Create an account in Keaser first."
         case .invalidAmount: "Enter an amount greater than zero."
+        case .dataUnavailable: "Keaser can't open its data right now. Unlock your iPhone and try again."
         }
     }
 }
@@ -19,10 +21,13 @@ enum KeaserIntentError: Error, CustomLocalizedStringResourceConvertible {
 @MainActor
 enum IntentSupport {
     /// The app's store, re-read from disk. Intents may run while the app sits
-    /// in the background with an older copy in memory.
-    static func freshStore() -> KeaserStore {
+    /// in the background with an older copy in memory. Throws when the file
+    /// cannot be read (before first unlock), since nothing written then would
+    /// be kept.
+    static func freshStore() throws -> KeaserStore {
         let store = AppEnvironment.store
         store.reloadFromDisk()
+        if store.loadError != nil { throw KeaserIntentError.dataUnavailable }
         return store
     }
 

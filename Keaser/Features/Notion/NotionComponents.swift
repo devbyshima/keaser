@@ -5,20 +5,6 @@ import SwiftUI
 // cards with 26pt corners, 68pt rows with an icon column, hairlines inset to
 // the text.
 
-/// The neutral stand-in for a Notion mark: a rounded tile with a plain "N".
-struct NotionMark: View {
-    var size: CGFloat = 36
-
-    var body: some View {
-        Text("N")
-            .font(.system(size: size * 0.52, weight: .bold))
-            .foregroundStyle(Color.black)
-            .frame(width: size, height: size)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
-            .accessibilityLabel("Notion")
-    }
-}
-
 /// Header of a Notion sheet page: round glass buttons and a centred title.
 struct NotionSheetHeader<Trailing: View>: View {
     enum Leading {

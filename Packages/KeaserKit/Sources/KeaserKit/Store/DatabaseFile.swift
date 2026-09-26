@@ -40,15 +40,22 @@ public struct DatabaseFile: Sendable {
         return decoder
     }
 
-    /// Reads the database. A missing file is a fresh install. An unreadable
-    /// file is moved aside (never deleted) and a fresh database is returned,
-    /// so one bad write cannot brick the app and the data stays recoverable.
-    public func load() -> Database {
+    /// Reads the database. Returns nil when there is no file yet (a fresh
+    /// install). Throws when a file exists but cannot be read right now, for
+    /// example before the first unlock after a restart: the caller must not
+    /// mistake that for a fresh install and write over the user's data.
+    ///
+    /// A file that reads but does not decode is moved aside (never deleted)
+    /// and nil is returned, so one bad write cannot brick the app and the data
+    /// stays recoverable.
+    public func read() throws -> Database? {
         let data: Data
         do {
             data = try Data(contentsOf: url)
-        } catch {
-            return Database()
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return nil
+        } catch let error as NSError where error.domain == NSPOSIXErrorDomain && error.code == Int(ENOENT) {
+            return nil
         }
         do {
             return try Self.makeDecoder().decode(Database.self, from: data)
@@ -57,8 +64,14 @@ public struct DatabaseFile: Sendable {
             let stamp = Int(Date.now.timeIntervalSince1970)
             let aside = url.deletingLastPathComponent().appending(path: "database.unreadable-\(stamp).json")
             try? FileManager.default.moveItem(at: url, to: aside)
-            return Database()
+            return nil
         }
+    }
+
+    /// Best-effort read for readers that never write (the widget extension):
+    /// anything that cannot be read shows as an empty database.
+    public func load() -> Database {
+        (try? read()) ?? Database()
     }
 
     public func save(_ database: Database) throws {

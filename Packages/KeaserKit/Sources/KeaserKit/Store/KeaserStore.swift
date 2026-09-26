@@ -22,8 +22,14 @@ public enum StoreChange: Sendable, Equatable {
 @Observable
 public final class KeaserStore {
     public private(set) var database: Database
-    /// The last save error, if any. Surfaced so it is never silent.
+    /// The last save error, if any. Changes stay in memory and are retried on
+    /// the next save or reload; RootView shows a banner while this is set.
     public private(set) var lastSaveError: String?
+    /// Set when the database file exists but could not be read (typically
+    /// before the first unlock after a restart). While set, nothing is written
+    /// to disk, so the real file cannot be overwritten by an empty database;
+    /// `reloadFromDisk()` retries the read.
+    public private(set) var loadError: String?
 
     @ObservationIgnored private let file: DatabaseFile?
     @ObservationIgnored private var observers: [@MainActor (StoreChange) -> Void] = []
@@ -33,7 +39,18 @@ public final class KeaserStore {
     /// launches).
     public init(database: Database? = nil, file: DatabaseFile?) {
         self.file = file
-        self.database = database ?? file?.load() ?? Database()
+        if let database {
+            self.database = database
+        } else if let file {
+            do {
+                self.database = try file.read() ?? Database()
+            } catch {
+                self.database = Database()
+                self.loadError = error.localizedDescription
+            }
+        } else {
+            self.database = Database()
+        }
     }
 
     // MARK: Reading
@@ -201,10 +218,23 @@ public final class KeaserStore {
     // MARK: Whole database
 
     /// Re-reads the file, for when another process (an App Intent running in
-    /// the background) may have written it.
+    /// the background) may have written it. Never discards a change that has
+    /// not reached the disk: a pending failed save is retried instead, and a
+    /// file that still cannot be read leaves memory untouched.
     public func reloadFromDisk() {
         guard let file else { return }
-        let fresh = file.load()
+        if lastSaveError != nil, loadError == nil {
+            persist()
+            return
+        }
+        let fresh: Database
+        do {
+            fresh = try file.read() ?? Database()
+        } catch {
+            loadError = error.localizedDescription
+            return
+        }
+        loadError = nil
         guard fresh != database else { return }
         database = fresh
         announce(.reloaded)
@@ -213,16 +243,21 @@ public final class KeaserStore {
     // MARK: Private
 
     private func commit(_ change: StoreChange) {
-        if let file {
-            do {
-                try file.save(database)
-                lastSaveError = nil
-            } catch {
-                lastSaveError = error.localizedDescription
-                log.error("Save failed: \(error.localizedDescription, privacy: .public)")
-            }
-        }
+        persist()
         announce(change)
+    }
+
+    private func persist() {
+        // Writing now would replace a file we could not read with whatever is
+        // in memory, which is not the user's data.
+        guard let file, loadError == nil else { return }
+        do {
+            try file.save(database)
+            lastSaveError = nil
+        } catch {
+            lastSaveError = error.localizedDescription
+            log.error("Save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func announce(_ change: StoreChange) {

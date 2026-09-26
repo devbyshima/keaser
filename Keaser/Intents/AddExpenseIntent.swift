@@ -37,7 +37,7 @@ struct AddExpenseIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let store = IntentSupport.freshStore()
+        let store = try IntentSupport.freshStore()
         let target = try IntentSupport.account(account, in: store)
         guard let value = QuickLog.amount(from: amount, currencyCode: store.preferences.currencyCode) else {
             throw KeaserIntentError.invalidAmount

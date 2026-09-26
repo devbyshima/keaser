@@ -30,7 +30,7 @@ struct CategoryEntityQuery: EntityQuery {
 
     @MainActor
     func suggestedEntities() async throws -> [CategoryEntity] {
-        IntentSupport.freshStore().selectedAccount?.categories.map(CategoryEntity.init) ?? []
+        (try? IntentSupport.freshStore())?.selectedAccount?.categories.map(CategoryEntity.init) ?? []
     }
 }
 
@@ -62,6 +62,6 @@ struct PaymentMethodEntityQuery: EntityQuery {
 
     @MainActor
     func suggestedEntities() async throws -> [PaymentMethodEntity] {
-        IntentSupport.freshStore().selectedAccount?.paymentMethods.map(PaymentMethodEntity.init) ?? []
+        (try? IntentSupport.freshStore())?.selectedAccount?.paymentMethods.map(PaymentMethodEntity.init) ?? []
     }
 }

@@ -38,35 +38,45 @@ struct SymbolTile: View {
     }
 }
 
-/// Centered icon, title and message for empty screens ("No Expenses").
+/// Centred symbol, title, message and optional action for empty screens.
+/// `.large` is Home's version ("No Account", "No Expenses"): a bigger grey
+/// symbol and 20pt text, measured from the reference.
 struct EmptyStateView<Actions: View>: View {
+    enum Style { case regular, large }
+
     let symbol: String
     let title: String
     let message: String
+    var style: Style = .regular
     @ViewBuilder var actions: Actions
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 0) {
             Image(systemName: symbol)
-                .font(.system(size: 28, weight: .regular))
-                .foregroundStyle(.white)
-                .padding(.bottom, 8)
+                .keaserFont(style == .large ? 40 : 28)
+                .foregroundStyle(style == .large ? Color.keaserMutedIcon : Color.white)
+                .padding(.bottom, style == .large ? 21 : 14)
+                .accessibilityHidden(true)
             Text(title)
-                .font(.headline)
-                .foregroundStyle(.white)
+                .keaserFont(style == .large ? 20 : 17, weight: .bold)
+                .foregroundStyle(Color.keaserPrimaryText)
+                .multilineTextAlignment(.center)
             Text(message)
-                .font(.subheadline)
+                .keaserFont(style == .large ? 20 : 15)
                 .foregroundStyle(Color.keaserSecondaryText)
                 .multilineTextAlignment(.center)
+                .padding(.top, style == .large ? 3 : 4)
+                .fixedSize(horizontal: false, vertical: true)
             actions
-                .padding(.top, 10)
+                .padding(.top, style == .large ? 30 : 16)
         }
-        .frame(maxWidth: 280)
+        .frame(maxWidth: style == .large ? 260 : 280)
+        .accessibilityElement(children: .contain)
     }
 }
 
 extension EmptyStateView where Actions == EmptyView {
-    init(symbol: String, title: String, message: String) {
-        self.init(symbol: symbol, title: title, message: message) { EmptyView() }
+    init(symbol: String, title: String, message: String, style: Style = .regular) {
+        self.init(symbol: symbol, title: title, message: message, style: style) { EmptyView() }
     }
 }
