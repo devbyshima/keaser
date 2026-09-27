@@ -41,7 +41,7 @@ public final class OnDeviceCategoryModel: CategoryModel {
     public func category(for title: String, in prompt: CategoryPrompt, within budget: Duration) async -> String? {
         let key = prompt.cacheKey(for: title)
         if let cached = cache[key] { return cached }
-        guard isReady else { return nil }
+        guard isReady, prompt.prompt(for: title) != nil else { return nil }
         let session: LanguageModelSession
         if let warmed, warmed.prefix == prompt.promptPrefix {
             session = warmed.session
