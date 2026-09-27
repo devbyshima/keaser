@@ -49,6 +49,15 @@ public struct Preferences: Codable, Hashable, Sendable {
     public var currencyCode: String
     public var firstWeekday: Weekday
     public var smartSuggestionsEnabled: Bool
+    /// The Add Expense shortcut shows the expense for confirmation before
+    /// saving it.
+    public var shortcutConfirmsDetails: Bool
+    /// The shortcut's account, category and payment lists end with Go Back.
+    public var shortcutGoBackEnabled: Bool
+    /// The shortcut guesses the category and payment method from the title
+    /// instead of asking. Separate from `smartSuggestionsEnabled`, which is
+    /// New Expense in the app.
+    public var shortcutSmartSuggestionsEnabled: Bool
     public var hasCompletedOnboarding: Bool
     public var hasSeenWelcomeLetter: Bool
     /// The user's choice; the system permission is checked separately.
@@ -69,6 +78,9 @@ public struct Preferences: Codable, Hashable, Sendable {
         currencyCode: String = Preferences.defaultCurrencyCode,
         firstWeekday: Weekday = .sunday,
         smartSuggestionsEnabled: Bool = true,
+        shortcutConfirmsDetails: Bool = true,
+        shortcutGoBackEnabled: Bool = true,
+        shortcutSmartSuggestionsEnabled: Bool = true,
         hasCompletedOnboarding: Bool = false,
         hasSeenWelcomeLetter: Bool = false,
         weeklySummaryEnabled: Bool = false,
@@ -80,6 +92,9 @@ public struct Preferences: Codable, Hashable, Sendable {
         self.currencyCode = currencyCode
         self.firstWeekday = firstWeekday
         self.smartSuggestionsEnabled = smartSuggestionsEnabled
+        self.shortcutConfirmsDetails = shortcutConfirmsDetails
+        self.shortcutGoBackEnabled = shortcutGoBackEnabled
+        self.shortcutSmartSuggestionsEnabled = shortcutSmartSuggestionsEnabled
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.hasSeenWelcomeLetter = hasSeenWelcomeLetter
         self.weeklySummaryEnabled = weeklySummaryEnabled
@@ -95,6 +110,9 @@ public struct Preferences: Codable, Hashable, Sendable {
         currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? d.currencyCode
         firstWeekday = try c.decodeIfPresent(Weekday.self, forKey: .firstWeekday) ?? d.firstWeekday
         smartSuggestionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .smartSuggestionsEnabled) ?? d.smartSuggestionsEnabled
+        shortcutConfirmsDetails = try c.decodeIfPresent(Bool.self, forKey: .shortcutConfirmsDetails) ?? d.shortcutConfirmsDetails
+        shortcutGoBackEnabled = try c.decodeIfPresent(Bool.self, forKey: .shortcutGoBackEnabled) ?? d.shortcutGoBackEnabled
+        shortcutSmartSuggestionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .shortcutSmartSuggestionsEnabled) ?? d.shortcutSmartSuggestionsEnabled
         hasCompletedOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? d.hasCompletedOnboarding
         hasSeenWelcomeLetter = try c.decodeIfPresent(Bool.self, forKey: .hasSeenWelcomeLetter) ?? d.hasSeenWelcomeLetter
         weeklySummaryEnabled = try c.decodeIfPresent(Bool.self, forKey: .weeklySummaryEnabled) ?? d.weeklySummaryEnabled
