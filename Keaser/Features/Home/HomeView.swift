@@ -143,6 +143,7 @@ struct HomeView: View {
             .animation(.smooth(duration: 0.3), value: expenses.map(\.id))
         }
         .scrollIndicators(.hidden)
+        .keaserSwipeActionsContainer()
         .safeAreaInset(edge: .top, spacing: 0) {
             HomeTopBar(
                 accountName: account.name,

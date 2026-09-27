@@ -67,6 +67,7 @@ struct HomeExpenseRows: View {
                     KeaserRowSeparator(leading: HomeLayout.rowSeparatorLeading)
                 }
             }
+            .keaserSwipeActions(onEdit: { onEdit(expense) }, onDelete: { onDelete(expense) })
             .transition(.opacity)
         }
     }

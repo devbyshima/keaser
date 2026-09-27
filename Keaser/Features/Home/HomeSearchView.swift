@@ -56,6 +56,7 @@ struct HomeSearchView: View {
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.immediately)
+            .keaserSwipeActionsContainer()
             .transition(.opacity)
         }
     }
