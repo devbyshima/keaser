@@ -254,7 +254,7 @@ public enum Tutorials {
                 .note(TutorialNote(
                     symbol: "plus.circle.fill",
                     title: "Quickest of All: Keaser's Control",
-                    text: "Keaser comes with its own **\(action)** control for Control Center, the Lock Screen and the Action button. It opens a new expense in Keaser straight away, with no shortcut to build."
+                    text: "Keaser comes with its own **\(action)** control for Control Center, the Lock Screen and the Action button. It asks the same questions as the shortcut, right where you tap it, with no shortcut to build."
                 )),
             ]),
         ]
@@ -306,7 +306,8 @@ public enum Tutorials {
             ]),
             TutorialSection(id: "done", title: "All Set", blocks: [
                 .paragraph("Tap **Done** to save the automation. From now on it runs each time you pay with one of the cards you chose."),
-                .paragraph("Keaser only asks for what the shortcut leaves empty, such as the **\(categoryField)**. With Smart Suggestions on, it may already know the category from the merchant and fill it in for you."),
+                .paragraph("Keaser only asks for what the shortcut leaves empty, such as the **\(categoryField)**. With **Smart Suggestions** on in Settings > Shortcut, it may already know the category from the merchant and fill it in for you."),
+                .paragraph("Keaser also shows you the expense to check before adding it. To have it added straight away, turn off **Confirm Expense Details** in Settings > Shortcut."),
                 .illustration(.askForCategory),
             ]),
         ]

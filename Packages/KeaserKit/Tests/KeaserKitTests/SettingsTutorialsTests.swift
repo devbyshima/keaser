@@ -146,7 +146,8 @@ struct SettingsTutorialsTests {
         try expectInOrder(tutorial, [
             "**Automation**", "**Wallet**", "**Run Immediately**", "**Create New Shortcut**",
             "**Add Expense**", "**Title**", "**Select Variable**", "**Merchant**", "**Amount**",
-            "**Date**", "**Current Date**", "**Payment Method**", "**Category**", "Smart Suggestions",
+            "**Date**", "**Current Date**", "**Payment Method**", "**Category**", "**Smart Suggestions**",
+            "**Confirm Expense Details**",
         ])
     }
 
