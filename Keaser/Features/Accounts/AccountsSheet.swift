@@ -85,7 +85,7 @@ struct AccountsSheet: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .listRowBackground(
-                    CardRowBackground(position: CardPosition(index: index, count: store.accounts.count), fill: .keaserSheetCard)
+                    CardRowBackground(position: CardPosition(index: index, count: store.accounts.count), fill: .homeSheetCard)
                         .padding(.horizontal, 16)
                 )
             }
@@ -117,7 +117,7 @@ struct AccountsSheet: View {
             .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             .listRowSeparator(.hidden)
             .listRowBackground(
-                CardRowBackground(position: .single, fill: .keaserSheetCard)
+                CardRowBackground(position: .single, fill: .homeSheetCard)
                     .padding(.horizontal, 16)
             )
             .deleteDisabled(true)
@@ -172,17 +172,18 @@ private struct AccountRow: View {
         // margins, where the list adds its own controls. A name then keeps
         // enough width to wrap between words.
         let isLarge = dynamicTypeSize.isAccessibilitySize
-        let leading: CGFloat = isLarge ? (isEditing ? 0 : 16) : 22
+        let leading: CGFloat = isLarge ? (isEditing ? 0 : 16) : 14
         let trailing: CGFloat = isLarge && isEditing ? 0 : 24
         // The separator starts under the name.
         let separatorLeading: CGFloat = isLarge ? leading : 62
         Button(action: action) {
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 if !isLarge {
                     Image(systemName: "person.fill")
                         .font(.body)
                         .foregroundStyle(Color.keaserPrimaryText)
-                        .frame(minWidth: 24)
+                        .frame(width: 36, height: 36)
+                        .background(Color.homeSheetTile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .accessibilityHidden(true)
                 }
                 Text(account.name)

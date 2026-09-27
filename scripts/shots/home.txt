@@ -12,12 +12,16 @@ demo-this-year | -KeaserSeed demo -KeaserPeriod thisYear
 demo-this-month | -KeaserSeed demo -KeaserPeriod thisMonth
 demo-this-week | -KeaserSeed demo -KeaserPeriod thisWeek
 demo-today | -KeaserSeed demo -KeaserPeriod today
+# Full-screen search: the prompt, live results, and No Results.
+search-prompt | -KeaserSeed demo -KeaserSheet search
 search | -KeaserSeed demo -KeaserSheet search -KeaserSearch co
 search-empty | -KeaserSeed demo -KeaserSheet search -KeaserSearch zzz
 accounts-editing | -KeaserSeed demo -KeaserSheet accounts -KeaserAccountsEditing 1
 suggestions | -KeaserSeed demo -KeaserSheet newExpense -KeaserExpenseTitle G
 guess | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Outing -KeaserExpenseFocus amount
-# The long-press callout over the All Time bar, as in the recording.
+# The long-press glass callout over the All Time bar, as in the recording,
+# and over a bar near the leading edge (kept inside the chart).
 chart-callout | -KeaserSeed single -KeaserChartSelection last
+chart-callout-edge | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 0
 # A first expense in a fresh account: Food & Drinks, then Cash.
 guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount

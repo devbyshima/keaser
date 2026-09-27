@@ -149,7 +149,7 @@ struct ExpenseEditorView: View {
     // MARK: Card
 
     private var card: some View {
-        KeaserCard(fill: .keaserSheetCard) {
+        KeaserCard(fill: .homeSheetCard) {
             titleRow
             ForEach(suggestions) { suggestion in
                 KeaserRowSeparator()
@@ -263,7 +263,7 @@ struct ExpenseEditorView: View {
     }
 
     private var deleteButton: some View {
-        KeaserCard(fill: .keaserSheetCard) {
+        KeaserCard(fill: .homeSheetCard) {
             Button {
                 focus = nil
                 confirmingDelete = true
@@ -425,7 +425,7 @@ private struct SuggestionRow: View {
         let stacked = dynamicTypeSize.isAccessibilitySize
         Button(action: action) {
             HStack(spacing: 12) {
-                SymbolTile(symbol: symbol, size: 30, background: Color.white.opacity(0.08))
+                SymbolTile(symbol: symbol, size: 30, background: .homeSuggestionTile)
                 (stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 12))) {
                     Text(expense.title)
                         .font(.body)

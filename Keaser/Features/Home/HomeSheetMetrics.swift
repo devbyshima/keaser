@@ -7,6 +7,21 @@ enum HomeSheetMetrics {
     static let contentTop: CGFloat = 42
 }
 
+// Home's floating sheets (Accounts, Add Account, the expense editor) sit
+// on glass at a medium detent. In light mode the reference draws their
+// cards as a grey veil over that glass, with white symbol tiles, where the
+// full-height Settings sheet uses white cards; dark mode keeps the shared
+// sheet values exactly.
+extension Color {
+    /// Cards and fields on Home's sheets.
+    static let homeSheetCard = Color(light: .black.opacity(0.055), dark: .white.opacity(0.055))
+    /// The tile behind an account's symbol: white in light mode, none in
+    /// dark mode, as in the reference.
+    static let homeSheetTile = Color(light: .white.opacity(0.75), dark: .clear)
+    /// The tile behind a suggested expense's category symbol.
+    static let homeSuggestionTile = Color(light: .white.opacity(0.75), dark: .white.opacity(0.08))
+}
+
 extension View {
     /// A `KeaserSheetHeader` as Home's floating sheets (Accounts, Add
     /// Account, the expense editor) draw it. Like a navigation bar, its text

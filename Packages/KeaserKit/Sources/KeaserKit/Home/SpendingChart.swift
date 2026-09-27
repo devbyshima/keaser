@@ -151,6 +151,22 @@ public enum SpendingChart {
         }
     }
 
+    /// Where the long-press callout's leading edge goes: centred over the
+    /// bar whose middle is at `barCenter`, but kept inside a chart
+    /// `chartWidth` wide (flush with its leading edge if it cannot fit).
+    public static func calloutLeading(barCenter: Double, calloutWidth: Double, chartWidth: Double) -> Double {
+        let centred = barCenter - calloutWidth / 2
+        return min(max(centred, 0), max(chartWidth - calloutWidth, 0))
+    }
+
+    /// How far below its resting place the callout starts as it grows out
+    /// of its bar: down to the bar's top (`barTop`, with y growing
+    /// downwards), but never more than `limit`, so a short bar does not
+    /// send it flying across the whole plot.
+    public static func calloutRise(barTop: Double, calloutBottom: Double, limit: Double = 72) -> Double {
+        min(max(barTop - calloutBottom, 0), limit)
+    }
+
     /// Only the calendar day of `Expense.date` is meaningful, so the hour
     /// comes from when the expense was logged if that was the same day.
     public static func timeOfDay(of expense: Expense, calendar: Calendar) -> Date {
