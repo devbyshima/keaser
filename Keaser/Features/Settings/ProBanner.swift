@@ -56,14 +56,41 @@ struct ProBanner: View {
 
 /// A near-black sky whose glow drifts between midnight blue and violet, with
 /// a fixed, seeded star field that slides and twinkles. Stands still when
-/// Reduce Motion is on.
+/// Reduce Motion is on, and holds still where it is while iOS 27 asks apps
+/// to use fewer resources.
 struct StarfieldBackground: View {
+    var body: some View {
+        if #available(iOS 27.0, *) {
+            ReducedResourceReader { reduced in
+                StarfieldSky(isHeld: reduced)
+            }
+        } else {
+            StarfieldSky(isHeld: false)
+        }
+    }
+}
+
+/// Hands its content whether the system prefers reduced resource usage.
+@available(iOS 27.0, *)
+private struct ReducedResourceReader<Content: View>: View {
+    @Environment(\.systemPrefersReducedResourceUsage) private var prefersReducedResourceUsage
+    @ViewBuilder var content: (Bool) -> Content
+
+    var body: some View {
+        content(prefersReducedResourceUsage)
+    }
+}
+
+/// The animated sky. `isHeld` stops the 30 fps redraw on the current frame.
+private struct StarfieldSky: View {
+    let isHeld: Bool
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let stars = Star.field(count: 260, seed: 0x5EED_4B45)
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || isHeld)) { timeline in
             let t = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { context, size in
                 Self.drawSky(in: &context, size: size, time: t)
