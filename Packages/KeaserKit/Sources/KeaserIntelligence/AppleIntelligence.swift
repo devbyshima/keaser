@@ -35,4 +35,11 @@ public enum AppleIntelligence {
         guard #available(iOS 26.0, macOS 26.0, *) else { return nil }
         return OnDeviceCategoryModel.shared
     }
+
+    /// Receipt scanning's model on iOS 26 and later; nil before, where the
+    /// heuristics read receipts alone.
+    public static var receiptModel: (any ReceiptModel)? {
+        guard #available(iOS 26.0, macOS 26.0, *) else { return nil }
+        return OnDeviceReceiptModel.shared
+    }
 }
