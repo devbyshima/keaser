@@ -7,6 +7,10 @@ import WidgetKit
 /// widget's own views, so screenshots can check them without adding widgets to
 /// a home screen. Opened with `-KeaserOnboardingPage widgetGallery` (demo data)
 /// or `widgetGalleryLocked` (the Pro-locked and no-account states).
+///
+/// Home screen widgets follow the current appearance, as on a real home
+/// screen; lock screen widgets look the same in both, as the system draws
+/// them.
 struct WidgetGallery: View {
     let showsLockedStates: Bool
 
@@ -24,7 +28,7 @@ struct WidgetGallery: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(showsLockedStates ? "Widgets: locked and empty" : "Widgets")
                     .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                 if showsLockedStates { lockedStates } else { readyStates }
             }
             .padding(.horizontal, 19)
@@ -90,10 +94,14 @@ struct WidgetGallery: View {
         WidgetPreviewFrame(size: family == .systemMedium ? Self.medium : Self.small) {
             SpendingWidgetView(snapshot: snapshot, family: family, inApp: true)
         }
+        // A white widget on the pale page needs a soft edge to show its size.
+        .shadow(color: Color(light: .black.opacity(0.1), dark: .clear), radius: 8, y: 2)
     }
 
     /// Accessory widgets on a lock-screen-like backdrop, in the white the
-    /// system renders them in.
+    /// system renders them in. The system draws them vibrant white over the
+    /// wallpaper in either appearance, so this backdrop and its dark scheme
+    /// are fixed on purpose.
     private func lockScreen(rectangular: SpendingSnapshot, circular: SpendingSnapshot, inline: SpendingSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 16) {

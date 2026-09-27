@@ -1,5 +1,7 @@
 # Onboarding pages at rest. Entrance animations run for up to about three
-# seconds after launch, so take these with SETTLE=5.
+# seconds after launch, so take these with SETTLE=5. Everything here follows
+# the system appearance; check both with APPEARANCE=light OUT=screenshots/light
+# and APPEARANCE=dark OUT=screenshots/dark.
 page0 | -KeaserSeed fresh -KeaserOnboardingPage 0
 page1 | -KeaserSeed fresh -KeaserOnboardingPage 1
 page2 | -KeaserSeed fresh -KeaserOnboardingPage 2
