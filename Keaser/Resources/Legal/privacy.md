@@ -24,6 +24,10 @@ Keaser Pro is sold through the App Store. Apple handles the payment, and Keaser 
 
 When you run a Keaser action from the Shortcuts app, Siri or a Wallet automation, the details it is given (such as the merchant, amount and card name) are saved as an expense on your iPhone, exactly like one you typed.
 
+## Apple Intelligence
+
+On iPhones with Apple Intelligence turned on, Smart Suggestions can ask Apple's on-device model to pick a category for a title Keaser has not seen before; this happens entirely on your iPhone, and neither the title nor your category names ever leave it.
+
 ## Notifications
 
 The optional weekly summary is scheduled on your iPhone. No notification server is involved.
