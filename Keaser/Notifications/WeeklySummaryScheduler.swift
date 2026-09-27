@@ -61,7 +61,12 @@ final class WeeklySummaryScheduler {
         await Self.apply(WeeklySummary.plan(for: store.database, now: .now))
     }
 
-    private static func apply(_ plan: WeeklySummaryPlan?) async {
+    /// Runs away from the main actor. Removing a request is a synchronous call
+    /// into the system's notification service; when that service is slow or
+    /// stuck (a freshly booted simulator, a busy phone), running it on the
+    /// main actor froze the whole app.
+    @concurrent
+    private nonisolated static func apply(_ plan: WeeklySummaryPlan?) async {
         let center = UNUserNotificationCenter.current()
         guard let plan, await NotificationPermission.status() == .granted else {
             center.removePendingNotificationRequests(withIdentifiers: [WeeklySummary.identifier])
