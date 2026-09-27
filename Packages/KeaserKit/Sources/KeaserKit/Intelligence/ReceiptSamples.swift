@@ -292,6 +292,31 @@ public enum ReceiptSamples {
         Cash ¥1,000
         Change ¥247
         """),
+        ReceiptSample("konbini-japanese", merchant: "ファミリーマート", total: "753", day: day(2026, 9, 20), """
+        ファミリーマート
+        渋谷道玄坂店
+        2026年9月20日 07:48
+        おにぎり ¥160
+        お茶 ¥140
+        サンドイッチ ¥398
+        小計 ¥698
+        消費税 ¥55
+        合計 ¥753
+        お預り ¥1,000
+        お釣り ¥247
+        """),
+        ReceiptSample("duka-arusha", merchant: "Duka la Mama Neema", total: "10000", day: day(2026, 9, 18), currency: "TZS", """
+        Duka la Mama Neema
+        Arusha
+        18/09/2026
+        Sukari 2,500
+        Mchele 4,000
+        Mafuta 3,500
+        Jumla TSh 10,000
+        Pesa taslimu 20,000
+        Chenji 10,000
+        Asante
+        """),
         ReceiptSample("not-a-receipt", merchant: "Meeting notes", total: nil, day: nil, """
         Meeting notes
         Call Sam about the budget

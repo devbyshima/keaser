@@ -56,6 +56,9 @@ public enum ReceiptPrompt {
     the receipt does not show; never guess one.
     """
 
+    /// What every request starts with, so the model can be prewarmed with it.
+    public static let prefix = "The receipt's text:\n"
+
     /// A long receipt keeps its top and bottom, where the name, the total
     /// and the date are, and the lines in between that name a total or a
     /// date.
@@ -77,7 +80,7 @@ public enum ReceiptPrompt {
             }
             kept = Array(lines.prefix(headLines)) + middle + Array(lines.suffix(tailLines))
         }
-        return "The receipt's text:\n" + kept.joined(separator: "\n")
+        return prefix + kept.joined(separator: "\n")
     }
 }
 
@@ -101,20 +104,32 @@ public enum ReceiptReading {
         today: ReceiptDay,
         prefersMonthFirst: Bool
     ) async -> ReceiptDraft {
-        let heuristic = ReceiptParser.draft(from: lines, today: today, prefersMonthFirst: prefersMonthFirst)
+        let heuristic = ReceiptParser.reading(from: lines, today: today, prefersMonthFirst: prefersMonthFirst)
         guard let model, model.isReady, let prompt = ReceiptPrompt.prompt(for: lines),
               let answer = await model.read(prompt, within: budget)
-        else { return heuristic }
+        else { return heuristic.draft }
         return merged(checked(answer, lines: lines, today: today), over: heuristic)
     }
 
-    /// Each detail of `model`, falling back to `heuristic`'s.
-    public static func merged(_ model: ReceiptDraft, over heuristic: ReceiptDraft) -> ReceiptDraft {
-        ReceiptDraft(
-            merchant: model.merchant ?? heuristic.merchant,
-            total: model.total ?? heuristic.total,
-            day: model.day ?? heuristic.day,
-            currencyCode: model.currencyCode ?? heuristic.currencyCode
+    /// The model's checked details where the receipt did not settle them:
+    ///
+    /// - Merchant: the model's, which tells a shop's name from a slogan or
+    ///   a heading better than "the first line that could be one".
+    /// - Total: a line labelled as the total wins; otherwise the model's,
+    ///   which reads labels in any language, then the largest price.
+    /// - Day: a date only readable one way, or settled by the receipt's
+    ///   currency or decimal commas, wins; otherwise the model's, which can
+    ///   tell a French receipt's "03/04" from an American one's, then the
+    ///   person's region.
+    /// - Currency: the one printed most often next to the amounts, else the
+    ///   model's (both are printed on the receipt).
+    public static func merged(_ model: ReceiptDraft, over heuristic: ReceiptParser.Reading) -> ReceiptDraft {
+        let rules = heuristic.draft
+        return ReceiptDraft(
+            merchant: model.merchant ?? rules.merchant,
+            total: heuristic.totalIsLabelled ? rules.total : (model.total ?? rules.total),
+            day: heuristic.dayIsSettled ? rules.day : (model.day ?? rules.day),
+            currencyCode: rules.currencyCode ?? model.currencyCode
         )
     }
 

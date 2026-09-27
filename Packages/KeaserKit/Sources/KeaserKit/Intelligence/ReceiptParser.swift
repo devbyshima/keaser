@@ -34,20 +34,49 @@ public struct ReceiptAmount: Equatable, Sendable {
 ///   number, date, greeting or price, tidied up to be a title.
 /// - Currency: a code or a symbol only one currency uses, next to an amount.
 public enum ReceiptParser {
+    /// What the heuristics read, and whether the receipt itself settled the
+    /// details a language model might read better.
+    public struct Reading: Equatable, Sendable {
+        public var draft: ReceiptDraft
+        /// The total is on a line saying so ("Total", "Amount due"), rather
+        /// than the largest price.
+        public var totalIsLabelled: Bool
+        /// The day can only be read one way, or the receipt's currency or
+        /// decimal commas settled "03/04", rather than the person's region.
+        public var dayIsSettled: Bool
+
+        public init(draft: ReceiptDraft, totalIsLabelled: Bool = false, dayIsSettled: Bool = false) {
+            self.draft = draft
+            self.totalIsLabelled = totalIsLabelled && draft.total != nil
+            self.dayIsSettled = dayIsSettled && draft.day != nil
+        }
+    }
+
     /// Everything the text shows. `today` rules out future dates;
     /// `prefersMonthFirst` settles "03/04" when the receipt does not.
     public static func draft(from lines: [String], today: ReceiptDay, prefersMonthFirst: Bool) -> ReceiptDraft {
+        reading(from: lines, today: today, prefersMonthFirst: prefersMonthFirst).draft
+    }
+
+    /// `draft(from:today:prefersMonthFirst:)`, with how sure it is.
+    public static func reading(from lines: [String], today: ReceiptDay, prefersMonthFirst: Bool) -> Reading {
         let lines = lines.map(oneLine).filter { !$0.isEmpty }
         let currency = currencyCode(in: lines)
         // Receipts with decimal commas come from places that write the day
         // first.
-        let monthFirst = currency.map { monthFirstCurrencies.contains($0) }
-            ?? (decimalSeparator(in: lines) == "," ? false : prefersMonthFirst)
-        return ReceiptDraft(
-            merchant: merchant(in: lines),
-            total: total(in: lines),
-            day: day(in: lines, today: today, monthFirst: monthFirst),
-            currencyCode: currency
+        let receiptOrder = currency.map { monthFirstCurrencies.contains($0) }
+            ?? (decimalSeparator(in: lines) == "," ? false : nil)
+        let labelled = labelledTotal(in: lines)
+        let found = dayChoice(in: lines, today: today, monthFirst: receiptOrder ?? prefersMonthFirst)
+        return Reading(
+            draft: ReceiptDraft(
+                merchant: merchant(in: lines),
+                total: labelled ?? largestPrice(in: lines),
+                day: found?.day,
+                currencyCode: currency
+            ),
+            totalIsLabelled: labelled != nil,
+            dayIsSettled: found.map { !$0.isAmbiguous || receiptOrder != nil } ?? false
         )
     }
 
@@ -60,8 +89,14 @@ public enum ReceiptParser {
 
     // MARK: Total
 
-    /// The amount paid in the end.
+    /// The amount paid in the end: the one labelled as the total, else the
+    /// largest price.
     public static func total(in lines: [String]) -> Decimal? {
+        labelledTotal(in: lines) ?? largestPrice(in: lines)
+    }
+
+    /// The amount on the line naming the final total, if any does.
+    static func labelledTotal(in lines: [String]) -> Decimal? {
         let separator = decimalSeparator(in: lines)
         var best: (rank: Int, value: Decimal)?
         for (index, line) in lines.enumerated() {
@@ -75,10 +110,13 @@ public enum ReceiptParser {
             if let current = best, current.rank > rank || (current.rank == rank && current.value >= amount.value) { continue }
             best = (rank, amount.value)
         }
-        if let best { return best.value }
+        return best?.value
+    }
 
-        // No line says "total": the largest price, leaving out cash handed
-        // over, change and the like.
+    /// For a receipt no line of which says "total": the largest price,
+    /// leaving out cash handed over, change and the like.
+    static func largestPrice(in lines: [String]) -> Decimal? {
+        let separator = decimalSeparator(in: lines)
         return lines
             .filter { Set(words($0)).isDisjoint(with: notPaidWords) }
             .flatMap { amounts(in: $0, decimalSeparator: separator) }
@@ -113,6 +151,7 @@ public enum ReceiptParser {
 
     static let totalWords: Set<String> = [
         "total", "totaal", "totale", "summe", "gesamt", "montant", "importe", "sum", "amount", "betrag",
+        "jumla", "igiteranyo", "合計", "合计", "總計", "总计", "합계",
     ]
 
     /// Words on a line that make its amount something other than the total.
@@ -122,14 +161,15 @@ public enum ReceiptParser {
         "saving", "savings", "saved", "save", "discount", "discounts", "rabatt", "remise", "descuento",
         "sconto", "coupon", "coupons", "items", "item", "articles", "article", "artikel", "qty",
         "quantity", "count", "points", "point", "tip", "tips", "gratuity", "pourboire", "trinkgeld",
-        "propina", "mancia",
+        "propina", "mancia", "小計", "小计", "소계",
     ]).union(notPaidWords)
 
     /// Words on a line whose amount is not what was paid.
     static let notPaidWords: Set<String> = [
         "cash", "bar", "especes", "espece", "efectivo", "contanti", "tendered", "tender", "received",
         "given", "gegeben", "change", "rendu", "monnaie", "ruckgeld", "wechselgeld", "cambio", "resto",
-        "deposit", "pfand", "saving", "savings", "saved", "discount", "points", "balance",
+        "deposit", "pfand", "saving", "savings", "saved", "discount", "points", "balance", "お預り",
+        "お預かり", "預り", "お釣り", "釣銭",
     ]
 
     // MARK: Amounts
@@ -410,10 +450,17 @@ public enum ReceiptParser {
     /// The first day printed that is a real date, not in the future and
     /// not decades old. Return-by and expiry dates are skipped.
     public static func day(in lines: [String], today: ReceiptDay, monthFirst: Bool) -> ReceiptDay? {
+        dayChoice(in: lines, today: today, monthFirst: monthFirst)?.day
+    }
+
+    /// `day(in:today:monthFirst:)`, and whether the date it came from could
+    /// be read another way.
+    static func dayChoice(in lines: [String], today: ReceiptDay, monthFirst: Bool) -> (day: ReceiptDay, isAmbiguous: Bool)? {
         for line in lines {
             guard Set(words(line)).isDisjoint(with: notPurchaseDayWords) else { continue }
             for candidates in days(in: line, monthFirst: monthFirst) {
-                if let day = candidates.first(where: { isPlausible($0, today: today) }) { return day }
+                let plausible = candidates.filter { isPlausible($0, today: today) }
+                if let day = plausible.first { return (day, plausible.count > 1) }
             }
         }
         return nil
@@ -441,7 +488,7 @@ public enum ReceiptParser {
             Range(match.range(at: index), in: text).map { String(text[$0]) } ?? ""
         }
 
-        for match in isoDate.matches(in: text, range: range) {
+        for match in isoDate.matches(in: text, range: range) + yearMonthDayDate.matches(in: text, range: range) {
             let day = ReceiptDay(year: Int(group(match, 1)) ?? 0, month: Int(group(match, 2)) ?? 0, day: Int(group(match, 3)) ?? 0)
             add(match, day.map { [$0] } ?? [])
         }
@@ -480,6 +527,8 @@ public enum ReceiptParser {
     }
 
     private static let isoDate = try! NSRegularExpression(pattern: #"(?<!\d)((?:19|20)\d{2})[-/.](\d{1,2})[-/.](\d{1,2})(?![\d])"#)
+    /// "2026年9月20日".
+    private static let yearMonthDayDate = try! NSRegularExpression(pattern: #"((?:19|20)\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"#)
     private static let numericDate = try! NSRegularExpression(pattern: #"(?<![\d.,/-])(\d{1,2})([/.\-])(\d{1,2})\2((?:19|20)\d{2}|\d{2})(?![\d:])"#)
     private static let dayNameDate = try! NSRegularExpression(pattern: #"(?<![\d])(\d{1,2})(?:st|nd|rd|th|er)?[\s.\-/]*([a-z]{3,9}\.?)[\s.\-/,]*((?:19|20)\d{2}|'?\d{2})(?![\d:])"#)
     private static let nameDayDate = try! NSRegularExpression(pattern: #"(?<![a-z])([a-z]{3,9}\.?)[\s.\-]*(\d{1,2})(?:st|nd|rd|th)?[\s.,\-]*((?:19|20)\d{2}|'\d{2})(?![\d:])"#)

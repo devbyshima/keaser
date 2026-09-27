@@ -97,9 +97,41 @@ struct IntelligenceReceiptReadingTests {
 
     @Test func eachDetailFallsBackToTheHeuristics() {
         let model = ReceiptDraft(merchant: "Trader Joe's", total: nil, day: day(2026, 9, 20), currencyCode: nil)
-        let heuristic = ReceiptDraft(merchant: "Trader Joes", total: 12.5, day: day(2026, 9, 21), currencyCode: "USD")
+        let heuristic = ReceiptParser.Reading(draft: ReceiptDraft(merchant: "Trader Joes", total: 12.5, day: day(2026, 9, 21), currencyCode: "USD"))
         #expect(ReceiptReading.merged(model, over: heuristic)
             == ReceiptDraft(merchant: "Trader Joe's", total: 12.5, day: day(2026, 9, 20), currencyCode: "USD"))
+        #expect(ReceiptReading.merged(ReceiptDraft(), over: heuristic) == heuristic.draft)
+    }
+
+    @Test func whatTheReceiptSettlesOutranksTheModel() {
+        let model = ReceiptDraft(merchant: "Chez Marcel", total: 11, day: day(2026, 3, 4), currencyCode: "USD")
+        let settled = ReceiptParser.Reading(
+            draft: ReceiptDraft(merchant: "Merci", total: 13.5, day: day(2026, 4, 3), currencyCode: "EUR"),
+            totalIsLabelled: true,
+            dayIsSettled: true
+        )
+        #expect(ReceiptReading.merged(model, over: settled)
+            == ReceiptDraft(merchant: "Chez Marcel", total: 13.5, day: day(2026, 4, 3), currencyCode: "EUR"))
+
+        var unsettled = settled
+        unsettled.totalIsLabelled = false
+        unsettled.dayIsSettled = false
+        #expect(ReceiptReading.merged(model, over: unsettled)
+            == ReceiptDraft(merchant: "Chez Marcel", total: 11, day: day(2026, 3, 4), currencyCode: "EUR"))
+    }
+
+    @Test func theHeuristicsSayWhatTheReceiptSettled() {
+        func reading(_ text: String) -> ReceiptParser.Reading {
+            ReceiptParser.reading(from: text.split(separator: "\n").map(String.init), today: today, prefersMonthFirst: true)
+        }
+        #expect(reading("Total 12.50\n09/21/2026").totalIsLabelled)
+        #expect(reading("Total 12.50\n09/21/2026").dayIsSettled)
+        #expect(!reading("Burrito 11.00\nCard 13.50").totalIsLabelled)
+        // "03/04" read by the region is not settled; by euros or a decimal comma it is.
+        #expect(!reading("Total 18.00\n03/04/2026").dayIsSettled)
+        #expect(reading("Total 18,00 €\n03/04/2026").dayIsSettled)
+        #expect(reading("Totaal 18,00\n03/04/2026").dayIsSettled)
+        #expect(!reading("Hello").totalIsLabelled && !reading("Hello").dayIsSettled)
     }
 
     // MARK: Reading
