@@ -8,8 +8,8 @@ import WidgetKit
 //
 // Text uses the text style whose default size is the measured one, so it
 // follows Dynamic Type; `SpendingWidgetView` caps how far, since a widget's
-// frame never grows. The totals and the tiny chart and circular labels keep
-// fixed sizes: they are fitted to that fixed frame and shrink to fit instead.
+// frame never grows. The totals and the tiny circular labels keep fixed
+// sizes: they are fitted to that fixed frame and shrink to fit instead.
 
 /// Widget colours. The app's Theme is not part of the extension, so the few
 /// shades a widget needs live here. Home screen widgets follow the system
@@ -18,15 +18,14 @@ import WidgetKit
 /// Lock screen widgets use none of these; the system renders them vibrant.
 enum WidgetPalette {
     static let background = adaptive(light: .white, dark: Color(red: 57 / 255, green: 56 / 255, blue: 59 / 255))
-    /// The total, titles and glyphs, and today's bar and label.
+    /// The total, titles and glyphs.
     static let primaryText = adaptive(light: .black, dark: .white)
-    /// The period caption ("This Month").
+    /// The period caption ("Spent This Month", "This Month").
     static let secondaryText = adaptive(light: Color(white: 0.45), dark: Color(white: 0.53))
-    /// The account name and chart labels. They are smaller than the caption,
-    /// so they sit further from the surface to stay readable (4.6:1 on the
-    /// charcoal, 5.7:1 on white).
+    /// The account name. It is smaller than the caption, so it sits further
+    /// from the surface to stay readable (4.6:1 on the charcoal, 5.7:1 on
+    /// white).
     static let smallText = adaptive(light: Color(white: 0.4), dark: Color(white: 0.64))
-    static let inactiveBar = adaptive(light: .black.opacity(0.14), dark: .white.opacity(0.2))
     /// The tile behind the lock on the locked widget.
     static let tile = adaptive(light: .black.opacity(0.06), dark: .white.opacity(0.12))
     /// The home screen widget corner, for drawing widgets inside the app.
@@ -89,27 +88,15 @@ struct SpendingWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// The caption and the total, centred, and nothing else.
     private var medium: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(snapshot.caption)
-                    .font(.subheadline)
-                    .foregroundStyle(WidgetPalette.secondaryText)
-                    .lineLimit(1)
-                total(size: 31)
-                Spacer(minLength: 0)
-                if let name = snapshot.accountName {
-                    Text(name)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(WidgetPalette.smallText)
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            SpendingBars(bars: snapshot.bars)
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 7) {
+            Text(snapshot.spentCaption)
+                .font(.footnote)
+                .foregroundStyle(WidgetPalette.secondaryText)
+                .lineLimit(1)
+            total(size: 30)
         }
-        .padding(4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -160,41 +147,6 @@ struct SpendingWidgetView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.45)
             .widgetAccentable()
-    }
-}
-
-/// The medium widget's chart: one bar per day or month, today's in full ink.
-struct SpendingBars: View {
-    let bars: [SpendingSnapshot.Bar]
-
-    var body: some View {
-        let peak = bars.map(\.amount.doubleValue).max() ?? 0
-        // A month of days only has room for a label every week.
-        let labelEvery = bars.count > 14 ? 7 : 1
-        HStack(alignment: .bottom, spacing: bars.count > 14 ? 2 : 6) {
-            ForEach(bars) { bar in
-                VStack(spacing: 5) {
-                    GeometryReader { proxy in
-                        let fraction = peak > 0 ? bar.amount.doubleValue / peak : 0
-                        VStack {
-                            Spacer(minLength: 0)
-                            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                .fill(bar.isCurrent ? WidgetPalette.primaryText : WidgetPalette.inactiveBar)
-                                // Empty days keep a stub so the shape of the period shows.
-                                .frame(height: max(4, proxy.size.height * fraction))
-                        }
-                    }
-                    Text(bar.id % labelEvery == 0 ? bar.label : " ")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(bar.isCurrent ? WidgetPalette.primaryText : WidgetPalette.smallText)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .frame(maxWidth: .infinity)
-                }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Spending chart")
     }
 }
 

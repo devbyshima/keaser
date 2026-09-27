@@ -11,41 +11,25 @@ public struct SpendingSnapshot: Equatable, Sendable {
         case locked
     }
 
-    /// One bar of the medium widget's chart.
-    public struct Bar: Identifiable, Equatable, Sendable {
-        public var id: Int
-        /// "M", "12", "J": short enough to sit under a thin bar.
-        public var label: String
-        public var amount: Decimal
-        /// The bar containing today.
-        public var isCurrent: Bool
-
-        public init(id: Int, label: String, amount: Decimal, isCurrent: Bool) {
-            self.id = id
-            self.label = label
-            self.amount = amount
-            self.isCurrent = isCurrent
-        }
-    }
-
     public var state: State
     public var period: Period
     public var accountName: String?
     public var total: Decimal
     public var currencyCode: String
-    public var bars: [Bar]
 
-    public init(state: State, period: Period, accountName: String?, total: Decimal, currencyCode: String, bars: [Bar]) {
+    public init(state: State, period: Period, accountName: String?, total: Decimal, currencyCode: String) {
         self.state = state
         self.period = period
         self.accountName = accountName
         self.total = total
         self.currencyCode = currencyCode
-        self.bars = bars
     }
 
-    /// "This Month" above the total.
+    /// "This Month" above the total on the small and lock screen widgets.
     public var caption: String { period.title }
+
+    /// "Spent This Month" above the total on the medium widget.
+    public var spentCaption: String { "Spent \(period.title)" }
 
     public var formattedTotal: String { MoneyFormat.string(total, currencyCode: currencyCode) }
 
@@ -87,7 +71,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
         let calendar = calendar ?? preferences.calendar
         let account = accountID.flatMap { id in database.accounts.first { $0.id == id } } ?? database.selectedAccount
         guard let account else {
-            return SpendingSnapshot(state: .noAccount, period: period, accountName: nil, total: 0, currencyCode: preferences.currencyCode, bars: [])
+            return SpendingSnapshot(state: .noAccount, period: period, accountName: nil, total: 0, currencyCode: preferences.currencyCode)
         }
         let isPro = ProEntitlement.isPro(preferences, now: now)
         return SpendingSnapshot(
@@ -95,8 +79,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
             period: period,
             accountName: account.name,
             total: account.total(in: period.interval(containing: now, calendar: calendar)),
-            currencyCode: preferences.currencyCode,
-            bars: bars(for: account, period: period, now: now, calendar: calendar)
+            currencyCode: preferences.currencyCode
         )
     }
 
@@ -115,71 +98,6 @@ public struct SpendingSnapshot: Equatable, Sendable {
     /// A believable total for the onboarding illustration, before any data
     /// exists.
     public static func sample(currencyCode: String = "USD") -> SpendingSnapshot {
-        let amounts: [Decimal] = [12, 4.5, 0, 38.9, 87.23, 9.75, 42, 0, 21.4, 16.99, 0, 38.6]
-        let bars = amounts.enumerated().map { Bar(id: $0.offset, label: "", amount: $0.element, isCurrent: $0.offset == amounts.count - 1) }
-        return SpendingSnapshot(state: .ready, period: .thisMonth, accountName: nil, total: Decimal(string: "271.37")!, currencyCode: currencyCode, bars: bars)
-    }
-
-    // MARK: Bars
-
-    /// The chart under the total: the days of the week or month, the months of
-    /// the year. "Today" shows the last seven days so a single bar is never
-    /// the whole chart; "All Time" shows the last five years.
-    static func bars(for account: Account, period: Period, now: Date, calendar: Calendar) -> [Bar] {
-        let today = calendar.startOfDay(for: now)
-        switch period {
-        case .today:
-            let days = (0..<7).reversed().compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }
-            return dayBars(days, account: account, today: today, calendar: calendar, label: weekdayLabel)
-        case .thisWeek:
-            guard let week = calendar.dateInterval(of: .weekOfYear, for: now) else { return [] }
-            let days = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: week.start) }
-            return dayBars(days, account: account, today: today, calendar: calendar, label: weekdayLabel)
-        case .thisMonth:
-            guard let month = calendar.dateInterval(of: .month, for: now),
-                  let count = calendar.range(of: .day, in: .month, for: now)?.count
-            else { return [] }
-            let days = (0..<count).compactMap { calendar.date(byAdding: .day, value: $0, to: month.start) }
-            return dayBars(days, account: account, today: today, calendar: calendar) { date, calendar in
-                String(calendar.component(.day, from: date))
-            }
-        case .thisYear:
-            guard let year = calendar.dateInterval(of: .year, for: now) else { return [] }
-            let months = (0..<12).compactMap { calendar.date(byAdding: .month, value: $0, to: year.start) }
-            return months.enumerated().compactMap { index, start in
-                guard let interval = calendar.dateInterval(of: .month, for: start) else { return nil }
-                let symbols = calendar.veryShortMonthSymbols
-                return Bar(
-                    id: index,
-                    label: symbols[calendar.component(.month, from: start) - 1],
-                    amount: account.total(in: interval),
-                    isCurrent: interval.holds(now)
-                )
-            }
-        case .allTime:
-            guard let thisYear = calendar.dateInterval(of: .year, for: now) else { return [] }
-            let years = (0..<5).reversed().compactMap { calendar.date(byAdding: .year, value: -$0, to: thisYear.start) }
-            return years.enumerated().compactMap { index, start in
-                guard let interval = calendar.dateInterval(of: .year, for: start) else { return nil }
-                return Bar(id: index, label: String(calendar.component(.year, from: start) % 100), amount: account.total(in: interval), isCurrent: interval.holds(now))
-            }
-        }
-    }
-
-    private static func dayBars(
-        _ days: [Date],
-        account: Account,
-        today: Date,
-        calendar: Calendar,
-        label: (Date, Calendar) -> String
-    ) -> [Bar] {
-        days.enumerated().compactMap { index, day in
-            guard let interval = calendar.dateInterval(of: .day, for: day) else { return nil }
-            return Bar(id: index, label: label(day, calendar), amount: account.total(in: interval), isCurrent: day == today)
-        }
-    }
-
-    private static func weekdayLabel(_ date: Date, _ calendar: Calendar) -> String {
-        calendar.veryShortWeekdaySymbols[calendar.component(.weekday, from: date) - 1]
+        SpendingSnapshot(state: .ready, period: .thisMonth, accountName: nil, total: Decimal(string: "271.37")!, currencyCode: currencyCode)
     }
 }
