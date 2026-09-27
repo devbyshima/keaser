@@ -368,6 +368,9 @@ enum OnboardingPalette {
     /// it mimics, so the prompt and notification get this lift beneath it.
     static let glassLift = Color(light: .white.opacity(0.45), dark: .white.opacity(0.055))
 
+    /// The drawn widget's surface. The illustration's widget is a lighter
+    /// charcoal than the real widget's near-black, so it keeps its own shade.
+    static let widgetSurface = Color(light: .white, dark: .init(red: 57 / 255, green: 56 / 255, blue: 59 / 255))
     /// The top highlight and shadow that set the widget off its panel. Light
     /// widgets need no highlight; the panel is darker than they are.
     static let widgetHighlight = Color(light: .clear, dark: .white.opacity(0.1))

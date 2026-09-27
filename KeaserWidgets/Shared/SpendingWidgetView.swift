@@ -13,17 +13,17 @@ import WidgetKit
 
 /// Widget colours. The app's Theme is not part of the extension, so the few
 /// shades a widget needs live here. Home screen widgets follow the system
-/// appearance like the system's own: charcoal with white type (measured from
-/// the reference) in dark mode, white with black type in light mode.
+/// appearance like the system's own: near-black with white type in dark mode,
+/// white with black type in light mode (both measured from the reference).
 /// Lock screen widgets use none of these; the system renders them vibrant.
 enum WidgetPalette {
-    static let background = adaptive(light: .white, dark: Color(red: 57 / 255, green: 56 / 255, blue: 59 / 255))
+    static let background = adaptive(light: .white, dark: Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255))
     /// The total, titles and glyphs.
     static let primaryText = adaptive(light: .black, dark: .white)
     /// The period caption ("Spent This Month", "This Month").
-    static let secondaryText = adaptive(light: Color(white: 0.45), dark: Color(white: 0.53))
+    static let secondaryText = adaptive(light: Color(white: 0.46), dark: Color(white: 0.58))
     /// The account name. It is smaller than the caption, so it sits further
-    /// from the surface to stay readable (4.6:1 on the charcoal, 5.7:1 on
+    /// from the surface to stay readable (7.3:1 on the near-black, 5.7:1 on
     /// white).
     static let smallText = adaptive(light: Color(white: 0.4), dark: Color(white: 0.64))
     /// The tile behind the lock on the locked widget.

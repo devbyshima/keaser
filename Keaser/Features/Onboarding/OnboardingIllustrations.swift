@@ -183,7 +183,7 @@ struct WidgetsIllustration: View {
                 }
                 .padding(16)
                 .frame(width: width, height: small)
-                .background(WidgetPalette.background, in: RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous))
+                .background(OnboardingPalette.widgetSurface, in: RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous)
                         .strokeBorder(LinearGradient(colors: [OnboardingPalette.widgetHighlight, .clear], startPoint: .top, endPoint: .center), lineWidth: 1)
