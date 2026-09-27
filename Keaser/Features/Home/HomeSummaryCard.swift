@@ -63,6 +63,9 @@ struct HomeSpendingChart: View {
     @State private var plotWidth: CGFloat = 0
     /// The bar under a pressing finger, if any.
     @State private var selectedIndex: Int?
+    /// The last bar that had the callout, so it sinks back into that bar
+    /// after the finger lifts.
+    @State private var lastCalloutIndex: Int?
 
     /// The chart's text stops growing here: it has a fixed height and
     /// unwrapped axis labels, and VoiceOver reads the bar values.
@@ -133,11 +136,16 @@ struct HomeSpendingChart: View {
         .dynamicTypeSize(...Self.largestTextSize)
         .animation(.smooth(duration: 0.35), value: buckets)
         .sensoryFeedback(trigger: selectedIndex) { _, new in new == nil ? nil : .selection }
-        .onChange(of: buckets.map(\.interval)) { _, _ in selectedIndex = nil }
+        .onChange(of: buckets.map(\.interval)) { _, _ in selectedIndex = nil; lastCalloutIndex = nil }
+        .onChange(of: selectedIndex) { _, index in
+            if let index { lastCalloutIndex = index }
+        }
         #if DEBUG
-        .onAppear {
+        .task {
             // `-KeaserChartSelection last` (or a bar index) shows the callout
-            // without a long press, for screenshots.
+            // without a long press, for screenshots. It waits for Home to
+            // apply `-KeaserPeriod`, which would otherwise clear it.
+            try? await Task.sleep(for: .milliseconds(800))
             switch DebugLaunch.string("KeaserChartSelection") {
             case "last": selectedIndex = buckets.last?.index
             case let value?: selectedIndex = Int(value)
@@ -150,32 +158,39 @@ struct HomeSpendingChart: View {
     /// The pressed bar's callout, centred over the bar just above the plot
     /// and kept inside the chart. It rises out of the bar's top as it
     /// appears and sinks back into it as it goes.
-    @ViewBuilder
+    ///
+    /// The placement lives on a container that stays put while the callout
+    /// inside it comes and goes, so the exit plays where the callout was and
+    /// the entrance scales from the callout's own bottom edge.
     private func callout(proxy: ChartProxy, plot: CGRect, chartWidth: CGFloat) -> some View {
-        if let selected = selectedBucket, let x = proxy.position(forX: key(selected.index)) {
-            let barCenter = plot.minX + x
-            let bottom = plot.minY - Self.calloutGap
-            let barTop = plot.minY + (proxy.position(forY: selected.total.doubleValue) ?? plot.height)
-            let rise = SpendingChart.calloutRise(barTop: barTop, calloutBottom: bottom)
-            ChartCallout(
-                title: SpendingChart.calloutTitle(of: selected, period: period, calendar: calendar),
-                amount: MoneyFormat.string(selected.total, currencyCode: currencyCode),
-                rollsDigits: !reduceMotion
-            )
-            .alignmentGuide(.leading) { size in
-                -SpendingChart.calloutLeading(barCenter: barCenter, calloutWidth: size.width, chartWidth: chartWidth)
+        let anchored = (selectedIndex ?? lastCalloutIndex).flatMap { index in buckets.first { $0.index == index } }
+        let barCenter = anchored.flatMap { proxy.position(forX: key($0.index)) }.map { plot.minX + $0 } ?? plot.midX
+        let bottom = plot.minY - Self.calloutGap
+        let barTop = anchored.flatMap { proxy.position(forY: $0.total.doubleValue) }.map { plot.minY + $0 } ?? plot.maxY
+        let rise = SpendingChart.calloutRise(barTop: barTop, calloutBottom: bottom)
+        return ZStack(alignment: .bottomLeading) {
+            if let selected = selectedBucket {
+                ChartCallout(
+                    title: SpendingChart.calloutTitle(of: selected, period: period, calendar: calendar),
+                    amount: MoneyFormat.string(selected.total, currencyCode: currencyCode),
+                    rollsDigits: !reduceMotion
+                )
+                // One callout that glides between bars; with Reduce Motion, a
+                // new one per bar, so it only cross-fades in place.
+                .id(reduceMotion ? selected.index : -1)
+                .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.asymmetric(
+                    insertion: AnyTransition(CalloutEmergence(rise: rise)).animation(.spring(duration: 0.42, bounce: 0.3)),
+                    removal: AnyTransition(CalloutEmergence(rise: rise)).animation(.smooth(duration: 0.24))
+                ))
             }
-            .alignmentGuide(.top) { size in size.height - bottom }
-            // One callout that glides between bars; with Reduce Motion, a
-            // new one per bar, so it only cross-fades in place.
-            .id(reduceMotion ? selected.index : -1)
-            .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.asymmetric(
-                insertion: AnyTransition(CalloutEmergence(rise: rise)).animation(.spring(duration: 0.42, bounce: 0.3)),
-                removal: AnyTransition(CalloutEmergence(rise: rise)).animation(.smooth(duration: 0.24))
-            ))
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
         }
+        .alignmentGuide(.leading) { size in
+            -SpendingChart.calloutLeading(barCenter: barCenter, calloutWidth: size.width, chartWidth: chartWidth)
+        }
+        .alignmentGuide(.top) { size in size.height - bottom }
+        .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: barCenter)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var selectedBucket: SpendingChart.Bucket? {
