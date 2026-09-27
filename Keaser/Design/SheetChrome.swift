@@ -125,10 +125,14 @@ struct KeaserRowSeparator: View {
     var leading: CGFloat = 16
     var trailing: CGFloat = 16
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Rectangle()
             .fill(Color.keaserSeparator)
-            .frame(height: 0.5)
+            // Measured from the reference: a hairline on black, a full point
+            // on white, where half a point at 10% black all but vanishes.
+            .frame(height: colorScheme == .light ? 1 : 0.5)
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .accessibilityHidden(true)
