@@ -150,7 +150,8 @@ extension ProFeature {
 /// stays true in every storefront and after a price change.
 public enum ProPricing {
     /// The "regular" lifetime price shown struck through beside the real one,
-    /// as a multiple of the lifetime price (2 shows $59.98 beside $29.99).
+    /// as a multiple of the lifetime price, keeping the price's own ending
+    /// (2 shows $59.99 beside $29.99, as in the reference).
     /// Change it to adjust the comparison, or set it to nil to show the
     /// lifetime price alone.
     public static let lifetimeRegularPriceMultiplier: Decimal? = 2
@@ -162,7 +163,16 @@ public enum ProPricing {
     /// `lifetimeRegularPriceMultiplier` is off or would not be higher.
     public static func regularLifetimePrice(for lifetime: Decimal) -> Decimal? {
         guard let multiplier = lifetimeRegularPriceMultiplier, multiplier > 1, lifetime > 0 else { return nil }
-        return lifetime * multiplier
+        // Whole units of the multiple, plus the lifetime price's own cents:
+        // 29.99 x 2 is 59.98, shown as 59.99 so both prices end alike.
+        var whole = Decimal()
+        var scaled = lifetime * multiplier
+        NSDecimalRound(&whole, &scaled, 0, .down)
+        var lifetimeWhole = Decimal()
+        var lifetimeCopy = lifetime
+        NSDecimalRound(&lifetimeWhole, &lifetimeCopy, 0, .down)
+        let regular = whole + (lifetime - lifetimeWhole)
+        return regular > lifetime ? regular : nil
     }
 
     /// How much cheaper a year of the annual plan is than twelve months of

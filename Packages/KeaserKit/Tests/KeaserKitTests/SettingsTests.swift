@@ -266,10 +266,11 @@ struct SettingsProTests {
         #expect(ProPricing.annualSubtitle(monthly: 10, yearly: 130) == nil)
     }
 
-    @Test func theRegularLifetimePriceFollowsTheMultiplier() throws {
-        let multiplier = try #require(ProPricing.lifetimeRegularPriceMultiplier)
-        let lifetime = Decimal(string: "29.99")!
-        #expect(ProPricing.regularLifetimePrice(for: lifetime) == lifetime * multiplier)
+    @Test func theRegularLifetimePriceKeepsThePriceEnding() throws {
+        #expect(try #require(ProPricing.lifetimeRegularPriceMultiplier) == 2)
+        #expect(ProPricing.regularLifetimePrice(for: Decimal(string: "29.99")!) == Decimal(string: "59.99"))
+        #expect(ProPricing.regularLifetimePrice(for: 30) == 60)
+        #expect(ProPricing.regularLifetimePrice(for: 3000) == 6000)
         #expect(ProPricing.regularLifetimePrice(for: 0) == nil)
         #expect(ProPricing.lifetimeSubtitle == "Founding member price")
     }

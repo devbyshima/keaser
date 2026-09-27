@@ -20,9 +20,9 @@ widget. Everything stays on your iPhone.
 - **Shortcuts**: "Add Expense" and "Log Wallet Transaction" App Intents, with
   Siri phrases, for lock screen logging and Apple Wallet automations.
 - **Weekly summary**: an optional notification with the week's total.
-- **Keaser Pro**: a 7-day pass on first run, then a yearly subscription or a
-  lifetime purchase (StoreKit 2) for widgets, more filters, multiple accounts
-  and long-term insights.
+- **Keaser Pro**: a 7-day pass on first run, then a monthly or yearly
+  subscription or a lifetime purchase (StoreKit 2) for widgets, more filters,
+  multiple accounts and long-term insights.
 - Settings for currency (every ISO currency), first day of the week, and more.
   Light and dark appearance, with Liquid Glass on iOS 26 and later.
 
@@ -47,9 +47,11 @@ app and the widget extension.
 ### Testing purchases
 
 The `Keaser` scheme uses `Keaser/Resources/Keaser.storekit`, so running from
-Xcode offers the yearly and lifetime products locally. Set real products and
-prices in App Store Connect before release; the IDs are
-`com.fulltimestudio.keaser.pro.yearly` and `com.fulltimestudio.keaser.pro.lifetime`.
+Xcode offers the monthly, yearly and lifetime products locally. Set real
+products and prices in App Store Connect before release; the IDs are
+`com.fulltimestudio.keaser.pro.monthly`, `com.fulltimestudio.keaser.pro.yearly`
+and `com.fulltimestudio.keaser.pro.lifetime`. The paywall's struck-through
+"regular" lifetime price is `ProPricing.lifetimeRegularPriceMultiplier`.
 
 ## Before shipping
 
