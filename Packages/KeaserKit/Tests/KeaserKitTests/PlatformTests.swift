@@ -262,28 +262,16 @@ struct SpendingSnapshotTests {
         #expect(week.accountName == "Personal")
         #expect(week.total == Decimal(string: "46.5"))
         #expect(week.caption == "This Week")
-        #expect(week.bars.count == 7)
-        #expect(week.bars.map(\.label) == ["M", "T", "W", "T", "F", "S", "S"])
-        #expect(week.bars[2].isCurrent)
-        #expect(week.bars[2].amount == 42)
+        #expect(week.spentCaption == "Spent This Week")
 
         let month = SpendingSnapshot.make(database: db, accountID: nil, period: .thisMonth, now: now, calendar: cal)
         #expect(month.total == Decimal(string: "946.5"))
-        #expect(month.bars.count == 30)
-        #expect(month.bars[0].amount == 900)
-        #expect(month.bars[22].isCurrent)
 
         let year = SpendingSnapshot.make(database: db, accountID: nil, period: .thisYear, now: now, calendar: cal)
         #expect(year.total == Decimal(string: "1246.5"))
-        #expect(year.bars.count == 12)
-        #expect(year.bars[2].amount == 300)
-        #expect(year.bars[8].isCurrent)
 
         let today = SpendingSnapshot.make(database: db, accountID: nil, period: .today, now: now, calendar: cal)
         #expect(today.total == 42)
-        #expect(today.bars.count == 7)
-        #expect(today.bars.last?.isCurrent == true)
-        #expect(today.bars.last?.amount == 42)
     }
 
     @Test func aConfiguredAccountWinsAndAMissingOneFallsBack() {
@@ -323,14 +311,19 @@ struct HalfOpenSpendingTests {
         let midnight = date(2026, 9, 24, 0, in: cal)
         var account = Account(name: "Personal")
         account.expenses = [Expense(title: "Coffee", amount: 4, date: midnight)]
-        let bars = SpendingSnapshot.bars(for: account, period: .thisWeek, now: date(2026, 9, 24, 9, in: cal), calendar: cal)
-        #expect(bars.map(\.amount) == [0, 0, 0, 0, 4, 0, 0])
+        var prefs = Preferences()
+        prefs.hasProPurchase = true
+        let db = Database(accounts: [account], preferences: prefs)
+        let lateTheDayBefore = SpendingSnapshot.make(database: db, accountID: nil, period: .today, now: date(2026, 9, 23, 23, in: cal), calendar: cal)
+        let thatMorning = SpendingSnapshot.make(database: db, accountID: nil, period: .today, now: date(2026, 9, 24, 9, in: cal), calendar: cal)
+        #expect(lateTheDayBefore.total == 0)
+        #expect(thatMorning.total == 4)
     }
 }
 
 struct SpendingSnapshotTextTests {
     private func snapshot(_ total: String, period: Period = .thisMonth) -> SpendingSnapshot {
-        SpendingSnapshot(state: .ready, period: period, accountName: "Personal", total: Decimal(string: total)!, currencyCode: "USD", bars: [])
+        SpendingSnapshot(state: .ready, period: period, accountName: "Personal", total: Decimal(string: total)!, currencyCode: "USD")
     }
 
     @Test func compactTotals() {
@@ -344,5 +337,16 @@ struct SpendingSnapshotTextTests {
     @Test func captions() {
         #expect(snapshot("1", period: .thisWeek).shortCaption == "WEEK")
         #expect(snapshot("1", period: .today).caption == "Today")
+    }
+
+    @Test(arguments: [
+        (Period.today, "Spent Today"),
+        (.thisWeek, "Spent This Week"),
+        (.thisMonth, "Spent This Month"),
+        (.thisYear, "Spent This Year"),
+        (.allTime, "Spent All Time"),
+    ])
+    func mediumCaptions(_ example: (period: Period, caption: String)) {
+        #expect(snapshot("1", period: example.period).spentCaption == example.caption)
     }
 }
