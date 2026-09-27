@@ -28,6 +28,13 @@ public enum ReceiptTextRecognizer {
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
+    /// The lines of text on a picked photo, decoded and read away from the
+    /// main thread; none when it is not an image.
+    public static func lines(inPhoto data: Data) async -> [String] {
+        guard let image = image(from: data) else { return [] }
+        return (try? await lines(in: image)) ?? []
+    }
+
     /// The lines of text on every page, in order. A page that cannot be
     /// read adds nothing.
     public static func lines(in pages: [CGImage]) async -> [String] {
