@@ -15,10 +15,13 @@ extension AddExpenseIntent {
         let store = try IntentSupport.freshStore()
         let preferences = store.preferences
         var flow = try makeFlow(store: store)
-        var step = flow.start()
+        // Titles nothing else knows get their category from the on-device
+        // model when it answers in time; otherwise the question is asked.
+        let model = CategoryModels.current
+        var step = await flow.start(model: model, budget: SmartLabels.intentBudget)
         while let current = step {
             let answer = try await ask(current, in: flow, currencyCode: preferences.currencyCode)
-            step = flow.next(after: current, answer: answer)
+            step = await flow.next(after: current, answer: answer, model: model, budget: SmartLabels.intentBudget)
         }
         if preferences.shortcutConfirmsDetails {
             flow = try await confirm(flow, currencyCode: preferences.currencyCode)

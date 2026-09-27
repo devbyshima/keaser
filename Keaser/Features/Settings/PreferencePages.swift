@@ -85,12 +85,19 @@ struct SmartSuggestionsView: View {
                 then change anything you like before saving. For a title you haven't used yet, Keaser picks a likely \
                 category and payment method when you move on from the title, and never replaces one you chose. \
                 Suggestions are worked out on this iPhone from your own history, so they get more useful the more \
-                you log. Turn this off to always start from an empty form.
+                you log.\(appleIntelligenceNote) Turn this off to always start from an empty form.
                 """)
             }
         }
         .settingsListStyle()
         .settingsPage("Smart Suggestions")
+    }
+
+    /// Only on iPhones that can run Apple Intelligence.
+    private var appleIntelligenceNote: String {
+        guard CategoryModels.isDeviceEligible else { return "" }
+        return " With Apple Intelligence turned on, Keaser also recognizes titles it has never seen, such as shop and "
+            + "brand names, right on this iPhone."
     }
 }
 

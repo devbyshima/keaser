@@ -67,6 +67,9 @@ public struct ShortcutFlow: Hashable, Sendable {
     public private(set) var paymentMethodID: UUID?
 
     private let expenseID = UUID()
+    /// The on-device model's category for a title, once it was asked (see
+    /// `start(model:budget:)`).
+    var modelAnswer: ModelAnswer?
     private let supplied: Set<Step>
     private let suppliedCategory: Label?
     private let suppliedPaymentMethod: Label?
@@ -198,13 +201,23 @@ public struct ShortcutFlow: Hashable, Sendable {
         }
     }
 
+    /// Whether moving forward fills the category in with a guess, when
+    /// there is one: suggestions are on, the shortcut did not supply a
+    /// category, and the account has some.
+    var guessesCategory: Bool {
+        suggestionsEnabled && suppliedCategory == nil && canAsk(.category)
+    }
+
     private func guess() -> SmartSuggester.LabelGuess {
         guard suggestionsEnabled else { return SmartSuggester.LabelGuess() }
         return SmartSuggester.guessLabels(
             for: title,
             categories: account.categories,
             paymentMethods: account.paymentMethods,
-            history: account.expenses
+            history: account.expenses,
+            modelCategoryID: modelAnswer.flatMap { answer in
+                answer.title == title ? CategoryPrompt.category(named: answer.categoryName, in: account.categories) : nil
+            }
         )
     }
 

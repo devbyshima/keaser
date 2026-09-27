@@ -30,6 +30,18 @@ struct ExpenseEditorView: View {
     /// A guessed payment method waiting to be shown a beat after the
     /// category. Save applies it if the user is faster than that.
     @State private var pendingPayment: PendingPayment?
+    /// The rule guess for a title nothing else knows, held back while the
+    /// on-device model is asked, so the labels change once. Save fills it in
+    /// rather than wait.
+    @State private var heldGuess: HeldGuess?
+    @State private var modelTask: Task<Void, Never>?
+    /// Receipt scanning, New Expense only: while a receipt is read, what
+    /// the note under the card says once it filled the fields in, and
+    /// whether the photo turned out not to be a receipt.
+    @State private var readingReceipt = false
+    @State private var receiptTask: Task<Void, Never>?
+    @State private var receiptNote: String?
+    @State private var receiptNotFound = false
     @State private var date: Date
     @State private var confirmingDelete = false
     @State private var suggestionTaken = 0
@@ -40,6 +52,11 @@ struct ExpenseEditorView: View {
 
     private struct PendingPayment: Equatable {
         let methodID: UUID?
+        let title: String
+    }
+
+    private struct HeldGuess: Equatable {
+        let guess: SmartSuggester.LabelGuess
         let title: String
     }
 
@@ -94,6 +111,9 @@ struct ExpenseEditorView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     card
+                    if let receiptNote {
+                        ReceiptNote(text: receiptNote)
+                    }
                     if !isNew {
                         deleteButton
                     }
@@ -120,6 +140,19 @@ struct ExpenseEditorView: View {
             // Suggestions.
             if isNew, let typed = DebugLaunch.string("KeaserExpenseTitle") { title = typed }
             #endif
+            prewarmCategoryModel()
+            #if DEBUG
+            // `-KeaserReceipt <sample>` reads a sample receipt as if it had
+            // just been scanned, so without the keyboard.
+            if isNew, let source = ReceiptScanner.debugSource {
+                if ReceiptScanner.holdsReading {
+                    readingReceipt = true
+                } else {
+                    readReceipt(source)
+                }
+                return
+            }
+            #endif
             focus = .title
             #if DEBUG
             // `-KeaserExpenseFocus amount` then moves on to the amount, as
@@ -137,6 +170,10 @@ struct ExpenseEditorView: View {
             // category and payment method.
             if old == .title, new != .title { guessLabels() }
         }
+        .onDisappear {
+            modelTask?.cancel()
+            receiptTask?.cancel()
+        }
         .sensoryFeedback(.selection, trigger: suggestionTaken)
         .sensoryFeedback(.success, trigger: finished)
         .confirmationDialog("Delete Expense?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -144,6 +181,11 @@ struct ExpenseEditorView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This expense will be removed from the account.")
+        }
+        .alert("No Receipt Found", isPresented: $receiptNotFound) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Keaser couldn't find a total or a date. Try again with the whole receipt flat and in view.")
         }
     }
 
@@ -176,15 +218,20 @@ struct ExpenseEditorView: View {
     }
 
     private var titleRow: some View {
-        TextField("Title", text: $title, prompt: Text("Title").foregroundStyle(Color.keaserTertiaryText))
-            .font(.body)
-            .foregroundStyle(Color.keaserPrimaryText)
-            .focused($focus, equals: .title)
-            // With a prompt, the field's title is not read out on its own.
-            .accessibilityLabel("Title")
-            .textInputAutocapitalization(.sentences)
-            .onSubmit { focus = .amount }
-            .editorRow()
+        HStack(spacing: 8) {
+            TextField("Title", text: $title, prompt: Text("Title").foregroundStyle(Color.keaserTertiaryText))
+                .font(.body)
+                .foregroundStyle(Color.keaserPrimaryText)
+                .focused($focus, equals: .title)
+                // With a prompt, the field's title is not read out on its own.
+                .accessibilityLabel("Title")
+                .textInputAutocapitalization(.sentences)
+                .onSubmit { focus = .amount }
+            if isNew {
+                ReceiptScanButton(isReading: readingReceipt, onOpen: openReceiptScanner, onScan: readReceipt)
+            }
+        }
+        .editorRow()
     }
 
     private var amountRow: some View {
@@ -311,11 +358,19 @@ struct ExpenseEditorView: View {
 
     /// Smart Suggestions' guess for a title no suggestion was taken for. It
     /// only fills in labels the user has not chosen themselves.
+    ///
+    /// For a title neither the history nor the word rules know, the
+    /// on-device model is asked first, for up to `SmartLabels.editorBudget`;
+    /// the guess then lands once, as it always has.
     private func guessLabels() {
-        guard store.preferences.smartSuggestionsEnabled, let account, !(categoryPicked && paymentPicked) else { return }
+        guard store.preferences.smartSuggestionsEnabled, finished == 0, let account, !(categoryPicked && paymentPicked) else { return }
         let normalized = ExpenseQuery.normalized(title)
+        if let heldGuess {
+            guard heldGuess.title != normalized else { return }
+            modelTask?.cancel()
+            self.heldGuess = nil
+        }
         guard normalized != guessedTitle else { return }
-        guessedTitle = normalized
         let guess = SmartSuggester.guessLabels(
             for: title,
             categories: account.categories,
@@ -323,6 +378,28 @@ struct ExpenseEditorView: View {
             history: account.expenses,
             excluding: original?.id
         )
+        let model = categoryPicked ? nil : CategoryModels.current
+        guard SmartLabels.wantsModel(model, for: title, in: account, excluding: original?.id) else {
+            return show(guess, for: normalized)
+        }
+        heldGuess = HeldGuess(guess: guess, title: normalized)
+        let typed = title
+        let excluded = original?.id
+        modelTask = Task {
+            let refined = await SmartLabels.guess(for: typed, in: account, excluding: excluded, model: model, budget: SmartLabels.editorBudget)
+            guard !Task.isCancelled, heldGuess?.title == normalized else { return }
+            heldGuess = nil
+            // Dropped if the title has changed since; moving on from it
+            // guesses again.
+            guard ExpenseQuery.normalized(title) == normalized else { return }
+            show(refined, for: normalized)
+        }
+    }
+
+    /// Shows a guess: the category now and the payment method a beat later,
+    /// never over a label the user chose.
+    private func show(_ guess: SmartSuggester.LabelGuess, for normalized: String) {
+        guessedTitle = normalized
         let fillsCategory = !categoryPicked && categoryID != guess.categoryID
         if fillsCategory {
             withAnimation(.snappy(duration: 0.25)) { categoryID = guess.categoryID }
@@ -347,8 +424,78 @@ struct ExpenseEditorView: View {
         withAnimation(.snappy(duration: 0.25)) { paymentMethodID = current.methodID }
     }
 
+    /// Loads the on-device model while the title is typed, when it may be
+    /// asked about it.
+    private func prewarmCategoryModel() {
+        guard store.preferences.smartSuggestionsEnabled, !categoryPicked, let account else { return }
+        SmartLabels.prewarm(CategoryModels.current, for: account)
+    }
+
+    /// Save never waits for the model: a guess still held back is filled in
+    /// as the history and word rules made it.
+    private func applyHeldGuess() {
+        modelTask?.cancel()
+        guard let held = heldGuess else { return }
+        heldGuess = nil
+        guard held.title == ExpenseQuery.normalized(title) else { return }
+        guessedTitle = held.title
+        if !categoryPicked { categoryID = held.guess.categoryID }
+        if !paymentPicked { paymentMethodID = held.guess.paymentMethodID }
+    }
+
+    // MARK: Receipt
+
+    private func openReceiptScanner() {
+        focus = nil
+        ReceiptScanner.prewarm()
+    }
+
+    /// Reads a scanned receipt, then fills in what it found. Nothing is
+    /// saved: the person checks the fields and taps Save.
+    private func readReceipt(_ source: ReceiptScanner.Source) {
+        receiptTask?.cancel()
+        focus = nil
+        readingReceipt = true
+        let before = (title: title, amount: amountDisplay, date: date)
+        let calendar = store.preferences.calendar
+        receiptTask = Task {
+            let draft = await ReceiptScanner.read(source, calendar: calendar)
+            guard !Task.isCancelled, finished == 0 else { return }
+            readingReceipt = false
+            guard draft.isReceipt else {
+                receiptNotFound = true
+                return
+            }
+            fill(from: draft, over: before)
+        }
+    }
+
+    /// Fills in the receipt's merchant, total and day, leaving any field
+    /// the person changed while it was read. The merchant becomes the
+    /// title, so Smart Suggestions then guess its labels as for a typed one.
+    private func fill(from draft: ReceiptDraft, over before: (title: String, amount: String, date: Date)) {
+        withAnimation(.snappy(duration: 0.25)) {
+            if let merchant = draft.merchant, title == before.title { title = merchant }
+            if let total = draft.total, amountDisplay == before.amount {
+                amountDisplay = AmountInput.field(for: total, currencyCode: currencyCode)
+                amountSeed = nil
+            }
+            if let day = draft.day, date == before.date,
+               let filled = day.date(keepingTimeOf: date, calendar: store.preferences.calendar) {
+                date = filled
+            }
+            receiptNote = draft.isInOtherCurrency(than: currencyCode)
+                ? "Filled in from your receipt, which shows \(draft.currencyCode ?? ""). Keaser records amounts in \(currencyCode), so check the amount before saving."
+                : "Filled in from your receipt. Check the details before saving."
+        }
+        focus = nil
+        guessLabels()
+        AccessibilityNotification.Announcement("Filled in from your receipt").post()
+    }
+
     private func save() {
         guard canSave, let amount else { return }
+        applyHeldGuess()
         applyPendingPayment()
         var expense = original ?? Expense(title: "", amount: 0)
         expense.title = title
@@ -367,6 +514,21 @@ struct ExpenseEditorView: View {
         store.deleteExpense(original.id, in: accountID)
         finished += 1
         dismiss()
+    }
+}
+
+/// The note under the card once a receipt filled it in, set like a list
+/// section's footer.
+private struct ReceiptNote: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(Color.keaserSecondaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .transition(.opacity)
     }
 }
 

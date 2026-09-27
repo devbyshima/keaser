@@ -48,6 +48,9 @@ targets:
       - KeaserWidgets/Shared
     dependencies:
       - package: KeaserKit
+      # Apple Intelligence (Foundation Models, on device); the app only.
+      - package: KeaserKit
+        product: KeaserIntelligence
       - target: KeaserWidgets
     entitlements:
       path: Keaser/App/Keaser.entitlements
@@ -74,6 +77,8 @@ targets:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
         NSSupportsLiveActivities: false
+        # Only the receipt scanner in New Expense asks for the camera.
+        NSCameraUsageDescription: Keaser uses the camera to scan a receipt into a new expense. The photo is read on your iPhone and is not kept.
         CFBundleURLTypes:
           - CFBundleURLName: com.fulltimestudio.keaser
             CFBundleURLSchemes: [keaser]

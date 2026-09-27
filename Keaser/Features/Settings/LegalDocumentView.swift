@@ -60,16 +60,32 @@ private struct LegalDocumentBody: View {
 
     var body: some View {
         if let blocks = document.blocks {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                        MarkdownBlockView(block: block)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                            MarkdownBlockView(block: block)
+                                .id(index)
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 40)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                #if DEBUG
+                .onAppear {
+                    // `-KeaserSettingsScroll <word>` starts at the first
+                    // heading containing it, to screenshot a later section.
+                    guard let word = DebugLaunch.string("KeaserSettingsScroll"),
+                          let index = blocks.firstIndex(where: { block in
+                              if case .heading(_, let text) = block { return text.localizedCaseInsensitiveContains(word) }
+                              return false
+                          })
+                    else { return }
+                    proxy.scrollTo(index, anchor: .top)
+                }
+                #endif
             }
             .keaserReadableScrollContent()
         } else {

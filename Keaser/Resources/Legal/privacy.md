@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 27 September 2026
+Last updated: 28 September 2026
 
 Keaser is an expense tracker that works without an account. This page explains, in plain terms, what the app stores, where it is kept, and what it never does.
 
@@ -24,6 +24,14 @@ Keaser Pro is sold through the App Store. Apple handles the payment, and Keaser 
 
 When you run a Keaser action from the Shortcuts app, Siri or a Wallet automation, the details it is given (such as the merchant, amount and card name) are saved as an expense on your iPhone, exactly like one you typed.
 
+## Apple Intelligence
+
+On iPhones with Apple Intelligence turned on, Smart Suggestions can ask Apple's on-device model to pick a category for a title Keaser has not seen before; this happens entirely on your iPhone, and neither the title nor your category names ever leave it.
+
+## Receipts
+
+When you scan a receipt or choose a photo of one in New Expense, Keaser reads it on your iPhone (with Apple's on-device model where Apple Intelligence is on) to fill in the expense for you to check, then lets the image go: it is never saved or sent anywhere, and choosing a photo gives Keaser only that photo, never your library.
+
 ## Notifications
 
 The optional weekly summary is scheduled on your iPhone. No notification server is involved.
@@ -33,7 +41,7 @@ The optional weekly summary is scheduled on your iPhone. No notification server 
 - No sign-up and no account with us.
 - No analytics, advertising or tracking of any kind.
 - No selling or sharing of your data.
-- No access to your location, contacts or photos.
+- No access to your location, contacts or photo library.
 
 ## Deleting your data
 
