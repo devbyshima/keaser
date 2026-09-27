@@ -18,7 +18,6 @@ struct GetSpendingIntent: AppIntent {
     static var description: IntentDescription {
         IntentDescription(
             "Tells you how much you spent today, this week, this month, this year or in all, in an account, optionally on one category or with one payment method.",
-            categoryName: "Spending",
             searchKeywords: ["spending", "spent", "total", "expenses", "how much"],
             resultValueName: "Amount Spent"
         )
