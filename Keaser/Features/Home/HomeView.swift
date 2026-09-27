@@ -46,6 +46,11 @@ struct HomeView: View {
             }
         }
         .animation(.smooth(duration: 0.35), value: store.selectedAccount == nil)
+        // Switching accounts, from the Accounts sheet or by creating one,
+        // animates everything that depends on the account at once: the
+        // total rolls to its new value, the bars grow or shrink, the rows
+        // cross-fade and the account name in the top bar fades across.
+        .animation(reduceMotion ? .easeInOut(duration: 0.25) : .smooth(duration: 0.5), value: store.selectedAccount?.id)
         .sheet(item: $sheet) { presented in
             sheetContent(presented)
         }

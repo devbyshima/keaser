@@ -65,6 +65,7 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserExpenseTitle` | text typed into New Expense (shows Smart Suggestions) | home |
 | `-KeaserExpenseFocus` | `amount`: then moves on to Amount (shows the guessed category and payment) | home |
 | `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
+| `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
 | `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
 | `-KeaserSettingsScroll` | `bottom` | settings |
 | `-KeaserPro` | `purchased`, `expired`, `never` | settings |

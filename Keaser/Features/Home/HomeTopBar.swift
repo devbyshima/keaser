@@ -62,6 +62,9 @@ struct HomeTopBar<FilterMenu: View>: View {
                 Text(accountName)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
+                    // The capsule resizes to the new name while the old one
+                    // fades out and the new one fades in.
+                    .contentTransition(.opacity)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.footnote.weight(.semibold))
             }

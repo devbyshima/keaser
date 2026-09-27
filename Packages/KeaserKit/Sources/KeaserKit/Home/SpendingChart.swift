@@ -124,6 +124,33 @@ public enum SpendingChart {
         }
     }
 
+    /// The heading of the callout a long press shows over a bar: short
+    /// enough to sit above its amount in a small card. "2026",
+    /// "September", "Sep 26", "Sat, Sep 26", "8 AM – 12 PM".
+    public static func calloutTitle(
+        of bucket: Bucket,
+        period: Period,
+        calendar: Calendar,
+        locale: Locale = .current
+    ) -> String {
+        func string(_ date: Date, _ template: String) -> String {
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.locale = locale
+            formatter.timeZone = calendar.timeZone
+            formatter.setLocalizedDateFormatFromTemplate(template)
+            return formatter.string(from: date)
+        }
+        let start = bucket.interval.start
+        switch period {
+        case .today: return "\(string(start, "j")) \u{2013} \(string(bucket.interval.end, "j"))"
+        case .thisWeek: return string(start, "EEEMMMd")
+        case .thisMonth: return string(start, "MMMd")
+        case .thisYear: return string(start, "MMMM")
+        case .allTime: return string(start, "yyyy")
+        }
+    }
+
     /// Only the calendar day of `Expense.date` is meaningful, so the hour
     /// comes from when the expense was logged if that was the same day.
     public static func timeOfDay(of expense: Expense, calendar: Calendar) -> Date {

@@ -88,6 +88,19 @@ struct HomeSmartSuggesterTests {
         #expect(guess("Rent").paymentMethodID == method("Bank Transfer"))
     }
 
+    /// The second recording: a brand-new Business account, "LUNCH" and
+    /// then "Dinner" typed, and each fills in Food & Drinks and Cash.
+    @Test func aRecognisedMealInAFreshAccountIsFoodAndCash() {
+        let foodAndCash = SmartSuggester.LabelGuess(categoryID: category("Food & Drinks"), paymentMethodID: method("Cash"))
+        #expect(guess("LUNCH") == foodAndCash)
+        #expect(guess("Dinner") == foodAndCash)
+        #expect(guess("Breakfast") == foodAndCash)
+        // An account without a Cash method keeps the payment empty.
+        let noCash = methods.filter { $0.name != "Cash" }
+        let result = SmartSuggester.guessLabels(for: "Lunch", categories: categories, paymentMethods: noCash, history: [])
+        #expect(result == .init(categoryID: category("Food & Drinks"), paymentMethodID: nil))
+    }
+
     @Test func aTieBetweenKeywordsGoesToTheFirstWord() {
         #expect(guess("Train ticket").categoryID == category("Transportation"))
         #expect(guess("Movie ticket").categoryID == category("Entertainment"))

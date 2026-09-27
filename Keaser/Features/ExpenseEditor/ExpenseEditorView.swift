@@ -27,6 +27,9 @@ struct ExpenseEditorView: View {
     @State private var paymentPicked: Bool
     /// The title the labels were last guessed for.
     @State private var guessedTitle: String
+    /// A guessed payment method waiting to be shown a beat after the
+    /// category. Save applies it if the user is faster than that.
+    @State private var pendingPayment: PendingPayment?
     @State private var date: Date
     @State private var confirmingDelete = false
     @State private var suggestionTaken = 0
@@ -34,6 +37,15 @@ struct ExpenseEditorView: View {
     @FocusState private var focus: Field?
 
     private enum Field: Hashable { case title, amount }
+
+    private struct PendingPayment: Equatable {
+        let methodID: UUID?
+        let title: String
+    }
+
+    /// The pause between the guessed category and payment method landing,
+    /// matching the reference.
+    private static let paymentGuessDelay = Duration.milliseconds(350)
 
     init(accountID: UUID, expense: Expense? = nil) {
         self.accountID = accountID
@@ -310,14 +322,33 @@ struct ExpenseEditorView: View {
             history: account.expenses,
             excluding: original?.id
         )
-        withAnimation(.snappy(duration: 0.25)) {
-            if !categoryPicked { categoryID = guess.categoryID }
-            if !paymentPicked { paymentMethodID = guess.paymentMethodID }
+        let fillsCategory = !categoryPicked && categoryID != guess.categoryID
+        if fillsCategory {
+            withAnimation(.snappy(duration: 0.25)) { categoryID = guess.categoryID }
         }
+        guard !paymentPicked, paymentMethodID != guess.paymentMethodID else { return }
+        // The category lands first, the payment method a beat later, so the
+        // guess reads as two decisions rather than one jump.
+        let pending = PendingPayment(methodID: guess.paymentMethodID, title: normalized)
+        pendingPayment = pending
+        Task { @MainActor in
+            if fillsCategory { try? await Task.sleep(for: Self.paymentGuessDelay) }
+            applyPendingPayment(pending)
+        }
+    }
+
+    /// Shows a waiting payment guess, unless the user has since picked a
+    /// method or changed the title it was guessed for.
+    private func applyPendingPayment(_ pending: PendingPayment? = nil) {
+        guard let current = pendingPayment, pending == nil || pending == current else { return }
+        pendingPayment = nil
+        guard !paymentPicked, current.title == guessedTitle else { return }
+        withAnimation(.snappy(duration: 0.25)) { paymentMethodID = current.methodID }
     }
 
     private func save() {
         guard canSave, let amount else { return }
+        applyPendingPayment()
         var expense = original ?? Expense(title: "", amount: 0)
         expense.title = title
         expense.amount = amount

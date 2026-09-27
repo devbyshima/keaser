@@ -51,7 +51,9 @@ struct AccountsSheet: View {
             Text(deletionMessage(for: account))
         }
         .sheet(isPresented: $isAddingAccount) {
-            AddAccountSheet()
+            // A new account is selected as it is created; close both sheets
+            // so Home shows it, as in the reference.
+            AddAccountSheet(onCreated: { dismiss() })
         }
         .sheet(isPresented: $paywallShown) {
             PaywallView(highlighting: .multipleAccounts)

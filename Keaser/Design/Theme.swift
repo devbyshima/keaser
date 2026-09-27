@@ -15,6 +15,8 @@ extension Color {
     static let keaserSecondaryText = Color(white: 0.56)
     static let keaserTertiaryText = Color(white: 0.36)
     static let keaserDestructive = Color(red: 1, green: 0.27, blue: 0.23)
+    /// The chart's long-press callout: darker than the card it floats over.
+    static let keaserCallout = Color(white: 0.045)
     /// Large empty-state symbols ("No Expenses") and other muted icons.
     static let keaserMutedIcon = Color(white: 0.62)
     /// The close (xmark) glyph: grey and lighter in weight than the other

@@ -17,3 +17,7 @@ search-empty | -KeaserSeed demo -KeaserSheet search -KeaserSearch zzz
 accounts-editing | -KeaserSeed demo -KeaserSheet accounts -KeaserAccountsEditing 1
 suggestions | -KeaserSeed demo -KeaserSheet newExpense -KeaserExpenseTitle G
 guess | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Outing -KeaserExpenseFocus amount
+# The long-press callout over the All Time bar, as in the recording.
+chart-callout | -KeaserSeed single -KeaserChartSelection last
+# A first expense in a fresh account: Food & Drinks, then Cash.
+guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount

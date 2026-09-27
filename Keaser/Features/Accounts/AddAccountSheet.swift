@@ -14,6 +14,11 @@ struct AddAccountSheet: View {
     @State private var paywallShown = false
     @State private var createdCount = 0
 
+    /// Called instead of dismissing this sheet once the account exists, so
+    /// a presenter (the Accounts sheet) can close itself and this sheet
+    /// together and the user lands straight in the new account.
+    var onCreated: (() -> Void)?
+
     /// 320pt tall on screen, as in the reference. Before iOS 26 the sheet
     /// is attached to the bottom edge and its detent also covers the home
     /// indicator area, so it asks for less to end up the same height.
@@ -85,6 +90,6 @@ struct AddAccountSheet: View {
         store.createAccount(name: trimmedName)
         createdCount += 1
         nameFocused = false
-        dismiss()
+        if let onCreated { onCreated() } else { dismiss() }
     }
 }

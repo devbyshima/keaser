@@ -61,9 +61,10 @@ public enum SmartSuggester {
     /// Past expenses come first: the labels used most often on titles that
     /// share a word with this one ("Coffee beans" learns from "Coffee").
     /// Otherwise common words point at a label by name ("Outing" at Travel
-    /// and Cash, "Uber" at Transportation), so a new account gets guesses
-    /// too. With nothing else to go on, the payment method is the one used
-    /// most often.
+    /// and Cash, "Lunch" at Food & Drinks, "Uber" at Transportation), so a new
+    /// account gets guesses too. With nothing else to go on, the payment
+    /// method is the one used most often; in an account with no history, a
+    /// recognised title is paid in Cash, as in the reference.
     public static func guessLabels(
         for title: String,
         categories: [ExpenseCategory],
@@ -100,6 +101,9 @@ public enum SmartSuggester {
         let method = learnedMethod
             ?? bestRule(paymentRules, for: words).flatMap { label(in: paymentMethods.map { ($0.id, $0.name) }, named: $0.labelNames) }
             ?? habitualMethod
+            // Only when the title meant something: an unknown title stays
+            // unfiled rather than half-filled.
+            ?? (category == nil ? nil : label(in: paymentMethods.map { ($0.id, $0.name) }, named: ["cash"]))
         return LabelGuess(categoryID: category, paymentMethodID: method)
     }
 

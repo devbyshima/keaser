@@ -143,6 +143,23 @@ struct HomeSpendingChartTests {
         #expect(names(.thisYear).first == "January 2026")
         #expect(names(.allTime).last == "2026")
     }
+
+    /// The long-press callout: "2026" over the All Time bar, as in the
+    /// recording, and short forms for the other periods.
+    @Test func calloutTitlesAreShort() {
+        let c = calendar(firstWeekday: 2)
+        let en = Locale(identifier: "en_US")
+        func titles(_ period: Period) -> [String] {
+            SpendingChart.buckets(for: [], period: period, now: now, calendar: c, locale: en)
+                .map { SpendingChart.calloutTitle(of: $0, period: period, calendar: c, locale: en) }
+                .map { $0.replacingOccurrences(of: "\u{202F}", with: " ") }
+        }
+        #expect(titles(.allTime).last == "2026")
+        #expect(titles(.thisYear)[8] == "September")
+        #expect(titles(.thisMonth)[25] == "Sep 26")
+        #expect(titles(.thisWeek).first == "Mon, Sep 21")
+        #expect(titles(.today)[2] == "8 AM \u{2013} 12 PM")
+    }
 }
 
 struct HomeChartAxisTests {
