@@ -5,7 +5,7 @@ open-expense | -KeaserSeed demo -KeaserOpenExpense first
 # Started on Business: opening a Personal expense switches back first.
 open-expense-switch | -KeaserSeed demo -KeaserSelectAccount 1 -KeaserOpenExpense first
 # An expense from long before the period Home shows.
-open-expense-old | -KeaserSeed demo -KeaserOpenExpense 400
+open-expense-old | -KeaserSeed demo -KeaserOpenExpense 250
 open-account | -KeaserSeed demo -KeaserOpenAccount 1
 open-account-back | -KeaserSeed demo -KeaserSelectAccount 1 -KeaserOpenAccount 0
 search | -KeaserSeed demo -KeaserOpenSearch coffee
