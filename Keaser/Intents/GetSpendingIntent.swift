@@ -67,7 +67,7 @@ struct GetSpendingIntent: AppIntent {
         )
         let outcome = question.answer(in: store.database, isPro: store.isPro(), now: .now)
         guard case .answer(let answer) = outcome else {
-            throw IntentRefusal(outcome.refusal ?? "")
+            throw IntentRefusal(outcome.refusal ?? "", kind: Self.kind(of: outcome))
         }
 
         // Spoken without the card: the count and the largest expense too.
@@ -80,6 +80,20 @@ struct GetSpendingIntent: AppIntent {
             dialog: dialog,
             view: SpendingSnippetView(snapshot: answer.snapshot)
         )
+    }
+}
+
+extension GetSpendingIntent {
+    /// The system's kind for a question that cannot be answered, where it
+    /// has one: no account yet is setup to do in Keaser, a deleted account
+    /// or a label the account lacks is something not found. Needing Pro is
+    /// said in Keaser's own words only.
+    static func kind(of outcome: SpendingOutcome) -> AppIntentError? {
+        switch outcome {
+        case .noAccount: AppIntentError.UserActionRequired.accountSetup
+        case .accountGone, .missingCategory, .missingPaymentMethod: AppIntentError.Unrecoverable.entityNotFound
+        case .answer, .needsPro: nil
+        }
     }
 }
 

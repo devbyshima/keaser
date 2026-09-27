@@ -54,7 +54,10 @@ struct DeleteExpenseIntent: DeleteIntent {
     }
 
     private static func gone(count: Int) -> IntentRefusal {
-        IntentRefusal(count == 1 ? "That expense is no longer in Keaser." : "Those expenses are no longer in Keaser.")
+        IntentRefusal(
+            count == 1 ? "That expense is no longer in Keaser." : "Those expenses are no longer in Keaser.",
+            kind: AppIntentError.Unrecoverable.entityNotFound
+        )
     }
 }
 
