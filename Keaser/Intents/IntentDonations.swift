@@ -12,12 +12,17 @@ enum IntentDonations {
     /// its date, so a suggestion taken later is dated when it is taken.
     /// Nothing is donated for an edit or a save that did not reach the disk.
     static func addedInApp(_ expense: Expense, accountID: UUID, store: KeaserStore) {
-        guard store.lastSaveError == nil, let account = store.account(id: accountID) else { return }
+        // As the store kept it (the title trimmed), and only once it is
+        // on disk.
+        guard store.lastSaveError == nil,
+              let account = store.account(id: accountID),
+              let saved = account.expenses.first(where: { $0.id == expense.id })
+        else { return }
         let intent = AddExpenseIntent()
-        intent.expenseTitle = expense.title
-        intent.amount = IntentCurrencyAmount(amount: expense.amount, currencyCode: store.preferences.currencyCode)
-        intent.category = account.category(id: expense.categoryID).map { CategoryEntity($0) }
-        intent.paymentMethod = account.paymentMethod(id: expense.paymentMethodID).map { PaymentMethodEntity($0) }
+        intent.expenseTitle = saved.title
+        intent.amount = IntentCurrencyAmount(amount: saved.amount, currencyCode: store.preferences.currencyCode)
+        intent.category = account.category(id: saved.categoryID).map { CategoryEntity($0) }
+        intent.paymentMethod = account.paymentMethod(id: saved.paymentMethodID).map { PaymentMethodEntity($0) }
         intent.account = AccountEntity(account)
         Task {
             _ = try? await IntentDonationManager.shared.donate(intent: intent)
