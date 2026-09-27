@@ -31,6 +31,17 @@ schemes:
       storeKitConfiguration: Keaser/Resources/Keaser.storekit
     archive:
       config: Release
+  # App Intents tests (AppIntentsTesting, iOS 27 simulator):
+  # ./scripts/intents-test.sh
+  KeaserIntentTests:
+    build:
+      targets:
+        Keaser: all
+        KeaserIntentTests: [test]
+    test:
+      config: Debug
+      targets:
+        - KeaserIntentTests
 
 targets:
   Keaser:
@@ -104,3 +115,20 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  # Runs every App Intent and entity query through the system, as Siri and
+  # Shortcuts do, with AppIntentsTesting (iOS 27 only). It never imports the
+  # app's code. See scripts/intents-test.sh.
+  KeaserIntentTests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "27.0"
+    sources:
+      - KeaserIntentTests
+    dependencies:
+      - target: Keaser
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.keaser.intent-tests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
