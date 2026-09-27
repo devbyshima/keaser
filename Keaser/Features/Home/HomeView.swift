@@ -3,7 +3,8 @@ import SwiftUI
 import UIKit
 
 /// The main screen: account switcher, search, filters, settings, the spending
-/// summary with its chart, the latest expenses and the add button.
+/// summary with its chart, the latest expenses and the add button. Search
+/// replaces all of it with its own full-screen view while it is open.
 struct HomeView: View {
     @Environment(KeaserStore.self) private var store
     @Environment(ProStore.self) private var pro
@@ -38,8 +39,13 @@ struct HomeView: View {
         ZStack {
             Color.keaserBackground.ignoresSafeArea()
             if let account = store.selectedAccount {
-                accountScreen(account)
-                    .transition(.opacity)
+                if isSearching {
+                    searchScreen(account)
+                        .transition(.opacity)
+                } else {
+                    accountScreen(account)
+                        .transition(.opacity)
+                }
             } else {
                 noAccountScreen
                     .transition(.opacity)
@@ -119,15 +125,6 @@ struct HomeView: View {
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top, HomeLayout.emptyStateTop - HomeLayout.contentTop)
-                } else if filter.isSearching && expenses.isEmpty {
-                    EmptyStateView(
-                        symbol: "magnifyingglass",
-                        title: "No Results",
-                        message: "No expenses match \u{201C}\(filter.searchText.trimmingCharacters(in: .whitespaces))\u{201D}.",
-                        style: .large
-                    )
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, HomeLayout.emptyStateTop - HomeLayout.contentTop)
                 } else {
                     HomeSummaryCard(
                         caption: filter.period.spentCaption,
@@ -146,16 +143,11 @@ struct HomeView: View {
             .animation(.smooth(duration: 0.3), value: expenses.map(\.id))
         }
         .scrollIndicators(.hidden)
-        .scrollDismissesKeyboard(.immediately)
         .safeAreaInset(edge: .top, spacing: 0) {
             HomeTopBar(
                 accountName: account.name,
-                isSearching: isSearching,
-                searchText: $searchText,
-                searchFocused: $searchFocused,
                 onAccounts: { sheet = .accounts },
                 onSearch: beginSearch,
-                onCancelSearch: endSearch,
                 onSettings: { sheet = .settings }
             ) {
                 HomeFilterMenu(
@@ -193,32 +185,34 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
         }
-        ForEach(expenses) { expense in
-            Button {
-                sheet = .editExpense(expense.id)
-            } label: {
-                HomeExpenseRow(
-                    expense: expense,
-                    symbol: account.symbol(for: expense),
-                    currencyCode: store.preferences.currencyCode
-                )
-            }
-            .buttonStyle(HomeRowButtonStyle())
-            .contextMenu {
-                Button {
-                    sheet = .editExpense(expense.id)
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-                Button(role: .destructive) {
-                    expenseToDelete = expense
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-            .padding(.bottom, HomeLayout.rowSpacing)
-            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.97)))
-        }
+        HomeExpenseRows(
+            expenses: expenses,
+            account: account,
+            currencyCode: store.preferences.currencyCode,
+            onEdit: { sheet = .editExpense($0.id) },
+            onDelete: { expenseToDelete = $0 }
+        )
+    }
+
+    /// Search looks through what Home's filters show (the period, category
+    /// and payment method), live as the text changes.
+    private func searchScreen(_ account: Account) -> some View {
+        HomeSearchView(
+            account: account,
+            result: ExpenseQuery.search(
+                searchText,
+                filter: currentFilter(for: account),
+                in: account.expenses,
+                now: now,
+                calendar: store.preferences.calendar
+            ),
+            currencyCode: store.preferences.currencyCode,
+            text: $searchText,
+            isFocused: $searchFocused,
+            onEdit: { sheet = .editExpense($0.id) },
+            onDelete: { expenseToDelete = $0 },
+            onClose: endSearch
+        )
     }
 
     // MARK: Sheets
@@ -252,8 +246,7 @@ struct HomeView: View {
         let filter = ExpenseQuery.Filter(
             period: periodChoice ?? ExpenseQuery.Filter.initial(isPro: isPro).period,
             categoryID: categoryFilter.flatMap { account.category(id: $0)?.id },
-            paymentMethodID: paymentFilter.flatMap { account.paymentMethod(id: $0)?.id },
-            searchText: isSearching ? searchText : ""
+            paymentMethodID: paymentFilter.flatMap { account.paymentMethod(id: $0)?.id }
         )
         // A lapsed pass never shows locked data, even before
         // `dropProFilters` has reset the choices.
@@ -327,14 +320,15 @@ struct HomeView: View {
     // MARK: Search
 
     private func beginSearch() {
-        withAnimation(.smooth(duration: 0.3)) { isSearching = true }
+        searchText = ""
+        withAnimation(.smooth(duration: 0.25)) { isSearching = true }
         // The field only exists after this update, so focus it on the next.
         Task { @MainActor in searchFocused = true }
     }
 
     private func endSearch() {
         searchFocused = false
-        withAnimation(.smooth(duration: 0.3)) {
+        withAnimation(.smooth(duration: 0.25)) {
             isSearching = false
             searchText = ""
         }
@@ -396,16 +390,6 @@ enum HomeSheet: Identifiable, Hashable {
     case paywall(ProFeature)
 
     var id: Self { self }
-}
-
-/// Rows dim slightly while pressed, like a list cell.
-private struct HomeRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(.snappy(duration: 0.18), value: configuration.isPressed)
-    }
 }
 
 private extension Period {

@@ -77,7 +77,7 @@ struct AddAccountSheet: View {
                 .onSubmit(create)
                 .padding(.horizontal, 16)
                 .frame(minHeight: 48)
-                .background(Color.keaserSheetCard, in: Capsule())
+                .background(Color.homeSheetCard, in: Capsule())
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
         }

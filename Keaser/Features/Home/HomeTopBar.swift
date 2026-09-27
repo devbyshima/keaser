@@ -2,53 +2,37 @@ import KeaserKit
 import SwiftUI
 
 /// Home's floating bar: the account switcher on the left and one glass
-/// capsule with search, filters and settings on the right. While searching it
-/// becomes a search field with a Cancel button.
+/// capsule with search, filters and settings on the right.
 struct HomeTopBar<FilterMenu: View>: View {
     let accountName: String
-    let isSearching: Bool
-    @Binding var searchText: String
-    var searchFocused: FocusState<Bool>.Binding
     let onAccounts: () -> Void
     let onSearch: () -> Void
-    let onCancelSearch: () -> Void
     let onSettings: () -> Void
     @ViewBuilder var filterMenu: FilterMenu
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         KeaserGlassContainer(spacing: 12) {
             HStack(spacing: 10) {
-                if isSearching {
-                    searchField
-                        .transition(slide(from: .trailing))
-                    cancelButton
-                        .transition(slide(from: .trailing))
-                } else {
-                    accountButton
-                        .transition(slide(from: .leading))
-                    Spacer(minLength: 0)
-                    tools
-                        .transition(slide(from: .trailing))
-                }
+                accountButton
+                Spacer(minLength: 0)
+                tools
             }
         }
         .frame(minHeight: HomeLayout.topBarHeight)
         .padding(.horizontal, KeaserMetrics.screenPadding)
         .background(alignment: .top) {
-            // Content scrolling under the bar fades out instead of clashing
-            // with the glass, like the system's scroll edge effect.
-            LinearGradient(colors: [.black, .black.opacity(0.85), .black.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .padding(.bottom, -18)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
+            // Content scrolling under the bar fades into the canvas instead
+            // of clashing with the glass, like the system's scroll edge
+            // effect.
+            LinearGradient(
+                colors: [.keaserBackground, .keaserBackground.opacity(0.85), .keaserBackground.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .padding(.bottom, -18)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
         }
-    }
-
-    /// Controls slide in from their edge, or only fade with Reduce Motion.
-    private func slide(from edge: Edge) -> AnyTransition {
-        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
     }
 
     // Like a system toolbar, the bar's text stops growing at the largest
@@ -106,60 +90,6 @@ struct HomeTopBar<FilterMenu: View>: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 0.5)
         .keaserGlass(interactive: true)
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.body.weight(.medium))
-                .foregroundStyle(Color.keaserSecondaryText)
-                .accessibilityHidden(true)
-            TextField("Search", text: $searchText, prompt: Text("Search").foregroundStyle(Color.keaserSecondaryText))
-                .font(.body)
-                .foregroundStyle(Color.keaserPrimaryText)
-                .focused(searchFocused)
-                .accessibilityLabel("Search")
-                .submitLabel(.search)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.body)
-                        .foregroundStyle(Color.keaserSecondaryText)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                // Taps across 44pt but takes the drawn 28pt in the row.
-                .padding(-8)
-                .accessibilityLabel("Clear Search")
-                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.6)))
-            }
-        }
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .padding(.leading, 16)
-        .padding(.trailing, 8)
-        .frame(minHeight: HomeLayout.topBarHeight)
-        .keaserGlass()
-        .animation(.snappy(duration: 0.2), value: searchText.isEmpty)
-    }
-
-    private var cancelButton: some View {
-        Button(action: onCancelSearch) {
-            Text("Cancel")
-                .font(.body.weight(.medium))
-                .foregroundStyle(Color.keaserPrimaryText)
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                .padding(.horizontal, 16)
-                .frame(minHeight: HomeLayout.topBarHeight)
-                .contentShape(Capsule())
-                .keaserGlass(interactive: true)
-        }
-        .buttonStyle(.plain)
-        .accessibilityShowsLargeContentViewer()
     }
 }
 

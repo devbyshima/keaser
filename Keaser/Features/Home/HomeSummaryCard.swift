@@ -3,8 +3,8 @@ import KeaserKit
 import SwiftUI
 import UIKit
 
-/// The charcoal card at the top of Home: what was spent in the chosen period
-/// and a bar chart of how it was spread over that period.
+/// The card at the top of Home: what was spent in the chosen period and a
+/// bar chart of how it was spread over that period.
 struct HomeSummaryCard: View {
     let caption: String
     let total: Decimal
@@ -44,12 +44,13 @@ struct HomeSummaryCard: View {
     }
 }
 
-/// White bars with rounded tops over horizontal grid lines, values on the
+/// Ink bars with rounded tops over horizontal grid lines, values on the
 /// trailing edge, as in the reference. VoiceOver reads each bar as its day,
 /// month or hours and the amount spent.
 ///
-/// Pressing and holding a bar shows a callout with its period and amount;
-/// sliding the finger moves it from bar to bar until the finger lifts.
+/// Pressing and holding a bar raises a small glass callout out of it with
+/// its period and amount; sliding the finger carries the callout from bar
+/// to bar until the finger lifts and it sinks back.
 struct HomeSpendingChart: View {
     let buckets: [SpendingChart.Bucket]
     let period: Period
@@ -57,6 +58,7 @@ struct HomeSpendingChart: View {
     let currencyCode: String
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The width of the bar area, measured once the chart is laid out.
     @State private var plotWidth: CGFloat = 0
     /// The bar under a pressing finger, if any.
@@ -65,6 +67,8 @@ struct HomeSpendingChart: View {
     /// The chart's text stops growing here: it has a fixed height and
     /// unwrapped axis labels, and VoiceOver reads the bar values.
     private static let largestTextSize = DynamicTypeSize.xxxLarge
+    /// Between the callout's bottom edge and the top grid line.
+    private static let calloutGap: CGFloat = 10
 
     var body: some View {
         let narrow = usesNarrowLabels
@@ -75,28 +79,11 @@ struct HomeSpendingChart: View {
                     y: .value("Spent", bucket.total.doubleValue),
                     width: .ratio(0.7)
                 )
-                // The pressed bar stays white; the rest step back.
-                .foregroundStyle(Color.white.opacity(selectedIndex == nil || selectedIndex == bucket.index ? 1 : 0.35))
+                // The pressed bar keeps full ink; the rest step back.
+                .foregroundStyle(Color.keaserInk.opacity(selectedIndex == nil || selectedIndex == bucket.index ? 1 : 0.35))
                 .clipShape(UnevenRoundedRectangle(topLeadingRadius: barRadius, topTrailingRadius: barRadius, style: .continuous))
                 .accessibilityLabel(SpendingChart.spokenName(of: bucket, period: period, calendar: calendar))
                 .accessibilityValue(MoneyFormat.string(bucket.total, currencyCode: currencyCode))
-            }
-            if let selected = selectedBucket {
-                // An invisible rule over the bar carries the callout above
-                // the plot, where the reference draws it.
-                RuleMark(x: .value("Period", key(selected.index)))
-                    .foregroundStyle(Color.clear)
-                    .annotation(
-                        position: .top,
-                        spacing: 12,
-                        overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
-                    ) {
-                        ChartCallout(
-                            title: SpendingChart.calloutTitle(of: selected, period: period, calendar: calendar),
-                            amount: MoneyFormat.string(selected.total, currencyCode: currencyCode)
-                        )
-                    }
-                    .accessibilityHidden(true)
             }
         }
         .chartXAxis {
@@ -114,7 +101,7 @@ struct HomeSpendingChart: View {
         .chartYAxis {
             AxisMarks(position: .trailing, values: ticks) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 2 / 3))
-                    .foregroundStyle(Color.white.opacity(0.17))
+                    .foregroundStyle(Color.keaserInk.opacity(0.17))
                 AxisValueLabel {
                     if let amount = value.as(Double.self) {
                         Text(amount, format: .number.notation(.compactName))
@@ -127,14 +114,20 @@ struct HomeSpendingChart: View {
         .chartYScale(domain: 0...(ticks.last ?? 20))
         .chartOverlay { proxy in
             GeometryReader { geometry in
+                let plot = proxy.plotFrame.map { geometry[$0] } ?? .zero
                 Rectangle()
                     .fill(Color.clear)
                     .contentShape(Rectangle())
                     .gesture(PressAndScrubGesture { location in
-                        select(at: location, proxy: proxy, geometry: geometry)
+                        select(at: location, in: plot, proxy: proxy)
                     })
                     .onChange(of: proxy.plotSize.width, initial: true) { _, width in plotWidth = width }
                     .accessibilityHidden(true)
+                    // Drawn here rather than as a chart annotation so its
+                    // entrance, exit and glide are ours to animate.
+                    .overlay(alignment: .topLeading) {
+                        callout(proxy: proxy, plot: plot, chartWidth: geometry.size.width)
+                    }
             }
         }
         .dynamicTypeSize(...Self.largestTextSize)
@@ -154,23 +147,55 @@ struct HomeSpendingChart: View {
         #endif
     }
 
+    /// The pressed bar's callout, centred over the bar just above the plot
+    /// and kept inside the chart. It rises out of the bar's top as it
+    /// appears and sinks back into it as it goes.
+    @ViewBuilder
+    private func callout(proxy: ChartProxy, plot: CGRect, chartWidth: CGFloat) -> some View {
+        if let selected = selectedBucket, let x = proxy.position(forX: key(selected.index)) {
+            let barCenter = plot.minX + x
+            let bottom = plot.minY - Self.calloutGap
+            let barTop = plot.minY + (proxy.position(forY: selected.total.doubleValue) ?? plot.height)
+            let rise = SpendingChart.calloutRise(barTop: barTop, calloutBottom: bottom)
+            ChartCallout(
+                title: SpendingChart.calloutTitle(of: selected, period: period, calendar: calendar),
+                amount: MoneyFormat.string(selected.total, currencyCode: currencyCode),
+                rollsDigits: !reduceMotion
+            )
+            .alignmentGuide(.leading) { size in
+                -SpendingChart.calloutLeading(barCenter: barCenter, calloutWidth: size.width, chartWidth: chartWidth)
+            }
+            .alignmentGuide(.top) { size in size.height - bottom }
+            // One callout that glides between bars; with Reduce Motion, a
+            // new one per bar, so it only cross-fades in place.
+            .id(reduceMotion ? selected.index : -1)
+            .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.asymmetric(
+                insertion: AnyTransition(CalloutEmergence(rise: rise)).animation(.spring(duration: 0.42, bounce: 0.3)),
+                removal: AnyTransition(CalloutEmergence(rise: rise)).animation(.smooth(duration: 0.24))
+            ))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
     private var selectedBucket: SpendingChart.Bucket? {
         selectedIndex.flatMap { index in buckets.first { $0.index == index } }
     }
 
     /// Picks the bar under `location`, clamped to the plot so a finger that
     /// drifts past either end keeps the end bar; nil clears the selection.
-    private func select(at location: CGPoint?, proxy: ChartProxy, geometry: GeometryProxy) {
-        guard let location, let anchor = proxy.plotFrame else {
-            withAnimation(.easeOut(duration: 0.15)) { selectedIndex = nil }
+    private func select(at location: CGPoint?, in plot: CGRect, proxy: ChartProxy) {
+        guard let location, plot.width > 0 else {
+            withAnimation(.easeOut(duration: 0.2)) { selectedIndex = nil }
             return
         }
-        let plot = geometry[anchor]
-        let x = min(max(location.x - plot.minX, 0), max(plot.width - 1, 0))
+        let x = min(max(location.x - plot.minX, 0), plot.width - 1)
         guard let key = proxy.value(atX: x, as: String.self), let bucket = bucket(for: key),
               bucket.index != selectedIndex
         else { return }
-        withAnimation(.snappy(duration: 0.2)) { selectedIndex = bucket.index }
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy(duration: 0.28)) {
+            selectedIndex = bucket.index
+        }
     }
 
     /// Charts treats strings as categories, which keeps every bar in its own
@@ -207,31 +232,45 @@ struct HomeSpendingChart: View {
     }
 }
 
-/// The card a long press shows over a bar: the period in grey, the amount
-/// in white, on near-black with a hairline edge, as in the reference.
+/// The small glass tag a long press raises over a bar: the period in grey
+/// over the amount, on Liquid Glass tinted with a breath of ink.
 private struct ChartCallout: View {
     let title: String
     let amount: String
+    /// Digits roll to the next bar's amount while scrubbing, unless Reduce
+    /// Motion is on.
+    let rollsDigits: Bool
+
+    private static let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(title)
-                .keaserFont(15, relativeTo: .subheadline)
+                .keaserFont(11, relativeTo: .caption2)
                 .foregroundStyle(Color.keaserSecondaryText)
             Text(amount)
-                .keaserFont(20, weight: .semibold, relativeTo: .title3)
+                .keaserFont(15, weight: .semibold, relativeTo: .subheadline)
                 .foregroundStyle(Color.keaserPrimaryText)
+                .contentTransition(rollsDigits ? .numericText() : .opacity)
         }
         .lineLimit(1)
         .fixedSize()
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Color.keaserCallout, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
-        }
-        .transition(.opacity)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .keaserGlass(in: Self.shape, tint: Color.keaserInk.opacity(0.1))
+    }
+}
+
+/// The callout growing out of its bar: from half size, anchored at its
+/// bottom edge and `rise` points lower (the bar's top), up to its place.
+private struct CalloutEmergence: Transition {
+    let rise: CGFloat
+
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        content
+            .scaleEffect(phase.isIdentity ? 1 : 0.5, anchor: .bottom)
+            .offset(y: phase.isIdentity ? 0 : rise)
+            .opacity(phase.isIdentity ? 1 : 0)
     }
 }
 

@@ -72,6 +72,40 @@ struct HomeExpenseQueryTests {
         #expect(titles(.init(period: .allTime, searchText: "   ")).count == 6)
     }
 
+    @Test func searchPromptsUntilSomethingIsTyped() {
+        let month = ExpenseQuery.Filter(period: .thisMonth)
+        #expect(ExpenseQuery.search("", filter: month, in: expenses, now: now, calendar: calendar) == .prompt)
+        #expect(ExpenseQuery.search("   ", filter: month, in: expenses, now: now, calendar: calendar) == .prompt)
+    }
+
+    @Test func searchListsMatchesNewestFirstOrNothing() {
+        let all = ExpenseQuery.Filter(period: .allTime)
+        guard case .matches(let found) = ExpenseQuery.search("cafe", filter: all, in: expenses, now: now, calendar: calendar) else {
+            Issue.record("expected matches")
+            return
+        }
+        #expect(found.map(\.title) == ["Café au lait", "Old cafe"])
+        #expect(ExpenseQuery.search("zzz", filter: all, in: expenses, now: now, calendar: calendar) == .noMatches)
+    }
+
+    @Test func searchStaysInsideHomesFilters() {
+        // A free plan's This Month never finds last year's expense, and a
+        // category filter still applies while searching.
+        let month = ExpenseQuery.Filter(period: .thisMonth)
+        guard case .matches(let found) = ExpenseQuery.search("cafe", filter: month, in: expenses, now: now, calendar: calendar) else {
+            Issue.record("expected matches")
+            return
+        }
+        #expect(found.map(\.title) == ["Café au lait"])
+        let travelOnly = ExpenseQuery.Filter(period: .allTime, categoryID: travel)
+        #expect(ExpenseQuery.search("dinner", filter: travelOnly, in: expenses, now: now, calendar: calendar) == .noMatches)
+    }
+
+    @Test func searchTextReplacesTheFiltersOwn() {
+        let stale = ExpenseQuery.Filter(period: .allTime, searchText: "zzz")
+        #expect(ExpenseQuery.search("", filter: stale, in: expenses, now: now, calendar: calendar) == .prompt)
+    }
+
     @Test func totalsAreExactDecimals() {
         let small = [
             Expense(title: "a", amount: Decimal(string: "0.1")!),

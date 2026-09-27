@@ -62,6 +62,34 @@ public enum ExpenseQuery {
             .sorted(by: isNewer)
     }
 
+    /// What the search screen shows.
+    public enum SearchResult: Hashable, Sendable {
+        /// Nothing typed yet: "Search Expenses".
+        case prompt
+        /// Typed text that matches nothing: "No Results".
+        case noMatches
+        /// The matching expenses, newest first.
+        case matches([Expense])
+    }
+
+    /// Searches for `text` among the expenses `filter` lets Home show (its
+    /// period, category and payment method), so a search never reaches
+    /// past what the current plan can see. Any search text already in
+    /// `filter` is replaced by `text`.
+    public static func search(
+        _ text: String,
+        filter: Filter,
+        in expenses: [Expense],
+        now: Date,
+        calendar: Calendar
+    ) -> SearchResult {
+        var filter = filter
+        filter.searchText = text
+        guard filter.isSearching else { return .prompt }
+        let found = apply(filter, to: expenses, now: now, calendar: calendar)
+        return found.isEmpty ? .noMatches : .matches(found)
+    }
+
     public static func total(of expenses: [Expense]) -> Decimal {
         expenses.reduce(into: Decimal(0)) { $0 += $1.amount }
     }

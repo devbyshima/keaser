@@ -162,6 +162,38 @@ struct HomeSpendingChartTests {
     }
 }
 
+struct HomeChartCalloutTests {
+    @Test func calloutCentresOverItsBar() {
+        #expect(SpendingChart.calloutLeading(barCenter: 150, calloutWidth: 80, chartWidth: 340) == 110)
+    }
+
+    @Test func calloutStaysInsideTheChart() {
+        // The first bar of a month sits against the leading edge, the All
+        // Time bar of this year near the trailing one.
+        #expect(SpendingChart.calloutLeading(barCenter: 10, calloutWidth: 80, chartWidth: 340) == 0)
+        #expect(SpendingChart.calloutLeading(barCenter: 330, calloutWidth: 80, chartWidth: 340) == 260)
+    }
+
+    @Test func calloutWiderThanTheChartStartsAtItsLeadingEdge() {
+        #expect(SpendingChart.calloutLeading(barCenter: 50, calloutWidth: 120, chartWidth: 100) == 0)
+    }
+
+    @Test func calloutRisesFromTheBarTop() {
+        // A full-height bar: the callout starts just below its resting place.
+        #expect(SpendingChart.calloutRise(barTop: 0, calloutBottom: -10) == 10)
+        #expect(SpendingChart.calloutRise(barTop: 40, calloutBottom: -10) == 50)
+    }
+
+    @Test func calloutRiseIsCapped() {
+        #expect(SpendingChart.calloutRise(barTop: 180, calloutBottom: -10) == 72)
+        #expect(SpendingChart.calloutRise(barTop: 180, calloutBottom: -10, limit: 30) == 30)
+    }
+
+    @Test func calloutNeverStartsAboveItsPlace() {
+        #expect(SpendingChart.calloutRise(barTop: -20, calloutBottom: -10) == 0)
+    }
+}
+
 struct HomeChartAxisTests {
     static let cases: [(highest: Double, ticks: [Double])] = [
         (0, [0, 5, 10, 15, 20]),
