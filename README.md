@@ -24,7 +24,7 @@ widget. Everything stays on your iPhone.
   lifetime purchase (StoreKit 2) for widgets, more filters, multiple accounts
   and long-term insights.
 - Settings for currency (every ISO currency), first day of the week, and more.
-  Dark only, with Liquid Glass on iOS 26 and later.
+  Light and dark appearance, with Liquid Glass on iOS 26 and later.
 
 ## Build
 

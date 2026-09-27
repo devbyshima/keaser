@@ -2,7 +2,7 @@
 
 iOS SwiftUI expense tracker: accounts, expenses, categories, payment methods,
 charts, filters, widgets, Shortcuts, weekly summary notifications, and a
-Keaser Pro upgrade with a 7-day pass. Dark only, monochrome,
+Keaser Pro upgrade with a 7-day pass. Light and dark, monochrome,
 Liquid Glass on iOS 26+.
 
 - `Packages/KeaserKit/` - models, persistence, the `KeaserStore`, and all pure
@@ -35,48 +35,11 @@ simulator GUI; add launch arguments instead.
   (`keaserGlass(in:)`, `keaserGlassButtonStyle()`, `KeaserGlassContainer`),
   which falls back to materials on iOS 18. Never call `glassEffect` directly.
 - Swift 6 language mode. `KeaserStore` and views are `@MainActor`.
-- Dark only: `RootView` is forced to `.dark`; the palette is in
-  `Keaser/Design/Theme.swift`. Do not introduce other accent colours.
-
-## Data
-
-One JSON file (`DatabaseFile.shared`) in the app group
-`group.com.fulltimestudio.keaser`, read by the widget extension. All writes go
-through `KeaserStore` (injected with `@Environment(KeaserStore.self)`, or
-`AppEnvironment.store` outside views). Each mutation saves immediately and
-notifies observers (`addObserver`) with a `StoreChange`. Money is `Decimal`;
-format it with `MoneyFormat.string(_:currencyCode:)` using
-`store.preferences.currencyCode`. Week maths must use
-`store.preferences.calendar` (it honours Start Week On).
-
-## Launch arguments (DEBUG only)
-
-| Argument | Values | Area |
-|---|---|---|
-| `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
-| `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing) | foundation |
-| `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery`, `widgetGalleryLocked` (every widget family, needs seed `fresh`) | onboarding |
-| `-KeaserNotifState` | `granted`, `denied`: page 4 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
-| `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
-| `-KeaserLetterPage` | `tldr`, `follow` (sample links, DEBUG only) | onboarding |
-| `-KeaserSheet` | `accounts`, `addAccount`, `newExpense`, `editExpense`, `search` | home |
-| `-KeaserPeriod` | `today`, `thisWeek`, `thisMonth`, `thisYear`, `allTime` | home |
-| `-KeaserSearch` | search text, with `-KeaserSheet search` | home |
-| `-KeaserExpenseTitle` | text typed into New Expense (shows Smart Suggestions) | home |
-| `-KeaserExpenseFocus` | `amount`: then moves on to Amount (shows the guessed category and payment) | home |
-| `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
-| `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
-| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
-| `-KeaserSettingsScroll` | `bottom` | settings |
-| `-KeaserPro` | `purchased`, `expired`, `never` | settings |
-| `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |
-| `-KeaserPaywallFeature` | a `ProFeature` raw value to highlight | settings |
-| `-KeaserSampleLinks` | `1` fills Help and Follow Us with sample links | settings |
-
-Seeded launches keep the database in memory and never touch the real file.
-
-## Shared names
-
+- Light and dark, following the system appearance. Every colour comes from
+  the adaptive tokens in `Keaser/Design/Theme.swift` (`keaserInk` is the
+  single accent: black in light mode, white in dark). Never hard-code white
+  or black; add a token with `Color(light:dark:)` instead. Screenshot both:
+  `APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh`.
 - App Intents: `AddExpenseIntent` (title "Add Expense") and
   `LogWalletTransactionIntent` (title "Log Wallet Transaction"). Tutorials and
   the Shortcut settings page refer to them by these titles.
