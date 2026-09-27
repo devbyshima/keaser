@@ -23,5 +23,34 @@ struct KeaserShortcuts: AppShortcutsProvider {
             shortTitle: "Log Transaction",
             systemImageName: "wallet.bifold.fill"
         )
+        AppShortcut(
+            intent: SearchExpensesIntent(),
+            phrases: [
+                "Search \(.applicationName)",
+                "Search in \(.applicationName)",
+                "Search expenses in \(.applicationName)",
+            ],
+            shortTitle: "Search Expenses",
+            systemImageName: "magnifyingglass"
+        )
+        AppShortcut(
+            intent: OpenAccountIntent(),
+            phrases: [
+                "Open \(\.$target) in \(.applicationName)",
+                "Switch \(.applicationName) to \(\.$target)",
+                "Open an account in \(.applicationName)",
+            ],
+            shortTitle: "Open Account",
+            systemImageName: "person.crop.circle"
+        )
+        AppShortcut(
+            intent: OpenExpenseIntent(),
+            phrases: [
+                "Open an expense in \(.applicationName)",
+                "Show an expense in \(.applicationName)",
+            ],
+            shortTitle: "Open Expense",
+            systemImageName: "creditcard"
+        )
     }
 }

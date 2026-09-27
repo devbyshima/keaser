@@ -351,8 +351,50 @@ struct HomeView: View {
             sheet = store.selectedAccount == nil ? .addAccount : .newExpense
         case .settings:
             sheet = .settings
+        case .expense(let id):
+            openExpense(id)
+        case .account(let id):
+            openAccount(id)
+        case .search(let text):
+            if store.selectedAccount != nil {
+                sheet = nil
+                showSearch(for: text)
+            }
         }
         router.pendingRoute = nil
+    }
+
+    /// An expense opened from Siri, Shortcuts or Spotlight: its account is
+    /// selected (resetting the filters, as any switch does) and the expense
+    /// shows in Edit Expense, whatever period Home is on.
+    private func openExpense(_ id: UUID) {
+        guard let account = EntityCatalog.account(containingExpense: id, in: store.database) else { return }
+        store.selectAccount(account.id)
+        sheet = .editExpense(id)
+    }
+
+    /// An account opened from Siri, Shortcuts or Spotlight: selected, with
+    /// Home showing and nothing over it.
+    private func openAccount(_ id: UUID) {
+        guard store.account(id: id) != nil else { return }
+        store.selectAccount(id)
+        sheet = nil
+        endSearch()
+    }
+
+    /// Search opened with a term from Siri or Shortcuts. The results show
+    /// straight away, with the keyboard down so they can be seen; without a
+    /// term it opens as the search button does.
+    private func showSearch(for text: String) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            beginSearch()
+            return
+        }
+        searchFocused = false
+        withAnimation(.smooth(duration: 0.25)) {
+            isSearching = true
+            searchText = text
+        }
     }
 
     #if DEBUG
