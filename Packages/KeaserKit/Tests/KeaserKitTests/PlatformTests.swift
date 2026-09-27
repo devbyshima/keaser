@@ -305,6 +305,163 @@ struct SpendingSnapshotTests {
     }
 }
 
+struct SpendingBreakdownTests {
+    private let cal = calendar(firstWeekday: 2)
+    private let now = date(2026, 9, 23, 15, in: calendar(firstWeekday: 2))
+
+    /// Personal, with Pro, and the given expenses (category names map to the
+    /// account's default categories; nil is uncategorised).
+    private func database(_ expenses: [(String, String, String?, Date)], pro: Bool = true) -> Database {
+        var account = Account(name: "Personal")
+        account.expenses = expenses.map { title, amount, category, day in
+            Expense(
+                title: title,
+                amount: Decimal(string: amount)!,
+                categoryID: category.flatMap { name in account.categories.first { $0.name == name }?.id },
+                date: day,
+                createdAt: day
+            )
+        }
+        var prefs = Preferences(currencyCode: "USD", firstWeekday: .monday)
+        prefs.selectedAccountID = account.id
+        prefs.trialStartDate = pro ? now : now.addingTimeInterval(-86_400 * 30)
+        return Database(accounts: [account], preferences: prefs)
+    }
+
+    private func snapshot(_ db: Database, _ period: Period = .thisMonth) -> SpendingSnapshot {
+        SpendingSnapshot.make(database: db, accountID: nil, period: period, now: now, calendar: cal)
+    }
+
+    @Test func totalsEachCategoryForThePeriodLargestFirst() {
+        let db = database([
+            ("Coffee", "4.50", "Food & Drinks", date(2026, 9, 21, in: cal)),
+            ("Lunch", "12.25", "Food & Drinks", date(2026, 9, 22, in: cal)),
+            ("Shoes", "80", "Shopping", date(2026, 9, 2, in: cal)),
+            ("Taxi", "9", "Transportation", date(2026, 9, 23, in: cal)),
+            // Last month: not in This Month.
+            ("Flight", "300", "Travel", date(2026, 8, 30, in: cal)),
+        ])
+        let month = snapshot(db)
+        #expect(month.categories.map(\.name) == ["Shopping", "Food & Drinks", "Transportation"])
+        #expect(month.categories.map(\.amount) == [80, Decimal(string: "16.75")!, 9])
+        #expect(month.categories.map(\.symbol) == ["cart.fill", "fork.knife", "car.fill"])
+        #expect(month.categories.reduce(Decimal(0)) { $0 + $1.amount } == month.total)
+
+        let week = snapshot(db, .thisWeek)
+        #expect(week.categories.map(\.name) == ["Food & Drinks", "Transportation"])
+    }
+
+    @Test func uncategorizedAndDeletedCategoriesShareOneRow() {
+        var db = database([
+            ("Gift", "20", nil, date(2026, 9, 10, in: cal)),
+            ("Old", "5", "Health", date(2026, 9, 11, in: cal)),
+            ("Coffee", "4", "Food & Drinks", date(2026, 9, 12, in: cal)),
+        ])
+        // Health is deleted after its expense was logged.
+        db.accounts[0].categories.removeAll { $0.name == "Health" }
+        let rows = snapshot(db).categories
+        #expect(rows.map(\.name) == ["Uncategorized", "Food & Drinks"])
+        #expect(rows[0].kind == .uncategorized)
+        #expect(rows[0].amount == 25)
+        #expect(rows[0].symbol == ExpenseCategory.fallbackSymbol)
+    }
+
+    @Test func tiesKeepTheAccountsCategoryOrder() {
+        let db = database([
+            ("Taxi", "10", "Transportation", date(2026, 9, 3, in: cal)),
+            ("Gift", "10", nil, date(2026, 9, 4, in: cal)),
+            ("Shoes", "10", "Shopping", date(2026, 9, 5, in: cal)),
+        ])
+        #expect(snapshot(db).categories.map(\.name) == ["Shopping", "Transportation", "Uncategorized"])
+    }
+
+    @Test func extraCategoriesAreGroupedAsOther() {
+        let db = database([
+            ("A", "50", "Food & Drinks", date(2026, 9, 3, in: cal)),
+            ("B", "40", "Shopping", date(2026, 9, 3, in: cal)),
+            ("C", "30", "Travel", date(2026, 9, 3, in: cal)),
+            ("D", "20", "Services", date(2026, 9, 3, in: cal)),
+            ("E", "7.50", "Health", date(2026, 9, 3, in: cal)),
+            ("F", "2.50", nil, date(2026, 9, 3, in: cal)),
+        ])
+        let month = snapshot(db)
+        #expect(month.categories.count == 6)
+
+        // Room for all six: no Other.
+        #expect(month.categoryRows(maxRows: 6).map(\.name) == ["Food & Drinks", "Shopping", "Travel", "Services", "Health", "Uncategorized"])
+        #expect(month.categoryRows(maxRows: 9).count == 6)
+
+        // Room for four: three categories and Other with the remaining three.
+        let four = month.categoryRows(maxRows: 4)
+        #expect(four.map(\.name) == ["Food & Drinks", "Shopping", "Travel", "Other"])
+        #expect(four[3].kind == .other)
+        #expect(four[3].amount == 30)
+        #expect(four[3].symbol == SpendingSnapshot.CategoryTotal.otherSymbol)
+        #expect(four.reduce(Decimal(0)) { $0 + $1.amount } == month.total)
+
+        #expect(month.categoryRows(maxRows: 1).map(\.name) == ["Other"])
+        #expect(month.categoryRows(maxRows: 0).isEmpty)
+    }
+
+    @Test func sharesAreFractionsOfTheTotal() {
+        let db = database([
+            ("A", "75", "Food & Drinks", date(2026, 9, 3, in: cal)),
+            ("B", "25", "Shopping", date(2026, 9, 3, in: cal)),
+        ])
+        let month = snapshot(db)
+        #expect(month.share(of: 75) == 0.75)
+        #expect(month.share(of: 25) == 0.25)
+        #expect(month.share(of: 500) == 1)
+        let empty = snapshot(database([]))
+        #expect(empty.total == 0)
+        #expect(empty.share(of: 0) == 0)
+        #expect(empty.categories.isEmpty)
+        #expect(empty.emptyText == "No expenses this month.")
+    }
+
+    @Test func latestIsTheNewestExpensesOfThePeriod() {
+        var expenses: [(String, String, String?, Date)] = (1...8).map { day in
+            ("Day \(day)", "1", "Food & Drinks", date(2026, 9, day, in: cal))
+        }
+        expenses.append(("Last month", "1", nil, date(2026, 8, 31, in: cal)))
+        let month = snapshot(database(expenses))
+        #expect(month.latest.count == SpendingSnapshot.latestLimit)
+        #expect(month.latest.map(\.title) == ["Day 8", "Day 7", "Day 6", "Day 5", "Day 4", "Day 3"])
+        #expect(month.latest[0].symbol == "fork.knife")
+
+        let today = snapshot(database(expenses), .today)
+        #expect(today.latest.isEmpty)
+        #expect(today.emptyText == "No expenses today.")
+    }
+
+    @Test func aLockedSnapshotCarriesNoSpending() {
+        let db = database([("Coffee", "4", "Food & Drinks", date(2026, 9, 21, in: cal))], pro: false)
+        let locked = snapshot(db)
+        #expect(locked.state == .locked)
+        #expect(locked.total == 0)
+        #expect(locked.categories.isEmpty)
+        #expect(locked.latest.isEmpty)
+    }
+
+    @Test func theSampleAddsUp() {
+        let sample = SpendingSnapshot.sample()
+        #expect(sample.categories.reduce(Decimal(0)) { $0 + $1.amount } == sample.total)
+        #expect(!sample.latest.isEmpty)
+        #expect(sample.latest.count <= SpendingSnapshot.latestLimit)
+    }
+
+    @Test(arguments: [
+        (Period.today, "No expenses today."),
+        (.thisWeek, "No expenses this week."),
+        (.thisYear, "No expenses this year."),
+        (.allTime, "No expenses yet."),
+    ])
+    func emptyTexts(_ example: (period: Period, text: String)) {
+        let snapshot = SpendingSnapshot(state: .ready, period: example.period, accountName: nil, total: 0, currencyCode: "USD")
+        #expect(snapshot.emptyText == example.text)
+    }
+}
+
 struct HalfOpenSpendingTests {
     @Test func aMidnightExpenseCountsInOneDayOnly() {
         let cal = calendar(firstWeekday: 1)
