@@ -104,6 +104,7 @@ struct ExpenseEditorView: View {
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
+            .keaserReadableScrollContent()
         }
         // One detent, as in the reference: the keyboard lifts the sheet
         // instead of expanding it.

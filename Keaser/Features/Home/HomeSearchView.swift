@@ -56,6 +56,8 @@ struct HomeSearchView: View {
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.immediately)
+            .keaserSwipeActionsContainer()
+            .keaserReadableScrollContent()
             .transition(.opacity)
         }
     }
@@ -73,6 +75,7 @@ struct HomeSearchView: View {
         }
         .padding(.horizontal, isFocused.wrappedValue ? 8 : 28)
         .padding(.bottom, isFocused.wrappedValue ? 10 : 0)
+        .keaserReadableWidth()
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.3), value: isFocused.wrappedValue)
     }
 

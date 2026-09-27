@@ -34,6 +34,7 @@ struct PaywallView: View {
                 .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .keaserReadableScrollContent(width: KeaserMetrics.narrowReadableWidth)
             .keaserBottomBar { bottomBar }
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomSafeArea = $0 }
             .toolbar {
@@ -126,6 +127,7 @@ struct PaywallView: View {
     private var bottomBar: some View {
         panel
             .padding(.horizontal, KeaserMetrics.screenPadding)
+            .keaserReadableWidth(KeaserMetrics.narrowReadableWidth)
             // Reaches down past the safe area, to `panelGap` above the
             // screen's edge; the inset the scroll view sees still ends at
             // the panel's top.

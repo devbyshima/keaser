@@ -26,6 +26,7 @@ struct WelcomeLetterSheet: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .keaserReadableWidth()
             // The text stays fully opaque until it reaches the button, which
             // floats over it without a bar behind it, and shows faintly below
             // it. The mask only uses alpha, so its black is not a colour.
@@ -47,6 +48,7 @@ struct WelcomeLetterSheet: View {
             Button("Continue", action: next)
                 .buttonStyle(.keaserPrimary)
                 .padding(.horizontal, 28)
+                .keaserReadableWidth(KeaserMetrics.narrowReadableWidth)
         }
         .presentationDetents([.large])
         .keaserSheetChrome()

@@ -6,8 +6,11 @@ import WidgetKit
 /// Every Spending widget family at its real point size, drawn with the
 /// widget's own views, so screenshots can check them without adding widgets to
 /// a home screen. Opened with `-KeaserOnboardingPage widgetGallery` (demo data)
-/// or `widgetGalleryLocked` (the Pro-locked and no-account states);
-/// `-KeaserGalleryScroll bottom` starts at the end of the page.
+/// or `widgetGalleryLocked` (the Pro-locked and no-account states).
+/// `-KeaserGalleryScroll bottom` starts at the small and lock screen widgets,
+/// `large` at the large widgets and `extraLarge` at iOS 27's extra large
+/// portrait one. `-KeaserGalleryRendering accented` draws the home screen
+/// widgets as a tinted or clear home screen would.
 ///
 /// Home screen widgets follow the current appearance, as on a real home
 /// screen; lock screen widgets look the same in both, as the system draws
@@ -18,6 +21,10 @@ struct WidgetGallery: View {
     // iPhone 16 Pro sizes, and the home screen's side margin on it.
     private static let small = CGSize(width: 158, height: 158)
     private static let medium = CGSize(width: 338, height: 158)
+    private static let large = CGSize(width: 338, height: 354)
+    /// Four columns by six rows of the same grid: three rows of small
+    /// widgets and the two gaps between them (large is two rows and a gap).
+    private static let extraLargePortrait = CGSize(width: 338, height: 158 * 3 + (354 - 158 * 2) * 2)
     private static let rectangular = CGSize(width: 172, height: 76)
     private static let circular = CGSize(width: 72, height: 72)
     private static let inline = CGSize(width: 250, height: 26)
@@ -27,23 +34,58 @@ struct WidgetGallery: View {
     /// the reference widgets sit on, so the two compare side by side.
     private static let homeScreen = Color(light: Color(white: 239 / 255), dark: .black)
 
+    /// A stand-in for the tint a tinted home screen gives the accent group
+    /// (the total and the bars), in the accented preview.
+    private static let previewTint = Color(red: 0.62, green: 0.84, blue: 1)
+
     private let now = Date.now
+    private let scrollTarget = DebugLaunch.string("KeaserGalleryScroll").flatMap(Section.init(rawValue:))
+    private let isAccented = DebugLaunch.string("KeaserGalleryRendering") == "accented"
+
+    /// Places `-KeaserGalleryScroll` can start at.
+    private enum Section: String {
+        case bottom, large, extraLarge
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(showsLockedStates ? "Widgets: locked and empty" : "Widgets")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(Color.keaserPrimaryText)
-                if showsLockedStates { lockedStates } else { readyStates }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(title)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(isAccented ? Color.white : Color.keaserPrimaryText)
+                    if showsLockedStates { lockedStates } else { readyStates }
+                }
+                .padding(.horizontal, Self.margin)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, Self.margin)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
+            .scrollIndicators(.hidden)
+            .onAppear {
+                guard let scrollTarget else { return }
+                proxy.scrollTo(scrollTarget, anchor: scrollTarget == .bottom ? .bottom : .top)
+            }
         }
-        .scrollIndicators(.hidden)
-        .defaultScrollAnchor(DebugLaunch.string("KeaserGalleryScroll") == "bottom" ? .bottom : .top)
-        .background(Self.homeScreen.ignoresSafeArea())
+        .background(background.ignoresSafeArea())
+    }
+
+    private var title: String {
+        let base = showsLockedStates ? "Widgets: locked and empty" : "Widgets"
+        return isAccented ? "\(base), accented" : base
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        if isAccented {
+            // A wallpaper for the glass to sit on.
+            LinearGradient(
+                colors: [Color(red: 0.1, green: 0.16, blue: 0.3), Color(red: 0.26, green: 0.12, blue: 0.3), Color(red: 0.06, green: 0.06, blue: 0.12)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            Self.homeScreen
+        }
     }
 
     @ViewBuilder
@@ -67,6 +109,16 @@ struct WidgetGallery: View {
             circular: snapshot(demo, .thisMonth),
             inline: snapshot(demo, .thisMonth)
         )
+        .id(Section.bottom)
+        section("Large")
+            .id(Section.large)
+        home(snapshot(demo, .thisMonth), .systemLarge)
+        home(snapshot(demo, .today), .systemLarge)
+        if #available(iOS 27.0, *) {
+            section("Extra Large Portrait")
+                .id(Section.extraLarge)
+            home(snapshot(demo, .thisMonth), .systemExtraLargePortrait)
+        }
     }
 
     @ViewBuilder
@@ -83,6 +135,17 @@ struct WidgetGallery: View {
         lockScreen(rectangular: locked, circular: locked, inline: locked)
         section("Lock Screen, no account")
         lockScreen(rectangular: empty, circular: empty, inline: empty)
+            .id(Section.bottom)
+        section("Large, pass over")
+            .id(Section.large)
+        home(locked, .systemLarge)
+        section("Large, no account")
+        home(empty, .systemLarge)
+        if #available(iOS 27.0, *) {
+            section("Extra Large Portrait, pass over")
+                .id(Section.extraLarge)
+            home(locked, .systemExtraLargePortrait)
+        }
     }
 
     /// Demo data whose 7-day pass ended weeks ago.
@@ -99,13 +162,31 @@ struct WidgetGallery: View {
     private func section(_ title: String) -> some View {
         Text(title.uppercased())
             .font(.caption.weight(.semibold))
-            .foregroundStyle(Color.keaserSecondaryText)
+            .foregroundStyle(isAccented ? Color.white.opacity(0.6) : Color.keaserSecondaryText)
             .padding(.top, 4)
     }
 
+    @ViewBuilder
     private func home(_ snapshot: SpendingSnapshot, _ family: WidgetFamily) -> some View {
-        WidgetPreviewFrame(size: family == .systemMedium ? Self.medium : Self.small) {
-            SpendingWidgetView(snapshot: snapshot, family: family, inApp: true)
+        let size = size(of: family)
+        if isAccented {
+            AccentedPreviewFrame(size: size) {
+                SpendingWidgetView(snapshot: snapshot, family: family, inApp: true)
+            }
+            .environment(\.widgetRenderingMode, .accented)
+            .environment(\.widgetPreviewAccent, Self.previewTint)
+        } else {
+            WidgetPreviewFrame(size: size) {
+                SpendingWidgetView(snapshot: snapshot, family: family, inApp: true)
+            }
+        }
+    }
+
+    private func size(of family: WidgetFamily) -> CGSize {
+        switch family {
+        case .systemMedium: Self.medium
+        case .systemLarge: Self.large
+        default: family.isExtraLargePortrait ? Self.extraLargePortrait : Self.small
         }
     }
 
@@ -134,6 +215,27 @@ struct WidgetGallery: View {
             in: RoundedRectangle(cornerRadius: 24, style: .continuous)
         )
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// A home screen widget as a tinted or clear home screen draws it: the
+/// widget's own surface replaced by glass over the wallpaper, and its content
+/// white, with the accent group in the tint. An approximation for checking
+/// hierarchy; the system's own rendering is the reference.
+private struct AccentedPreviewFrame<Content: View>: View {
+    var size: CGSize
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous)
+        content
+            .foregroundStyle(.white)
+            .padding(16)
+            .frame(width: size.width, height: size.height)
+            .background(Color.white.opacity(0.06), in: shape)
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(shape.stroke(Color.white.opacity(0.18), lineWidth: 0.5))
+            .environment(\.colorScheme, .dark)
     }
 }
 #endif

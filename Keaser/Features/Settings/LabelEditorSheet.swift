@@ -96,6 +96,7 @@ struct LabelEditorSheet: View {
                     .animation(.snappy(duration: 0.2), value: isNameTaken)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                .keaserReadableScrollContent()
                 #if DEBUG
                 .task {
                     // `-KeaserSettingsScroll bottom` shows Reset to Default,

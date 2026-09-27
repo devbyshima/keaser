@@ -129,6 +129,7 @@ struct AccountsSheet: View {
         .environment(\.defaultMinListRowHeight, 0)
         .environment(\.editMode, $editMode)
         .contentMargins(.top, HomeSheetMetrics.contentTop, for: .scrollContent)
+        .keaserReadableScrollContent()
     }
 
     private func select(_ account: Account) {

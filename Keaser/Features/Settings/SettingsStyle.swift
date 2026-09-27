@@ -76,7 +76,7 @@ extension View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Color.settingsCanvas.ignoresSafeArea())
-            .contentMargins(.horizontal, KeaserMetrics.screenPadding, for: .scrollContent)
+            .keaserReadableScrollContent(base: KeaserMetrics.screenPadding)
             .contentMargins(.top, topMargin, for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
             // Card rows set their own heights (52, 68 or 74pt); this floor
@@ -292,15 +292,18 @@ extension View {
     }
 }
 
-/// iOS 26's own back button is already a round glass chevron. Earlier
-/// systems get the same look from a custom button; hiding the system one
-/// switches off swipe-to-go-back, so that is switched back on too.
+/// iOS 26's own back button is already a round glass chevron with no title.
+/// It keeps the default toolbar role: the editor role would also move the
+/// page title next to the back button (iOS 27 does that on iPhone), where
+/// the reference centres it. Earlier systems get the same look from a custom
+/// button; hiding the system one switches off swipe-to-go-back, so that is
+/// switched back on too.
 private struct SettingsBackButton: ViewModifier {
     @Environment(\.dismiss) private var dismiss
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.toolbarRole(.editor)
+            content
         } else {
             content
                 .navigationBarBackButtonHidden(true)

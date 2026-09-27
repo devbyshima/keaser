@@ -143,6 +143,8 @@ struct HomeView: View {
             .animation(.smooth(duration: 0.3), value: expenses.map(\.id))
         }
         .scrollIndicators(.hidden)
+        .keaserSwipeActionsContainer()
+        .keaserReadableScrollContent()
         .safeAreaInset(edge: .top, spacing: 0) {
             HomeTopBar(
                 accountName: account.name,
@@ -165,6 +167,7 @@ struct HomeView: View {
         .overlay(alignment: .bottomTrailing) {
             HomeAddButton { sheet = .newExpense }
                 .padding(.trailing, HomeLayout.addButtonTrailing)
+                .keaserReadableWidth(alignment: .trailing)
         }
     }
 

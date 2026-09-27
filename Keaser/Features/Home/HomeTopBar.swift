@@ -17,9 +17,11 @@ struct HomeTopBar<FilterMenu: View>: View {
                 Spacer(minLength: 0)
                 tools
             }
+            .keaserClearsWindowControls()
         }
         .frame(minHeight: HomeLayout.topBarHeight)
         .padding(.horizontal, KeaserMetrics.screenPadding)
+        .keaserReadableWidth()
         .background(alignment: .top) {
             // Content scrolling under the bar fades into the canvas instead
             // of clashing with the glass, like the system's scroll edge

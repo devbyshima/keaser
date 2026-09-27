@@ -33,6 +33,9 @@ extension Color {
     /// The close (xmark) glyph: grey and lighter in weight than the other
     /// header glyphs (back, add, confirm), as in the reference.
     static let keaserCloseGlyph = Color(light: .init(white: 0.45), dark: .init(white: 0.56))
+    /// Behind a row's non-destructive swipe action (Edit), whose label the
+    /// system draws white: a grey dark enough for that in both appearances.
+    static let keaserSwipeAction = Color(light: .init(white: 0.45), dark: .init(white: 0.32))
 
     /// A sheet's own background before iOS 26 (from iOS 26 the system draws
     /// glass). Charcoal in dark mode; grouped grey in light mode, so white
