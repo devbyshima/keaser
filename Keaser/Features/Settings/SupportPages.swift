@@ -21,95 +21,42 @@ struct TutorialsView: View {
     }
 }
 
-/// One guide: what it does, numbered steps, and a way into Shortcuts.
+/// One guide as an article: headline and intro, then its sections, and a
+/// way into the Shortcuts app at the end. The pieces are in
+/// TutorialArticle.swift, the drawings in TutorialIllustrations.swift.
 struct TutorialDetailView: View {
     let tutorial: Tutorial
 
-    @Environment(\.openURL) private var openURL
-
     var body: some View {
-        List {
-            Section {
-                VStack(spacing: 12) {
-                    SettingsSymbol(symbol: tutorial.symbol, size: 72, pointSize: 32)
-                        .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    Text(tutorial.title)
-                        .keaserFont(22, weight: .bold, relativeTo: .title2)
-                        .foregroundStyle(Color.keaserPrimaryText)
-                        .multilineTextAlignment(.center)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(tutorial.intro)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.keaserSecondaryText)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    TutorialHeader(tutorial: tutorial)
+                    ForEach(tutorial.sections) { section in
+                        TutorialSectionView(section: section)
+                            .id(section.id)
+                    }
+                    TutorialShortcutsButton()
+                        .padding(.top, 36)
+                        .id(Tutorials.endAnchor)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 12)
-                .plainListRow()
+                .padding(.horizontal, KeaserMetrics.screenPadding)
+                .padding(.top, 20)
+                .padding(.bottom, 40)
             }
-
-            Section {
-                ForEach(Array(tutorial.steps.enumerated()), id: \.offset) { index, step in
-                    StepRow(number: index + 1, step: step)
-                        .cardRow(CardPosition(index: index, count: tutorial.steps.count), insets: .settingsTextRow)
-                }
-            } footer: {
-                if let note = tutorial.note {
-                    SettingsFootnote(note)
-                }
-            }
-
-            Section {
-                Button {
-                    if let url = URL(string: "shortcuts://") { openURL(url) }
-                } label: {
-                    CompactRow(symbol: "square.stack.3d.up.fill", title: "Open Shortcuts", accessory: "arrow.up.right")
-                }
-                .cardRow(.single, insets: .settingsTextRow)
+            .background(Color.settingsCanvas.ignoresSafeArea())
+            .task {
+                #if DEBUG
+                // `-KeaserTutorialScroll <section id>`, an illustration's
+                // name, or `end` starts the article there, so a screenshot
+                // can show it.
+                guard let anchor = DebugLaunch.string("KeaserTutorialScroll") else { return }
+                try? await Task.sleep(for: .milliseconds(400))
+                proxy.scrollTo(anchor, anchor: .top)
+                #endif
             }
         }
-        .settingsListStyle(sectionSpacing: 24, topMargin: 24)
         .settingsPage(tutorial.title)
-    }
-}
-
-private struct StepRow: View {
-    let number: Int
-    let step: Tutorial.Step
-
-    /// The number's circle grows with the number inside it.
-    @ScaledMetric(relativeTo: .subheadline) private var badge: CGFloat = 28
-
-    init(number: Int, step: Tutorial.Step) {
-        self.number = number
-        self.step = step
-    }
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text("\(number)")
-                .keaserFont(15, weight: .semibold, design: .rounded, relativeTo: .subheadline)
-                .foregroundStyle(Color.keaserPrimaryText)
-                .frame(width: badge, height: badge)
-                .background(Circle().fill(Color.keaserInk.opacity(0.1)))
-                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(step.title)
-                    .keaserFont(17, weight: .semibold, relativeTo: .headline)
-                    .foregroundStyle(Color.keaserPrimaryText)
-                Text(step.detail)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-        }
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSeparatorTrailing()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Step \(number): \(step.title). \(step.detail)")
     }
 }
 
