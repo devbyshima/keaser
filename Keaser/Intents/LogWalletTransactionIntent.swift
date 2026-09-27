@@ -38,7 +38,12 @@ struct LogWalletTransactionIntent: AppIntent {
         guard let value = QuickLog.amount(from: amount, currencyCode: store.preferences.currencyCode) else {
             throw KeaserIntentError.invalidAmount
         }
-        let expense = QuickLog.walletExpense(merchant: merchant, amount: value, card: card, in: target)
+        // A new merchant gets Smart Suggestions' category, from the on-device
+        // model too when it answers in time.
+        let expense = await QuickLog.walletExpense(
+            merchant: merchant, amount: value, card: card, in: target,
+            suggestionsEnabled: store.preferences.smartSuggestionsEnabled, model: CategoryModels.current
+        )
         try await IntentSupport.save(expense, in: target, store: store)
         let card = IntentSupport.card(for: expense, in: target, store: store)
         return .result(dialog: IntentSupport.addedDialog, view: ExpenseCardView(card: card))

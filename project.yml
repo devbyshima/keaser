@@ -48,6 +48,9 @@ targets:
       - KeaserWidgets/Shared
     dependencies:
       - package: KeaserKit
+      # Apple Intelligence (Foundation Models, on device); the app only.
+      - package: KeaserKit
+        product: KeaserIntelligence
       - target: KeaserWidgets
     entitlements:
       path: Keaser/App/Keaser.entitlements

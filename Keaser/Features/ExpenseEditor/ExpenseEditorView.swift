@@ -30,6 +30,11 @@ struct ExpenseEditorView: View {
     /// A guessed payment method waiting to be shown a beat after the
     /// category. Save applies it if the user is faster than that.
     @State private var pendingPayment: PendingPayment?
+    /// The rule guess for a title nothing else knows, held back while the
+    /// on-device model is asked, so the labels change once. Save fills it in
+    /// rather than wait.
+    @State private var heldGuess: HeldGuess?
+    @State private var modelTask: Task<Void, Never>?
     @State private var date: Date
     @State private var confirmingDelete = false
     @State private var suggestionTaken = 0
@@ -40,6 +45,11 @@ struct ExpenseEditorView: View {
 
     private struct PendingPayment: Equatable {
         let methodID: UUID?
+        let title: String
+    }
+
+    private struct HeldGuess: Equatable {
+        let guess: SmartSuggester.LabelGuess
         let title: String
     }
 
@@ -120,6 +130,7 @@ struct ExpenseEditorView: View {
             if isNew, let typed = DebugLaunch.string("KeaserExpenseTitle") { title = typed }
             #endif
             focus = .title
+            prewarmCategoryModel()
             #if DEBUG
             // `-KeaserExpenseFocus amount` then moves on to the amount, as
             // Return does, to screenshot the guessed labels.
@@ -136,6 +147,7 @@ struct ExpenseEditorView: View {
             // category and payment method.
             if old == .title, new != .title { guessLabels() }
         }
+        .onDisappear { modelTask?.cancel() }
         .sensoryFeedback(.selection, trigger: suggestionTaken)
         .sensoryFeedback(.success, trigger: finished)
         .confirmationDialog("Delete Expense?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -310,11 +322,19 @@ struct ExpenseEditorView: View {
 
     /// Smart Suggestions' guess for a title no suggestion was taken for. It
     /// only fills in labels the user has not chosen themselves.
+    ///
+    /// For a title neither the history nor the word rules know, the
+    /// on-device model is asked first, for up to `SmartLabels.editorBudget`;
+    /// the guess then lands once, as it always has.
     private func guessLabels() {
-        guard store.preferences.smartSuggestionsEnabled, let account, !(categoryPicked && paymentPicked) else { return }
+        guard store.preferences.smartSuggestionsEnabled, finished == 0, let account, !(categoryPicked && paymentPicked) else { return }
         let normalized = ExpenseQuery.normalized(title)
+        if let heldGuess {
+            guard heldGuess.title != normalized else { return }
+            modelTask?.cancel()
+            self.heldGuess = nil
+        }
         guard normalized != guessedTitle else { return }
-        guessedTitle = normalized
         let guess = SmartSuggester.guessLabels(
             for: title,
             categories: account.categories,
@@ -322,6 +342,28 @@ struct ExpenseEditorView: View {
             history: account.expenses,
             excluding: original?.id
         )
+        let model = categoryPicked ? nil : CategoryModels.current
+        guard SmartLabels.wantsModel(model, for: title, in: account, excluding: original?.id) else {
+            return show(guess, for: normalized)
+        }
+        heldGuess = HeldGuess(guess: guess, title: normalized)
+        let typed = title
+        let excluded = original?.id
+        modelTask = Task {
+            let refined = await SmartLabels.guess(for: typed, in: account, excluding: excluded, model: model, budget: SmartLabels.editorBudget)
+            guard !Task.isCancelled, heldGuess?.title == normalized else { return }
+            heldGuess = nil
+            // Dropped if the title has changed since; moving on from it
+            // guesses again.
+            guard ExpenseQuery.normalized(title) == normalized else { return }
+            show(refined, for: normalized)
+        }
+    }
+
+    /// Shows a guess: the category now and the payment method a beat later,
+    /// never over a label the user chose.
+    private func show(_ guess: SmartSuggester.LabelGuess, for normalized: String) {
+        guessedTitle = normalized
         let fillsCategory = !categoryPicked && categoryID != guess.categoryID
         if fillsCategory {
             withAnimation(.snappy(duration: 0.25)) { categoryID = guess.categoryID }
@@ -346,8 +388,28 @@ struct ExpenseEditorView: View {
         withAnimation(.snappy(duration: 0.25)) { paymentMethodID = current.methodID }
     }
 
+    /// Loads the on-device model while the title is typed, when it may be
+    /// asked about it.
+    private func prewarmCategoryModel() {
+        guard store.preferences.smartSuggestionsEnabled, !categoryPicked, let account else { return }
+        SmartLabels.prewarm(CategoryModels.current, for: account)
+    }
+
+    /// Save never waits for the model: a guess still held back is filled in
+    /// as the history and word rules made it.
+    private func applyHeldGuess() {
+        modelTask?.cancel()
+        guard let held = heldGuess else { return }
+        heldGuess = nil
+        guard held.title == ExpenseQuery.normalized(title) else { return }
+        guessedTitle = held.title
+        if !categoryPicked { categoryID = held.guess.categoryID }
+        if !paymentPicked { paymentMethodID = held.guess.paymentMethodID }
+    }
+
     private func save() {
         guard canSave, let amount else { return }
+        applyHeldGuess()
         applyPendingPayment()
         var expense = original ?? Expense(title: "", amount: 0)
         expense.title = title
