@@ -57,6 +57,16 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.decimalSeparator(in: ["TOTAL RWF 6,300"]) == nil)
     }
 
+    @Test func joinsANumberTextRecognitionSplitAfterItsSeparator() {
+        // The simulator's Vision read a printed "6,300" as "6, 300".
+        #expect(ReceiptParser.amounts(in: "TOTAL RWF 6, 300").map(\.value) == [6300])
+        #expect(ReceiptParser.total(in: ["TOTAL RWF 6, 300", "CASH 10,000"]) == 6300)
+        #expect(ReceiptParser.amounts(in: "Total 1. 250,00 €").map(\.value) == [1250])
+        // A list is not a number.
+        #expect(ReceiptParser.amounts(in: "Tables 4, 12").map(\.value) == [4, 12])
+        #expect(ReceiptParser.amounts(in: "Items 2, 3").map(\.value) == [2, 3])
+    }
+
     @Test func leavesOutTimesDatesPhoneNumbersAndPercentages() {
         #expect(ReceiptParser.amounts(in: "09/21/2026 14:32").isEmpty)
         #expect(ReceiptParser.amounts(in: "Datum: 21.09.2026").isEmpty)

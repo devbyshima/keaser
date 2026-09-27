@@ -213,6 +213,9 @@ public enum ReceiptParser {
                     end += 1
                 } else if numberSeparators.contains(characters[end]), end + 1 < characters.count, characters[end + 1].isASCIIDigit {
                     end += 2
+                } else if let digits = spacedGroup(in: characters, at: end) {
+                    // Text recognition sometimes reads "6,300" as "6, 300".
+                    end += 2 + digits
                 } else {
                     break
                 }
@@ -234,7 +237,8 @@ public enum ReceiptParser {
         if let after, isHyphen(after), end + 1 < characters.count, characters[end + 1].isASCIIDigit { return nil }
         // Percentages ("10%", "10 %").
         if let next = nextNonSpace(characters, from: end), next == "%" { return nil }
-        guard let (value, fractionDigits) = number(String(characters[start..<end]), decimalSeparator: decimalSeparator) else { return nil }
+        let text = String(characters[start..<end].filter { $0 != " " })
+        guard let (value, fractionDigits) = number(text, decimalSeparator: decimalSeparator) else { return nil }
 
         let leading = mark(in: characters, before: start)
         let trailing = mark(in: characters, after: end)
@@ -308,6 +312,16 @@ public enum ReceiptParser {
     }
 
     private static let numberSeparators: Set<Character> = [".", ",", "'"]
+
+    /// The length of a group of three digits after a separator and a space,
+    /// where text recognition split "6,300"; nil when there is none at
+    /// `index`. Two digits ("4, 12") are more likely a list than a price.
+    private static func spacedGroup(in characters: [Character], at index: Int) -> Int? {
+        guard index + 3 < characters.count, characters[index] == "," || characters[index] == ".", characters[index + 1] == " " else { return nil }
+        var digits = 0
+        while index + 2 + digits < characters.count, characters[index + 2 + digits].isASCIIDigit { digits += 1 }
+        return digits == 3 ? digits : nil
+    }
 
     private static func isHyphen(_ character: Character) -> Bool {
         character == "-" || character == "\u{2212}" || character == "\u{2013}"
