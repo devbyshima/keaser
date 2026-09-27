@@ -92,6 +92,11 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserPaywallFeature` | a `ProFeature` raw value to highlight | settings |
 | `-KeaserPaywallPlans` | `all`: every plan showing (after "Show more plans") | settings |
 | `-KeaserSampleLinks` | `1` fills Help and Follow Us with sample links | settings |
+| `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, Edit Expense over Home) | intents |
+| `-KeaserOpenAccount` | an account index: the route `OpenAccountIntent` leaves (the account selected, Home with nothing over it) | intents |
+| `-KeaserOpenSearch` | search text: the route `SearchExpensesIntent` leaves (Search with the results, keyboard down) | intents |
+| `-KeaserSelectAccount` | an account index selected at launch, with a seed; `1` with seed `demo` starts on Business, to see an opened Personal expense switch back | intents |
+| `-KeaserSpotlight` | `index`: a seeded launch writes its data to Spotlight too (seeded launches normally never index) | intents |
 
 Seeded launches keep the database in memory and never touch the real file.
 
@@ -111,6 +116,39 @@ Seeded launches keep the database in memory and never touch the real file.
   `ShortcutFlow` (KeaserKit/Platform); the confirmation card's draft lives in
   `AddExpenseDrafts`, keyed by session.
 - Deep links: `keaser://new-expense`, `keaser://settings` (see `AppRouter`).
+  App Intents and Spotlight results use the routes `AppRouter.Route.expense(UUID)`
+  (select its account, Edit Expense), `.account(UUID)` (select it, Home) and
+  `.search(String)` (Search with the text); `HomeView.handle(_:)` follows them.
+- Siri, Spotlight and Shortcuts entities: `ExpenseEntity` (app only,
+  `Keaser/Intents/ExpenseEntity.swift`; an `IndexedEntity` whose
+  `ExpenseEntityQuery` resolves IDs in every account, matches titles and
+  suggests recent expenses), plus `AccountEntity`, `CategoryEntity` and
+  `PaymentMethodEntity` in `KeaserWidgets/Shared` (each with a Name property
+  and a string query; the Go Back sentinels are untouched). Only the app's
+  copy of `AccountEntity` is indexed (`Keaser/Intents/AccountIndexing.swift`).
+  Their lookups live in `EntityCatalog` (KeaserKit/Platform).
+- Open and search intents: `OpenExpenseIntent` ("Open Expense"),
+  `OpenAccountIntent` ("Open Account"), `SearchExpensesIntent` ("Search
+  Expenses") and, on iOS 27, the assistant-only `SearchInKeaserIntent`
+  (`.system.searchInApp`). There is no `.system.open` version: the schema is
+  iOS 27 only and a second OpenIntent for the same entity fails the build
+  ("OpenIntent targets should be unique"). All four require
+  `.requiresLocalDeviceAuthentication` (the search schema refuses anything
+  less); Add Expense and Log Wallet Transaction keep working while locked.
+  App Shortcut phrases may only interpolate AppEntity or AppEnum parameters,
+  so the search phrases carry no term.
+- Spotlight: `SpotlightIndexer` keeps the named index `SpotlightPlan.indexName`
+  in step with every `StoreChange` (on device, all expenses and accounts, no
+  setting). It remembers what it wrote in
+  `Application Support/Keaser/spotlight-index.json` and writes only the
+  difference; a new build or `SpotlightPlan.formatVersion` rebuilds the whole
+  index, so bump that whenever what `ExpenseEntity` indexes changes. Seeded
+  launches never index. Intents that save call `SpotlightIndexer.shared.flush()`
+  (through `IntentSupport.save`).
+- On-screen awareness: `.keaserEntity(expense:)` and `.keaserEntity(account:)`
+  (`Keaser/Intents/EntityAnnotations.swift`, iOS 18.4+, no visual change) on
+  Home and Search rows (`HomeExpenseRows`), Home's top bar and the expense
+  editor.
 - Pro features (`ProFeature`): Widgets, More Filters (category and payment
   filters), Multiple Accounts (more than one account), Long-term Insights
   (This Year and All Time periods). Gate on `ProStore.isPro` in the app and
@@ -128,6 +166,7 @@ Seeded launches keep the database in memory and never touch the real file.
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
+| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan}.swift` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
 (`Home`, `Settings`, `Platform`) with tests in
