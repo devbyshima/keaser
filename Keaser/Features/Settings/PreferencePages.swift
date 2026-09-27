@@ -1,4 +1,3 @@
-import AppIntents
 import KeaserKit
 import SwiftUI
 
@@ -76,20 +75,9 @@ struct SmartSuggestionsView: View {
     @Environment(KeaserStore.self) private var store
 
     var body: some View {
-        let isOn = Binding(
-            get: { store.preferences.smartSuggestionsEnabled },
-            set: { value in store.updatePreferences { $0.smartSuggestionsEnabled = value } }
-        )
         List {
             Section {
-                Toggle("Smart Suggestions", isOn: isOn)
-                    .font(.body)
-                    .foregroundStyle(Color.keaserPrimaryText)
-                    // The app's ink tint would turn the switch white on
-                    // white in dark mode; keep the system green.
-                    .tint(Color(uiColor: .systemGreen))
-                    .frame(minHeight: 52)
-                    .cardRow(.single, insets: .settingsTextRow)
+                SettingsToggle("Smart Suggestions", isOn: store.preferenceBinding(\.smartSuggestionsEnabled))
             } footer: {
                 SettingsFootnote("""
                 As you type a title in New Expense or Edit Expense, Keaser offers expenses you have logged before \
@@ -106,86 +94,72 @@ struct SmartSuggestionsView: View {
     }
 }
 
-/// How to reach Keaser's Add Expense action from outside the app.
+/// How the Add Expense shortcut behaves: three switches, each with what it
+/// does, as in the reference.
 struct ShortcutSettingsView: View {
+    @Environment(KeaserStore.self) private var store
+
     var body: some View {
         List {
             Section {
-                VStack(spacing: 14) {
-                    SettingsSymbol(symbol: "command", size: 72, pointSize: 32)
-                        .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    Text("Add Expense Shortcut")
-                        .keaserFont(22, weight: .bold, relativeTo: .title2)
-                        .foregroundStyle(Color.keaserPrimaryText)
-                        .multilineTextAlignment(.center)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("Keaser adds an \u{201C}\(Tutorials.addExpenseActionTitle)\u{201D} action to the Shortcuts app, so you can log a purchase without opening Keaser first.")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.keaserSecondaryText)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                    ShortcutsLink()
-                        .shortcutsLinkStyle(.automaticOutline)
-                        .padding(.top, 4)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
-                .plainListRow()
+                SettingsToggle("Confirm Expense Details", isOn: store.preferenceBinding(\.shortcutConfirmsDetails))
+            } footer: {
+                SettingsFootnote("""
+                When enabled, Keaser asks for confirmation before creating an expense from the shortcut. \
+                When disabled, the expense is created immediately without confirmation.
+                """)
             }
-
             Section {
-                SettingsSectionTitle("Run It From")
-                let places = ShortcutPlace.allCases
-                ForEach(Array(places.enumerated()), id: \.element) { index, place in
-                    InfoRow(symbol: place.symbol, title: place.title, detail: place.detail)
-                        .cardRow(CardPosition(index: index, count: places.count))
-                }
+                SettingsToggle("Enable Go Back Option", isOn: store.preferenceBinding(\.shortcutGoBackEnabled))
+            } footer: {
+                SettingsFootnote("""
+                Show a Go Back option while selecting account, category, or payment in shortcut so you can \
+                return to the previous step.
+                """)
             }
-
             Section {
-                NavigationLink(value: SettingsPage.tutorial(.addExpenseShortcut)) {
-                    SettingsRow(symbol: "book.pages", title: "Step-by-Step Tutorial")
-                }
-                .cardRow(.single)
+                SettingsToggle("Smart Suggestions", isOn: store.preferenceBinding(\.shortcutSmartSuggestionsEnabled))
+            } footer: {
+                SettingsFootnote("""
+                When enabled, Keaser intelligently suggests a category and payment method based on the expense \
+                title. Over time, Keaser learns from your past expenses, making suggestions more accurate and helpful.
+                """)
             }
         }
-        .settingsListStyle(sectionSpacing: 14, topMargin: 24)
+        // Each footnote sits 22pt above the next card, as in the reference.
+        .settingsListStyle(sectionSpacing: 17.5)
         .settingsPage("Shortcut")
     }
+}
 
-    private enum ShortcutPlace: CaseIterable {
-        case siri, actionButton, controlCenter, homeScreen, backTap
+/// A switch alone in a card, with the system green: the app's ink tint
+/// would turn it white on white in dark mode.
+struct SettingsToggle: View {
+    let title: String
+    @Binding var isOn: Bool
 
-        var symbol: String {
-            switch self {
-            case .siri: "mic.fill"
-            case .actionButton: "button.horizontal.top.press.fill"
-            case .controlCenter: "switch.2"
-            case .homeScreen: "apps.iphone"
-            case .backTap: "hand.tap.fill"
-            }
-        }
+    init(_ title: String, isOn: Binding<Bool>) {
+        self.title = title
+        _isOn = isOn
+    }
 
-        var title: String {
-            switch self {
-            case .siri: "Siri"
-            case .actionButton: "Action Button"
-            case .controlCenter: "Control Center"
-            case .homeScreen: "Home Screen"
-            case .backTap: "Back Tap"
-            }
-        }
+    var body: some View {
+        Toggle(title, isOn: $isOn)
+            .font(.body)
+            .foregroundStyle(Color.keaserPrimaryText)
+            .tint(Color(uiColor: .systemGreen))
+            .frame(minHeight: 52)
+            .cardRow(.single, insets: .settingsTextRow)
+    }
+}
 
-        var detail: String {
-            switch self {
-            case .siri: "Say the name of your shortcut."
-            case .actionButton: "Settings > Action Button > Shortcut."
-            case .controlCenter: "Add a Shortcut control and pick yours."
-            case .homeScreen: "Share the shortcut > Add to Home Screen."
-            case .backTap: "Settings > Accessibility > Touch > Back Tap."
-            }
-        }
+extension KeaserStore {
+    /// A switch's binding to one preference, saved as it changes.
+    func preferenceBinding(_ keyPath: WritableKeyPath<Preferences, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { self.preferences[keyPath: keyPath] },
+            set: { value in self.updatePreferences { $0[keyPath: keyPath] = value } }
+        )
     }
 }
 

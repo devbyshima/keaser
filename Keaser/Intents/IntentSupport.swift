@@ -49,7 +49,7 @@ enum IntentSupport {
     /// Throws when the expense did not reach the disk. It is taken back out
     /// of memory as well: kept there, a later save would write it anyway,
     /// and the person, told it failed, would add it a second time.
-    static func save(_ expense: Expense, in account: Account, store: KeaserStore) async throws -> String {
+    static func save(_ expense: Expense, in account: Account, store: KeaserStore) async throws {
         store.saveExpense(expense, in: account.id)
         if store.lastSaveError != nil {
             store.deleteExpense(expense.id, in: account.id)
@@ -58,6 +58,13 @@ enum IntentSupport {
         WidgetCenter.shared.reloadAllTimelines()
         WeeklySummaryScheduler.shared.attach(to: store)
         await WeeklySummaryScheduler.shared.refreshNow()
-        return QuickLog.confirmation(amount: expense.amount, currencyCode: store.preferences.currencyCode, accountName: account.name)
+    }
+
+    /// Above the card of an expense a shortcut or automation just added.
+    static let addedDialog: IntentDialog = "Successfully added expense"
+
+    /// The card for an expense as it was saved.
+    static func card(for expense: Expense, in account: Account, store: KeaserStore) -> ShortcutCard {
+        ShortcutCard(expense: expense, in: account, currencyCode: store.preferences.currencyCode)
     }
 }

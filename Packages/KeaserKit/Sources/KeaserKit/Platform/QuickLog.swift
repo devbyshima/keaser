@@ -15,7 +15,15 @@ public enum QuickLog {
               // becomes exactly 16.99 rather than 16.989999999999998.
               let decimal = Decimal(string: value.description, locale: Locale(identifier: "en_US_POSIX"))
         else { return nil }
-        let rounded = round(decimal, currencyCode: currencyCode)
+        return amount(fromDecimal: decimal, currencyCode: currencyCode)
+    }
+
+    /// The amount the shortcut asks for (a currency amount), rounded to the
+    /// currency's own number of fraction digits. Nil unless it is positive.
+    /// Keaser keeps a single currency, so the currency typed with the amount
+    /// is not converted.
+    public static func amount(fromDecimal value: Decimal, currencyCode: String) -> Decimal? {
+        let rounded = round(value, currencyCode: currencyCode)
         return rounded > 0 ? rounded : nil
     }
 
@@ -23,8 +31,7 @@ public enum QuickLog {
     /// positive number.
     public static func amount(from text: String, currencyCode: String, locale: Locale = .current) -> Decimal? {
         guard let parsed = MoneyFormat.parse(text, locale: locale) else { return nil }
-        let rounded = round(parsed, currencyCode: currencyCode)
-        return rounded > 0 ? rounded : nil
+        return amount(fromDecimal: parsed, currencyCode: currencyCode)
     }
 
     /// "Added $16.99 to Personal"

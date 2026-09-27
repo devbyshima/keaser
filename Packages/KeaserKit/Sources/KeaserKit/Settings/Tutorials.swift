@@ -48,15 +48,15 @@ public enum Tutorials {
         title: "Add Expense Shortcut",
         summary: "Make a Shortcut that logs an expense in a couple of taps, from anywhere on your iPhone.",
         symbol: "command",
-        intro: "Keaser gives the Shortcuts app an \(addExpenseActionTitle) action. Wrap it in a shortcut and you can log a purchase without opening Keaser first.",
+        intro: "Keaser gives the Shortcuts app an \(addExpenseActionTitle) action. Run it and Keaser asks what the expense is about, how much it was and where to file it, one question at a time, without opening the app.",
         steps: [
             .init("Open Shortcuts", "In the Shortcuts app, tap + to start a new shortcut, then tap Add Action."),
             .init("Add Keaser's action", "Search for Keaser and choose \(addExpenseActionTitle)."),
-            .init("Choose what it asks", "Leave the fields empty to be asked every time, or fill some in for something you log often, like your morning coffee."),
+            .init("Choose what it asks", "Leave the fields empty and Keaser asks for each in turn: the title, the amount, then the account, category and payment method. Fill some in for something you log often, like your morning coffee, and those are never asked."),
             .init("Name it", "Give the shortcut a short name you can say to Siri, then tap Done."),
-            .init("Keep it close", "Run it from Siri, the Action button, Control Center, a Home Screen icon or Back Tap (Settings > Accessibility > Touch > Back Tap)."),
+            .init("Keep it close", "Run it from Siri, the Action button, a Home Screen icon or Back Tap (Settings > Accessibility > Touch > Back Tap). Keaser's own \(addExpenseActionTitle) control asks the same questions from Control Center or the Lock Screen."),
         ],
-        note: "Anything a shortcut logs can be edited later in Keaser, like any other expense."
+        note: "Keaser shows the expense for you to check before saving it; Settings > Shortcut can turn that off. Anything a shortcut logs can be edited later in Keaser, like any other expense."
     )
 
     static let walletAutomation = Tutorial(
@@ -72,7 +72,7 @@ public enum Tutorials {
             .init("Run without asking", "Choose Run Immediately, then tap Next."),
             .init("Add Keaser's action", "Start a new blank shortcut, search for Keaser and add \(walletActionTitle)."),
             .init("Pass the details", "Tap each field of the action and choose from Shortcut Input: Merchant for Merchant, Amount for Amount and Card for Card."),
-            .init("Save", "Tap Done. Your next Apple Pay purchase with those cards will appear in Keaser on its own."),
+            .init("Save", "Tap Done. After your next Apple Pay purchase with those cards, Keaser adds the expense on its own and shows it on a Successfully added expense card."),
         ],
         note: "Wallet automations only run for Apple Pay payments made on this iPhone with the cards you selected."
     )

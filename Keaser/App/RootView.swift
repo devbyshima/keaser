@@ -49,6 +49,13 @@ struct RootView: View {
         .sheet(isPresented: welcomeLetterPresented) {
             WelcomeLetterSheet()
         }
+        #if DEBUG
+        .overlay {
+            if let kind = SnippetPreview.Kind(rawValue: DebugLaunch.snippet ?? "") {
+                SnippetPreview(kind: kind)
+            }
+        }
+        #endif
     }
 
     /// Said out loud whenever the store cannot reach its file, so a change is
