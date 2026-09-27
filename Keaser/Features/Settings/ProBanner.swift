@@ -4,6 +4,9 @@ import SwiftUI
 /// drifting stars, the pass status and an Upgrade button. At accessibility
 /// sizes the button moves under the text so neither is squeezed; the small
 /// seal shown after a purchase stays beside it.
+///
+/// The card is a night sky in both appearances, as in the reference, so it
+/// always draws with the dark palette: white text and a white Upgrade button.
 struct ProBanner: View {
     let subtitle: String
     let showsUpgrade: Bool
@@ -47,6 +50,7 @@ struct ProBanner: View {
         .background(StarfieldBackground())
         .clipShape(RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
         .accessibilityElement(children: .contain)
+        .environment(\.colorScheme, .dark)
     }
 }
 

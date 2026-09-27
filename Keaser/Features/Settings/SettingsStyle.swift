@@ -1,16 +1,25 @@
 import SwiftUI
 import UIKit
 
-// Shared look for every page inside the Settings sheet: rounded charcoal
-// cards on the sheet background, 68pt rows with a symbol, round glass header
-// buttons.
+// Shared look for every page inside the Settings sheet: rounded cards on the
+// sheet background (charcoal on charcoal in dark mode, white on grouped grey
+// in light mode), 68pt rows with a symbol, round glass header buttons.
 
-// The settings names predate the shared sheet tokens in Theme.swift and are
-// kept for the pages that use them.
 extension Color {
     static var settingsCard: Color { .keaserSheetCard }
-    static var settingsTile: Color { .keaserSheetTile }
-    static var settingsField: Color { .keaserSheetField }
+    /// The tile behind row symbols and the account monogram. Light mode
+    /// matches the reference's #EBEBEB on a white card, where the shared
+    /// sheet tile would barely show; dark mode is `keaserSheetTile`.
+    static let settingsTile = Color(light: .black.opacity(0.08), dark: .white.opacity(0.014))
+    /// The label editor's preview tile, name field, icon grid and buttons:
+    /// white cards on the grey sheet in light mode, as in the reference;
+    /// `keaserSheetField` in dark mode.
+    static let settingsField = Color(light: .white, dark: .white.opacity(0.03))
+    /// Behind every settings list: the grouped grey in light mode, so white
+    /// cards stand out even where the system draws the sheet white (iOS 26
+    /// at full height). Clear in dark mode, which keeps the sheet's own
+    /// background.
+    static let settingsCanvas = Color(light: .init(red: 242 / 255, green: 242 / 255, blue: 247 / 255), dark: .clear)
 }
 
 /// Where a row sits in its card, so its background rounds the right corners.
@@ -66,6 +75,7 @@ extension View {
         self
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
+            .background(Color.settingsCanvas.ignoresSafeArea())
             .contentMargins(.horizontal, KeaserMetrics.screenPadding, for: .scrollContent)
             .contentMargins(.top, topMargin, for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
@@ -118,7 +128,7 @@ struct SettingsSymbol: View {
         let scale = min(textScale, 1.5)
         Image(systemName: symbol)
             .font(.system(size: pointSize * scale, weight: .medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.keaserPrimaryText)
             .frame(width: size * scale, height: size * scale)
             .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: size * scale * 0.3, style: .continuous))
             .accessibilityHidden(true)

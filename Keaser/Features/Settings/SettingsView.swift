@@ -190,14 +190,14 @@ private struct AccountSummary: View {
             // fills it the same way.
             Text(account.initial)
                 .font(.system(size: 30 * scale, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: 70 * scale, height: 70 * scale)
                 .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(account.name)
                     .keaserFont(22, weight: .bold, relativeTo: .title2)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                     .lineLimit(isLarge ? 3 : 1)
                 Text("Account info, categories and payments")
                     .keaserFont(14, relativeTo: .subheadline)
@@ -212,23 +212,26 @@ private struct AccountSummary: View {
     }
 }
 
-/// Logo and version at the end of the page.
+/// Logo, then the name and version on two centred lines, at the end of the
+/// page.
 private struct SettingsFooter: View {
     var body: some View {
-        VStack(spacing: 10) {
-            KeaserLogo(size: 64)
-            VStack(spacing: 2) {
+        let version = AppVersion.current
+        VStack(spacing: 20) {
+            KeaserLogo(size: 68)
+            VStack(spacing: 0) {
                 Text("Keaser")
-                Text(AppVersion.current.display)
+                Text(version.short)
             }
-            .font(.subheadline)
+            .font(.body)
             .foregroundStyle(Color.keaserSecondaryText)
+            .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 36)
         .padding(.bottom, 24)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Keaser version \(AppVersion.current.display)")
+        .accessibilityLabel("Keaser version \(version.marketing)")
     }
 }
 

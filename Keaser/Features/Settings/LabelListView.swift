@@ -177,7 +177,7 @@ private struct LabelRow: View {
             SettingsSymbol(symbol: item.symbol, size: 44, pointSize: 21)
             Text(item.name)
                 .keaserFont(17, weight: .semibold, relativeTo: .headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 // At accessibility sizes a name of several words may wrap,
                 // but a single long word ("Transportation") shrinks rather
                 // than break in the middle.

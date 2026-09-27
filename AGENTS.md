@@ -66,11 +66,13 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserExpenseFocus` | `amount`: then moves on to Amount (shows the guessed category and payment) | home |
 | `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
-| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
-| `-KeaserSettingsScroll` | `bottom` | settings |
+| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
+| `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default) | settings |
+| `-KeaserSettingsAlert` | `rename`: the Rename Account alert, with `-KeaserSettingsPage account` | settings |
 | `-KeaserPro` | `purchased`, `expired`, `never` | settings |
 | `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |
 | `-KeaserPaywallFeature` | a `ProFeature` raw value to highlight | settings |
+| `-KeaserPaywallPlans` | `all`: every plan showing (after "Show more plans") | settings |
 | `-KeaserSampleLinks` | `1` fills Help and Follow Us with sample links | settings |
 
 Seeded launches keep the database in memory and never touch the real file.

@@ -21,9 +21,9 @@ struct WeeklySummaryView: View {
             Section {
                 Toggle("Weekly Summary", isOn: isOn)
                     .font(.body)
-                    .foregroundStyle(.white)
-                    // The app tints everything white, which would turn the
-                    // switch into white on white; keep the system green.
+                    .foregroundStyle(Color.keaserPrimaryText)
+                    // The app's ink tint would turn the switch white on
+                    // white in dark mode; keep the system green.
                     .tint(Color(uiColor: .systemGreen))
                     .frame(minHeight: 52)
                     .cardRow(showsDenied ? .first : .single, insets: .settingsTextRow)

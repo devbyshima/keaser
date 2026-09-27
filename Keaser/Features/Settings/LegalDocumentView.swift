@@ -86,13 +86,13 @@ private struct MarkdownBlockView: View {
         case .heading(let level, let text):
             Text(inline(text))
                 .keaserFont(level == 1 ? 28 : 19, weight: level == 1 ? .bold : .semibold, relativeTo: level == 1 ? .title : .title3)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .padding(.top, level == 1 ? 0 : 10)
                 .accessibilityAddTraits(.isHeader)
         case .paragraph(let text):
             Text(inline(text))
                 .font(.body)
-                .foregroundStyle(Color.white.opacity(0.82))
+                .foregroundStyle(Color.keaserPrimaryText.opacity(0.82))
                 .fixedSize(horizontal: false, vertical: true)
         case .bullets(let items):
             list(items) { _ in "\u{2022}" }
@@ -114,7 +114,7 @@ private struct MarkdownBlockView: View {
                         .foregroundStyle(Color.keaserSecondaryText)
                         .frame(minWidth: 14, alignment: .leading)
                     Text(inline(item))
-                        .foregroundStyle(Color.white.opacity(0.82))
+                        .foregroundStyle(Color.keaserPrimaryText.opacity(0.82))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.body)
