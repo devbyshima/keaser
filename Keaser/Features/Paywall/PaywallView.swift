@@ -4,6 +4,10 @@ import SwiftUI
 
 /// Keaser Pro upgrade sheet. Present it as a sheet from wherever a Pro feature
 /// is gated; it dismisses itself after a successful purchase or restore.
+///
+/// The features scroll under a panel pinned to the bottom that holds the
+/// plans. Lifetime is offered first; "Show more plans" adds the
+/// subscriptions above it.
 struct PaywallView: View {
     /// The feature that triggered the paywall, if any, so it can lead with it.
     var highlighting: ProFeature? = nil
@@ -11,14 +15,12 @@ struct PaywallView: View {
     @Environment(ProStore.self) private var pro
     @Environment(\.dismiss) private var dismiss
     @Environment(\.purchase) private var purchase
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var selectedPlan: ProProduct = .yearly
+    @State private var selectedPlan: ProProduct = .lifetime
+    @State private var showsAllPlans = PaywallView.startsWithAllPlans
     @State private var legalDocument: LegalDocument?
-    /// The legal links' text height: one footnote line, scaled.
-    @ScaledMetric(relativeTo: .footnote) private var linkTextHeight: CGFloat = UIFont.preferredFont(
-        forTextStyle: .footnote,
-        compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)
-    ).lineHeight
+    /// The home indicator's inset, so the panel can sit as low as the
+    /// reference's, inside the screen's rounded corners.
+    @State private var bottomSafeArea: CGFloat = 0
 
     var body: some View {
         NavigationStack {
@@ -26,23 +28,23 @@ struct PaywallView: View {
                 VStack(spacing: 0) {
                     header
                     features
-                        .padding(.top, 24)
-                    if pro.hasPurchased {
-                        thanks
-                            .padding(.top, 16)
-                    } else {
-                        plans
-                            .padding(.top, 16)
-                    }
+                        .padding(.top, 30)
                 }
-                .padding(.horizontal, KeaserMetrics.screenPadding)
-                .padding(.bottom, 16)
+                .padding(.top, 30)
+                .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .keaserBottomBar { footer }
+            .keaserBottomBar { bottomBar }
+            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomSafeArea = $0 }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HeaderIconButton("xmark", label: "Close") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !pro.hasPurchased {
+                        RestoreButton(isRestoring: pro.isRestoring, action: restore)
+                            .disabled(pro.isRestoring || pro.purchasingPlan != nil)
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -54,22 +56,38 @@ struct PaywallView: View {
             }
         }
         .onDisappear { pro.errorMessage = nil }
-        .keaserSheetChrome()
+        .modifier(PaywallSheetChrome())
     }
 
-    // MARK: Sections
+    // MARK: Header and features
 
     private var header: some View {
-        VStack(spacing: 6) {
-            KeaserLogo(size: 60)
-                .padding(.bottom, 6)
-            Text("Keaser Pro")
-                .keaserFont(28, weight: .bold, relativeTo: .title)
-                .foregroundStyle(.white)
-                .accessibilityAddTraits(.isHeader)
-            Text(ProStatusText.subtitle(trialDaysRemaining: pro.trialDaysRemaining, hasPurchased: pro.hasPurchased))
-                .font(.subheadline)
+        VStack(spacing: 0) {
+            KeaserLogo(size: 106)
+            HStack(spacing: 9) {
+                Text("Keaser")
+                    .keaserFont(34, weight: .bold, relativeTo: .largeTitle)
+                    .foregroundStyle(Color.keaserPrimaryText)
+                Text("PRO")
+                    .keaserFont(20, weight: .bold, relativeTo: .title3)
+                    .foregroundStyle(Color.keaserOnInk)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.keaserInk))
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.top, 35)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Keaser Pro")
+            .accessibilityAddTraits(.isHeader)
+            Text("Track your spending like a pro. No limits, more features.")
+                .font(.body)
                 .foregroundStyle(Color.keaserSecondaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+                .padding(.horizontal, 40)
         }
         .frame(maxWidth: .infinity)
     }
@@ -86,199 +104,234 @@ struct PaywallView: View {
     }
 
     private var features: some View {
-        let ordered = ProFeature.ordered(highlighting: highlighted)
-        return KeaserCard(fill: .keaserSheetCard) {
-            ForEach(Array(ordered.enumerated()), id: \.element) { index, feature in
-                FeatureRow(feature: feature, isHighlighted: feature == highlighted)
-                if index < ordered.count - 1 {
-                    // Under the text, past the 36pt tile.
-                    KeaserRowSeparator(leading: 64)
-                }
+        VStack(alignment: .leading, spacing: 19) {
+            ForEach(ProFeature.ordered(highlighting: highlighted)) { feature in
+                FeatureRow(symbol: feature.symbol, title: feature.title, detail: feature.detail, isHighlighted: feature == highlighted)
             }
+            FeatureRow(symbol: "heart.fill", title: "Support indie development", detail: "Help build more features.", tint: .keaserDestructive)
         }
+        .padding(.leading, 48)
+        .padding(.trailing, 40)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: Bottom panel
+
+    /// The gap the reference leaves between the panel and the bottom of the
+    /// screen.
+    private static let panelGap: CGFloat = 17
+    /// The band above the panel where content fades out (before iOS 26).
+    private static let panelFade: CGFloat = 24
+
+    private var bottomBar: some View {
+        panel
+            .padding(.horizontal, KeaserMetrics.screenPadding)
+            // Reaches down past the safe area, to `panelGap` above the
+            // screen's edge; the inset the scroll view sees still ends at
+            // the panel's top.
+            .padding(.bottom, Self.panelGap - bottomSafeArea)
+            .background(alignment: .top) {
+                if #available(iOS 26.0, *) {
+                    // keaserBottomBar gives the bar the system's scroll edge
+                    // effect.
+                    EmptyView()
+                } else {
+                    // Content fades out in a fixed band above the panel,
+                    // then the backdrop is opaque, so nothing shows through
+                    // the gaps beside and under it.
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [Color.keaserCard.opacity(0), Color.keaserCard], startPoint: .top, endPoint: .bottom)
+                            .frame(height: Self.panelFade)
+                        Color.keaserCard
+                    }
+                    .padding(.top, -Self.panelFade)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                }
+            }
+            .animation(.snappy(duration: 0.2), value: pro.errorMessage)
+            .animation(.snappy(duration: 0.2), value: pro.productsState)
+    }
+
+    private var panel: some View {
+        VStack(spacing: 0) {
+            if pro.hasPurchased {
+                purchased
+            } else {
+                plans
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 20)
+        .padding(.bottom, pro.hasPurchased ? 14 : 6)
+        .frame(maxWidth: .infinity)
+        .modifier(PaywallPanelBackground(bottomRadius: bottomSafeArea > 0 ? 44 : 34))
+        // The panel stays on screen whatever the text size, so it stops
+        // growing before it would crowd out the features.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    @ViewBuilder
     private var plans: some View {
-        // Side by side, or one above the other once the prices would no
-        // longer fit.
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 10))
-            : AnyLayout(HStackLayout(spacing: 10))
-        return layout {
-            ForEach(ProProduct.allCases) { kind in
-                PlanCard(
+        VStack(spacing: 12) {
+            ForEach(visiblePlans) { kind in
+                PlanRow(
                     kind: kind,
                     plan: pro.plan(kind),
-                    state: pro.productsState,
+                    subtitle: subtitle(for: kind),
+                    regularPrice: regularPrice(for: kind),
+                    isLoading: pro.productsState == .loading || pro.productsState == .idle,
                     isSelected: selectedPlan == kind
                 ) {
                     withAnimation(.snappy(duration: 0.2)) { selectedPlan = kind }
                 }
+                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
             }
         }
-        // Both cards as tall as the taller one.
-        .fixedSize(horizontal: false, vertical: true)
-    }
 
-    private var thanks: some View {
-        KeaserCard(fill: .keaserSheetCard) {
-            thanksContent
+        Button {
+            withAnimation(.snappy(duration: 0.3)) {
+                showsAllPlans.toggle()
+                // Only Lifetime stays on screen; never buy a plan that is
+                // no longer shown.
+                if !showsAllPlans { selectedPlan = .lifetime }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: showsAllPlans ? "chevron.down" : "chevron.up")
+                    .keaserFont(14, weight: .semibold, relativeTo: .callout)
+                Text(showsAllPlans ? "Show fewer plans" : "Show more plans")
+                    .font(.callout)
+            }
+            .foregroundStyle(Color.keaserSecondaryText)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
         }
-        .accessibilityElement(children: .combine)
-    }
+        .buttonStyle(.plain)
 
-    private var thanksContent: some View {
-        VStack(spacing: 8) {
-            // A badge in a fixed spot above the text, not text itself.
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 34))
-                .foregroundStyle(.white)
-                .accessibilityHidden(true)
-            Text("You have Keaser Pro")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Text("Every feature is unlocked. Thank you for supporting an independent app.")
-                .font(.subheadline)
-                .foregroundStyle(Color.keaserSecondaryText)
-                .multilineTextAlignment(.center)
+        status
+
+        Button(action: upgrade) {
+            if pro.purchasingPlan != nil {
+                ProgressView().tint(Color.keaserOnInk)
+            } else {
+                Text("Continue")
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(20)
+        .buttonStyle(.keaserPrimary)
+        .disabled(pro.plan(selectedPlan) == nil || pro.purchasingPlan != nil || pro.isRestoring)
+        .padding(.top, 8)
+
+        legalLinks
+            .padding(.top, 11)
     }
 
-    /// The band above the footer where content fades out (before iOS 26).
-    private static let footerFade: CGFloat = 24
-
-    /// How far the legal links' 44pt tap targets reach above and below their
-    /// text. The footer's spacing gives it back, so the text sits where the
-    /// design puts it.
-    private var linkSlop: CGFloat { max(0, (44 - linkTextHeight) / 2) }
-
-    private var footer: some View {
-        VStack(spacing: 12) {
-            if let message = pro.errorMessage {
-                Label(message, systemImage: "exclamationmark.circle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(Color.keaserDestructive)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .transition(.opacity)
-            } else if pro.productsState == .unavailable && !pro.hasPurchased {
-                HStack(spacing: 6) {
-                    Text("Prices could not be loaded.")
-                        .foregroundStyle(Color.keaserSecondaryText)
-                    Button("Try Again") {
-                        Task { await pro.loadProducts() }
-                    }
-                    .foregroundStyle(.white)
-                    .fontWeight(.semibold)
-                }
+    /// A purchase or restore problem, or a way to retry loading prices.
+    @ViewBuilder
+    private var status: some View {
+        if let message = pro.errorMessage {
+            Label(message, systemImage: "exclamationmark.circle.fill")
                 .font(.footnote)
+                .foregroundStyle(Color.keaserDestructive)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 4)
                 .transition(.opacity)
-            }
-            if pro.hasPurchased {
-                Button("Done") { dismiss() }
-                    .buttonStyle(.keaserPrimary)
-            } else {
-                Button {
-                    upgrade()
-                } label: {
-                    if pro.purchasingPlan != nil {
-                        ProgressView().tint(.black)
-                    } else {
-                        Text("Upgrade")
-                    }
+        } else if pro.productsState == .unavailable {
+            HStack(spacing: 6) {
+                Text("Prices could not be loaded.")
+                    .foregroundStyle(Color.keaserSecondaryText)
+                Button("Try Again") {
+                    Task { await pro.loadProducts() }
                 }
-                .buttonStyle(.keaserPrimary)
-                .disabled(pro.plan(selectedPlan) == nil || pro.purchasingPlan != nil || pro.isRestoring)
-
-                legalLinks
-                    .padding(.top, -linkSlop)
+                .foregroundStyle(Color.keaserPrimaryText)
+                .fontWeight(.semibold)
             }
+            .font(.footnote)
+            .padding(.bottom, 4)
+            .transition(.opacity)
         }
-        .padding(.horizontal, KeaserMetrics.screenPadding)
-        .padding(.top, 12)
-        .padding(.bottom, pro.hasPurchased ? 8 : 8 - linkSlop)
-        .background(alignment: .top) {
-            if #available(iOS 26.0, *) {
-                // keaserBottomBar gives the bar the system's scroll edge
-                // effect.
-                EmptyView()
-            } else {
-                // Content fades out in a fixed band above the footer, then
-                // the footer is opaque, so nothing scrolls behind its text
-                // however tall a large text size makes it.
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [Color.keaserCard.opacity(0), Color.keaserCard], startPoint: .top, endPoint: .bottom)
-                        .frame(height: Self.footerFade)
-                    Color.keaserCard
-                }
-                .padding(.top, -Self.footerFade)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-            }
-        }
-        .animation(.snappy(duration: 0.2), value: pro.errorMessage)
     }
 
-    /// Restore Purchases, Terms and Privacy on one line, or stacked when
-    /// they no longer fit.
+    private var purchased: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                // A badge in a fixed spot above the text, not text itself.
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(Color.keaserPrimaryText)
+                    .accessibilityHidden(true)
+                Text("You have Keaser Pro")
+                    .font(.headline)
+                    .foregroundStyle(Color.keaserPrimaryText)
+                Text("Every feature is unlocked. Thank you for supporting an independent app.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.keaserSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 12)
+            .accessibilityElement(children: .combine)
+            Button("Done") { dismiss() }
+                .buttonStyle(.keaserPrimary)
+        }
+    }
+
+    /// Terms and Privacy side by side, or stacked when they no longer fit.
     private var legalLinks: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 0) {
-                restoreLink
-                linkSeparator
+            HStack(spacing: 13) {
                 termsLink
-                linkSeparator
                 privacyLink
             }
             VStack(spacing: 0) {
-                restoreLink
-                HStack(spacing: 24) {
-                    termsLink
-                    privacyLink
-                }
-            }
-            VStack(spacing: 0) {
-                restoreLink
                 termsLink
                 privacyLink
             }
         }
-        .font(.footnote.weight(.medium))
-        .foregroundStyle(Color.keaserSecondaryText)
+        .font(.subheadline)
+        .foregroundStyle(Color.keaserSecondaryText.opacity(0.8))
         .buttonStyle(.plain)
     }
 
-    private var linkSeparator: some View {
-        Text("  \u{00B7}  ")
-            .foregroundStyle(Color.keaserTertiaryText)
-            .accessibilityHidden(true)
-    }
-
-    private var restoreLink: some View {
-        Button {
-            restore()
-        } label: {
-            Group {
-                if pro.isRestoring {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Text("Restore Purchases")
-                }
-            }
-            .legalLinkTarget()
-        }
-        .disabled(pro.isRestoring || pro.purchasingPlan != nil)
-    }
-
     private var termsLink: some View {
-        Button { legalDocument = .terms } label: { Text("Terms").legalLinkTarget() }
+        Button { legalDocument = .terms } label: { Text("Terms & Conditions").legalLinkTarget() }
     }
 
     private var privacyLink: some View {
-        Button { legalDocument = .privacy } label: { Text("Privacy").legalLinkTarget() }
+        Button { legalDocument = .privacy } label: { Text("Privacy Policy").legalLinkTarget() }
     }
+
+    // MARK: Plans
+
+    private var visiblePlans: [ProProduct] {
+        showsAllPlans ? ProProduct.allCases : [.lifetime]
+    }
+
+    private func subtitle(for kind: ProProduct) -> String? {
+        switch kind {
+        case .monthly:
+            return nil
+        case .yearly:
+            guard let monthly = pro.plan(.monthly), let yearly = pro.plan(.yearly) else { return nil }
+            return ProPricing.annualSubtitle(monthly: monthly.price, yearly: yearly.price)
+        case .lifetime:
+            return ProPricing.lifetimeSubtitle
+        }
+    }
+
+    private func regularPrice(for kind: ProProduct) -> String? {
+        guard kind == .lifetime, let plan = pro.plan(kind) else { return nil }
+        return ProPricing.regularLifetimePrice(for: plan.price).map(plan.formatted)
+    }
+
+    #if DEBUG
+    /// `-KeaserPaywallPlans all` opens with every plan showing, for
+    /// screenshots.
+    private static var startsWithAllPlans: Bool { DebugLaunch.string("KeaserPaywallPlans") == "all" }
+    #else
+    private static let startsWithAllPlans = false
+    #endif
 
     // MARK: Actions
 
@@ -296,94 +349,138 @@ struct PaywallView: View {
     }
 }
 
-/// One Pro feature; the one that opened the paywall gets a white tile.
+/// One line of the feature list: an icon, a title and a grey line under it.
+/// The feature that opened the paywall sits on a faint card.
 private struct FeatureRow: View {
-    let feature: ProFeature
-    let isHighlighted: Bool
+    let symbol: String
+    let title: String
+    let detail: String
+    var tint: Color = .keaserPrimaryText
+    var isHighlighted = false
+
+    @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 30
 
     var body: some View {
-        HStack(spacing: 14) {
-            // A glyph in a fixed tile, sized with the tile.
-            Image(systemName: feature.symbol)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(isHighlighted ? Color.black : Color.white)
-                .frame(width: 36, height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(isHighlighted ? Color.white : Color.white.opacity(0.08))
-                )
+        HStack(spacing: 21) {
+            Image(systemName: symbol)
+                .keaserFont(22, relativeTo: .body)
+                .foregroundStyle(tint)
+                .frame(width: iconWidth)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(feature.title)
-                    .keaserFont(16, weight: .semibold, relativeTo: .callout)
-                    .foregroundStyle(.white)
-                Text(feature.detail)
-                    .font(.footnote)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.keaserPrimaryText)
+                Text(detail)
+                    .font(.body)
                     .foregroundStyle(Color.keaserSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 0)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .background {
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.keaserInk.opacity(0.06))
+                    .padding(.horizontal, -14)
+                    .padding(.vertical, -9)
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }
 
-/// A selectable plan with its price, or a loading / unavailable state.
-private struct PlanCard: View {
+/// A selectable plan: a radio, its name and price, or a loading or
+/// unavailable state in place of the price.
+private struct PlanRow: View {
     let kind: ProProduct
     let plan: ProStore.Plan?
-    let state: ProStore.ProductsState
+    let subtitle: String?
+    let regularPrice: String?
+    let isLoading: Bool
     let isSelected: Bool
     let select: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    private static let shape = RoundedRectangle(cornerRadius: 30, style: .continuous)
+
     var body: some View {
         Button(action: select) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(kind.title)
-                        .keaserFont(15, weight: .semibold, relativeTo: .subheadline)
-                        .foregroundStyle(Color.keaserSecondaryText)
-                    Spacer(minLength: 4)
-                    // The selected trait says this; the radio is only drawn.
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(isSelected ? Color.white : Color.keaserTertiaryText)
-                        .accessibilityHidden(true)
+            HStack(spacing: 12) {
+                radio
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                    : AnyLayout(HStackLayout(spacing: 8))
+                layout {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(kind.title)
+                            .font(.headline)
+                            .foregroundStyle(Color.keaserPrimaryText)
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.keaserSecondaryText)
+                        }
+                    }
+                    if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    price
                 }
-                price
-                    .frame(minHeight: 26, alignment: .leading)
-                Text(kind.detail)
-                    .font(.caption)
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: KeaserMetrics.rowRadius, style: .continuous))
+            .padding(.leading, 16)
+            .padding(.trailing, 17)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+            .background(isSelected ? Color.paywallSelectedPlan : Color.paywallPlan, in: Self.shape)
             .overlay {
-                RoundedRectangle(cornerRadius: KeaserMetrics.rowRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(isSelected ? 0.9 : 0.06), lineWidth: isSelected ? 1.5 : 1)
+                Self.shape
+                    .strokeBorder(Color.keaserInk, lineWidth: 1.5)
+                    .opacity(isSelected ? 1 : 0)
             }
-            .contentShape(RoundedRectangle(cornerRadius: KeaserMetrics.rowRadius, style: .continuous))
+            .contentShape(Self.shape)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(spokenLabel)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var radio: some View {
+        Group {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color.keaserOnInk, Color.keaserInk)
+            } else {
+                Image(systemName: "circle")
+                    .foregroundStyle(Color.keaserMutedIcon)
+            }
+        }
+        .keaserFont(21, relativeTo: .headline)
     }
 
     @ViewBuilder
     private var price: some View {
         if let plan {
-            Text(plan.priceLabel)
-                .keaserFont(20, weight: .bold, relativeTo: .title3)
-                .foregroundStyle(.white)
-                .minimumScaleFactor(0.7)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-        } else if state == .loading || state == .idle {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if let regularPrice {
+                    Text(regularPrice)
+                        .font(.subheadline)
+                        .strikethrough()
+                        .foregroundStyle(Color.keaserSecondaryText)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(plan.displayPrice)
+                        .keaserFont(19, weight: .semibold, relativeTo: .headline)
+                        .foregroundStyle(Color.keaserPrimaryText)
+                    if let suffix = kind.priceSuffix {
+                        Text(suffix)
+                            .font(.body)
+                            .foregroundStyle(Color.keaserSecondaryText)
+                    }
+                }
+            }
+            .lineLimit(1)
+            .fixedSize()
+        } else if isLoading {
             ProgressView()
                 .controlSize(.small)
         } else {
@@ -392,6 +489,102 @@ private struct PlanCard: View {
                 .foregroundStyle(Color.keaserTertiaryText)
         }
     }
+
+    /// "Annual, 47% off monthly plan, $24.99 per year".
+    private var spokenLabel: String {
+        var parts = [kind.title]
+        if let subtitle { parts.append(subtitle) }
+        if let plan {
+            switch kind {
+            case .monthly: parts.append("\(plan.displayPrice) per month")
+            case .yearly: parts.append("\(plan.displayPrice) per year")
+            case .lifetime: parts.append(plan.displayPrice)
+            }
+            if let regularPrice { parts.append("regularly \(regularPrice)") }
+        } else {
+            parts.append(isLoading ? "Loading price" : "Unavailable")
+        }
+        return parts.joined(separator: ", ")
+    }
+}
+
+/// "Restore" in a glass capsule. iOS 26 toolbars draw the glass themselves.
+private struct RestoreButton: View {
+    let isRestoring: Bool
+    let action: () -> Void
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            Button(action: action) { label }
+        } else {
+            Button(action: action) {
+                // 44pt tall with the style's 8pt vertical padding.
+                label.frame(minHeight: 28)
+            }
+            .keaserGlassButtonStyle()
+        }
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        if isRestoring {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Restoring purchases")
+        } else {
+            Text("Restore")
+                .accessibilityLabel("Restore Purchases")
+        }
+    }
+}
+
+/// The plans' panel: Liquid Glass on iOS 26; before that an opaque look-alike,
+/// since the backdrop behind it is opaque too.
+private struct PaywallPanelBackground: ViewModifier {
+    let bottomRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: 34,
+            bottomLeadingRadius: bottomRadius,
+            bottomTrailingRadius: bottomRadius,
+            topTrailingRadius: 34,
+            style: .continuous
+        )
+        if #available(iOS 26.0, *) {
+            content.keaserGlass(in: shape)
+        } else {
+            content.background {
+                shape
+                    .fill(Color.paywallPanel)
+                    .overlay(shape.stroke(Color.keaserSeparator, lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.08), radius: 18, y: 4)
+            }
+        }
+    }
+}
+
+/// White in light mode like the reference, rather than the grouped grey of
+/// other sheets; the same charcoal as other sheets in dark mode.
+private struct PaywallSheetChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+        } else {
+            content
+                .presentationBackground(Color.keaserCard)
+                .presentationCornerRadius(32)
+        }
+    }
+}
+
+private extension Color {
+    /// The plans' panel before iOS 26, measured from the reference.
+    static let paywallPanel = Color(light: .init(white: 0.97), dark: .init(red: 47 / 255, green: 46 / 255, blue: 49 / 255))
+    /// A plan card that is not selected.
+    static let paywallPlan = Color(light: .black.opacity(0.03), dark: .white.opacity(0.06))
+    /// The selected plan card, under its ink outline.
+    static let paywallSelectedPlan = Color(light: .black.opacity(0.12), dark: .white.opacity(0.12))
 }
 
 private extension View {

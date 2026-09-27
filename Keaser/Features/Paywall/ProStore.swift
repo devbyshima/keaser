@@ -163,21 +163,39 @@ final class ProStore {
     /// One plan on the paywall. `product` is nil only for DEBUG sample prices.
     struct Plan: Identifiable {
         let kind: ProProduct
+        let price: Decimal
         let displayPrice: String
+        /// The storefront's currency format, for prices worked out here (the
+        /// struck-through lifetime price).
+        let priceFormat: Decimal.FormatStyle.Currency
         let product: Product?
 
         var id: ProProduct { kind }
 
-        /// "$14.99 / year" or "$29.99 once".
-        var priceLabel: String {
-            switch kind {
-            case .yearly: "\(displayPrice) / year"
-            case .lifetime: "\(displayPrice) once"
-            }
+        init(product: Product, kind: ProProduct) {
+            self.kind = kind
+            price = product.price
+            displayPrice = product.displayPrice
+            priceFormat = product.priceFormatStyle
+            self.product = product
+        }
+
+        #if DEBUG
+        init(sample kind: ProProduct, price: Decimal) {
+            self.kind = kind
+            self.price = price
+            priceFormat = Decimal.FormatStyle.Currency(code: "USD", locale: Locale(identifier: "en_US"))
+            displayPrice = price.formatted(priceFormat)
+            product = nil
+        }
+        #endif
+
+        func formatted(_ amount: Decimal) -> String {
+            amount.formatted(priceFormat)
         }
     }
 
-    /// Purchasable plans in `ProProduct` order (yearly, then lifetime).
+    /// Purchasable plans in `ProProduct` order (monthly, yearly, lifetime).
     private(set) var plans: [Plan] = []
     private(set) var productsState: ProductsState = .idle
     /// The plan being bought right now, if any.
@@ -218,7 +236,7 @@ final class ProStore {
         do {
             let products = try await Product.products(for: ProProduct.allCases.map(\.rawValue))
             plans = ProProduct.allCases.compactMap { kind in
-                products.first { $0.id == kind.rawValue }.map { Plan(kind: kind, displayPrice: $0.displayPrice, product: $0) }
+                products.first { $0.id == kind.rawValue }.map { Plan(product: $0, kind: kind) }
             }
             productsState = plans.isEmpty ? .unavailable : .loaded
         } catch {
@@ -245,7 +263,7 @@ final class ProStore {
             switch try await purchase(product) {
             case .success(let verification):
                 guard case .verified(let transaction) = verification else {
-                    errorMessage = "The App Store could not verify this purchase. Try Restore Purchases in a moment."
+                    errorMessage = "The App Store could not verify this purchase. Tap Restore in a moment."
                     return false
                 }
                 await transaction.finish()
@@ -395,8 +413,9 @@ final class ProStore {
             // The prices in Keaser.storekit; simctl launches cannot use the
             // StoreKit configuration, so the paywall would show no prices.
             plans = [
-                Plan(kind: .yearly, displayPrice: "$14.99", product: nil),
-                Plan(kind: .lifetime, displayPrice: "$29.99", product: nil),
+                Plan(sample: .monthly, price: Decimal(string: "3.99")!),
+                Plan(sample: .yearly, price: Decimal(string: "24.99")!),
+                Plan(sample: .lifetime, price: Decimal(string: "29.99")!),
             ]
             productsState = .loaded
             overridden = true

@@ -89,6 +89,28 @@ struct SettingsLabelTests {
         #expect(LabelKind.paymentMethod.choices == SymbolCatalog.paymentMethods)
     }
 
+    @Test func editorTitlesMatchTheReference() {
+        #expect(LabelKind.category.newTitle == "New Category")
+        #expect(LabelKind.category.editTitle == "Edit Category")
+        #expect(LabelKind.paymentMethod.newTitle == "New Payment")
+        #expect(LabelKind.paymentMethod.editTitle == "Edit Payment")
+    }
+
+    @Test func onlyBuiltInLabelsHaveADefaultIcon() {
+        #expect(LabelKind.category.defaultSymbol(forName: "food & drinks") == "fork.knife")
+        #expect(LabelKind.category.defaultSymbol(forName: "Cash") == nil)
+        #expect(LabelKind.paymentMethod.defaultSymbol(forName: "Cash") == "banknote.fill")
+        #expect(LabelKind.paymentMethod.defaultSymbol(forName: "Travel") == nil)
+        for category in ExpenseCategory.defaults() {
+            #expect(LabelKind.category.defaultSymbol(forName: category.name) == category.symbol)
+        }
+        for method in PaymentMethod.defaults() {
+            #expect(LabelKind.paymentMethod.defaultSymbol(forName: method.name) == method.symbol)
+        }
+        #expect(LabelKind.category.resetFootnote == "Reset to the default icon for this category.")
+        #expect(LabelKind.paymentMethod.resetFootnote == "Reset to the default icon for this payment method.")
+    }
+
     @Test func blankNamesFallBackToTheSuggestion() {
         #expect(LabelNaming.resolvedName(typed: "  Rent ", suggestion: "Home") == "Rent")
         #expect(LabelNaming.resolvedName(typed: "   ", suggestion: "Shopping") == "Shopping")
@@ -176,6 +198,7 @@ struct SettingsSupportTests {
     @Test func versionReadsTheInfoDictionary() {
         let version = AppVersion(infoDictionary: ["CFBundleShortVersionString": "1.0.0", "CFBundleVersion": "1"])
         #expect(version.display == "1.0.0 (1)")
+        #expect(version.short == "v1.0.0")
         #expect(AppVersion(infoDictionary: nil).display == "0 (0)")
     }
 
@@ -207,9 +230,48 @@ struct SettingsProTests {
     private let now = Date(timeIntervalSince1970: 1_790_000_000)
 
     @Test func productIDsMatchTheStoreKitConfiguration() {
+        #expect(ProProduct.monthly.rawValue == "com.fulltimestudio.keaser.pro.monthly")
         #expect(ProProduct.yearly.rawValue == "com.fulltimestudio.keaser.pro.yearly")
         #expect(ProProduct.lifetime.rawValue == "com.fulltimestudio.keaser.pro.lifetime")
         #expect(ProProduct.subscriptionGroupName == "Keaser Pro")
+        #expect(ProProduct.allCases == [.monthly, .yearly, .lifetime])
+    }
+
+    @Test func plansDescribeThemselvesLikeThePaywall() {
+        #expect(ProProduct.allCases.map(\.title) == ["Monthly", "Annual", "Lifetime"])
+        #expect(ProProduct.monthly.priceSuffix == "/ mo")
+        #expect(ProProduct.yearly.priceSuffix == "/ yr")
+        #expect(ProProduct.lifetime.priceSuffix == nil)
+    }
+
+    @Test func aMonthlySubscriptionGrantsProUntilItsEnd() {
+        let monthly = ProProduct.monthly.rawValue
+        let renews = now.addingTimeInterval(60)
+        #expect(ProProduct.grant(productID: monthly, revocationDate: nil, expirationDate: renews, now: now) == .until(renews))
+        #expect(ProProduct.grant(productID: monthly, revocationDate: nil, expirationDate: now.addingTimeInterval(-60), now: now) == .none)
+        #expect(ProProduct.grant(productID: monthly, revocationDate: now, expirationDate: renews, now: now) == .none)
+        let renewing = ProProduct.grant(productID: monthly, revocationDate: nil, expirationDate: renews, renewal: ProRenewal(willAutoRenew: true), now: now)
+        #expect(renewing == .until(renews.addingTimeInterval(ProProduct.renewalAllowance)))
+    }
+
+    @Test func annualSavingsRoundDownAgainstTwelveMonths() {
+        // 24.99 against 12 x 3.99 = 47.88 is a 47.8% saving.
+        #expect(ProPricing.annualSavingsPercent(monthly: Decimal(string: "3.99")!, yearly: Decimal(string: "24.99")!) == 47)
+        #expect(ProPricing.annualSubtitle(monthly: Decimal(string: "3.99")!, yearly: Decimal(string: "24.99")!) == "47% off monthly plan")
+        #expect(ProPricing.annualSavingsPercent(monthly: 10, yearly: 60) == 50)
+        #expect(ProPricing.annualSavingsPercent(monthly: 10, yearly: Decimal(string: "119.99")!) == nil)
+        #expect(ProPricing.annualSavingsPercent(monthly: 10, yearly: 120) == nil)
+        #expect(ProPricing.annualSavingsPercent(monthly: 10, yearly: 150) == nil)
+        #expect(ProPricing.annualSavingsPercent(monthly: 0, yearly: 20) == nil)
+        #expect(ProPricing.annualSubtitle(monthly: 10, yearly: 130) == nil)
+    }
+
+    @Test func theRegularLifetimePriceFollowsTheMultiplier() throws {
+        let multiplier = try #require(ProPricing.lifetimeRegularPriceMultiplier)
+        let lifetime = Decimal(string: "29.99")!
+        #expect(ProPricing.regularLifetimePrice(for: lifetime) == lifetime * multiplier)
+        #expect(ProPricing.regularLifetimePrice(for: 0) == nil)
+        #expect(ProPricing.lifetimeSubtitle == "Founding member price")
     }
 
     @Test func onlyLiveKeaserTransactionsGrantPro() {

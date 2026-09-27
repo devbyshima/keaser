@@ -15,10 +15,10 @@ Your data belongs to you and stays on your device, as described in the Privacy P
 ## Keaser Pro
 
 - New users get a 7-day Pro pass. It ends on its own and never turns into a paid plan.
-- After the pass, Keaser Pro is available as a yearly subscription or as a one-time lifetime purchase, through the App Store.
-- The yearly subscription renews automatically unless you cancel it at least 24 hours before the end of the current period. You can manage or cancel it in your Apple Account settings under Subscriptions.
+- After the pass, Keaser Pro is available as a monthly or annual subscription, or as a one-time lifetime purchase, through the App Store.
+- Subscriptions renew automatically unless you cancel at least 24 hours before the end of the current period. You can manage or cancel them in your Apple Account settings under Subscriptions.
 - Payment is charged to your Apple Account when you confirm the purchase. Refunds are handled by Apple under its policies.
-- Restore Purchases brings Pro back on any device signed in to the same Apple Account.
+- Restore, on the upgrade screen, brings Pro back on any device signed in to the same Apple Account.
 
 ## Fair use
 
