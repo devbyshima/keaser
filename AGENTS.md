@@ -20,6 +20,7 @@ The Xcode project is generated. After editing `project.yml`, run
     ./scripts/build.sh           # xcodegen + simulator build; prints errors only
     ./scripts/test.sh            # KeaserKit tests on the Mac
     ./scripts/screenshots.sh     # headless screenshots from scripts/shots/*.txt
+    ./scripts/intents-test.sh    # App Intents tests (AppIntentsTesting) on their own iOS 27 simulator
     ./scripts/screenshots.sh home   # one area only
     SIM="Keaser home" ./scripts/screenshots.sh home   # use your own simulator
 
@@ -184,6 +185,29 @@ Seeded launches keep the database in memory and never touch the real file.
   (`Keaser/Intents/EntityAnnotations.swift`, iOS 18.4+, no visual change) on
   Home and Search rows (`HomeExpenseRows`), Home's top bar and the expense
   editor.
+- App Intents tests: `KeaserIntentTests` (a UI-test bundle, iOS 27 only,
+  run by `./scripts/intents-test.sh` on the simulator "Keaser intents
+  test") performs every intent and entity query through the system with
+  AppIntentsTesting, including Spotlight searches and the entities views
+  say are on screen. It never imports the app: intents, entities, enum
+  cases and parameters are named as declared (`definitions.intents["AddExpenseIntent"]`,
+  `makeIntent(expenseTitle:)`, `"thisWeek"`), so renaming any of them must
+  be done in the tests too. Every test launches Keaser, then starts from
+  `IntentTestFixture` (Personal full of demo expenses and selected, Business
+  empty), written to the real file by `ResetTestDataIntent` (Debug builds
+  only, not discoverable). Tests read the screen through accessibility and
+  never tap.
+- Errors on iOS 27: `KeaserIntentError` and `IntentRefusal` adopt
+  `CustomAppIntentErrorConvertible`. No account yet is
+  `AppIntentError.UserActionRequired.accountSetup`; a deleted expense or
+  account, or a label the account lacks, is `Unrecoverable.entityNotFound`;
+  everything else (Pro, amounts, locked data) keeps its sentence only.
+- Donations: saving a new expense in New Expense donates Add Expense with
+  its title, amount, category, payment method and account, never its date
+  (`IntentDonations.addedInApp`, one call in `ExpenseEditorView.save()`).
+  Edits donate nothing.
+- The weekly summary notification names the account it reports
+  (`WeeklySummaryPlan.accountID`, `appEntityIdentifiers` on iOS 27).
 - Pro features (`ProFeature`): Widgets, More Filters (category and payment
   filters), Multiple Accounts (more than one account), Long-term Insights
   (This Year and All Time periods). Gate on `ProStore.isPro` in the app and
@@ -201,7 +225,7 @@ Seeded launches keep the database in memory and never touch the real file.
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
-| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion}.swift` |
+| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
 (`Home`, `Settings`, `Platform`) with tests in
