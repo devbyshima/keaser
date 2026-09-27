@@ -47,6 +47,8 @@ struct HomeExpenseRows: View {
                 )
                 .background(CardRowBackground(position: position, fill: .keaserCard))
             }
+            // Which expense the row is, for Siri (no visual change).
+            .keaserEntity(expense: expense.id)
             .buttonStyle(HomeRowButtonStyle(position: position))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: KeaserMetrics.rowRadius, style: .continuous))
             .contextMenu {

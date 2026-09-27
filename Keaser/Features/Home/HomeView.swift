@@ -161,6 +161,7 @@ struct HomeView: View {
                     onPaymentMethod: choosePaymentMethod
                 )
             }
+            .keaserEntity(account: account.id)
         }
         .overlay(alignment: .bottomTrailing) {
             HomeAddButton { sheet = .newExpense }
