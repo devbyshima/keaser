@@ -1,8 +1,9 @@
 import KeaserKit
 import SwiftUI
 
-/// New or Edit Category / Payment Method: a large preview of the chosen
-/// symbol, the name, and a grid of symbols to pick from.
+/// New or Edit Category / Payment: a large preview of the chosen symbol, the
+/// name, and a grid of symbols to pick from. A built-in label can go back to
+/// the icon it started with.
 struct LabelEditorSheet: View {
     let kind: LabelKind
     let accountID: UUID
@@ -54,34 +55,59 @@ struct LabelEditorSheet: View {
         symbol != nil && resolvedName != nil && !isNameTaken
     }
 
+    private static let resetID = "reset-to-default"
+
+    /// The icon a built-in label ("Food & Drinks", "Cash") started with; nil
+    /// for new labels and ones the user added.
+    private var defaultSymbol: String? {
+        existing.flatMap { kind.defaultSymbol(forName: $0.name) }
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    preview
-                        .padding(.top, 38)
-                    nameField
-                        .padding(.top, 32)
-                    if isNameTaken {
-                        Text("You already have a \(kind.singularTitle.lowercased()) with this name.")
-                            .font(.footnote)
-                            .foregroundStyle(Color.keaserSecondaryText)
-                            .padding(.top, 8)
-                            .transition(.opacity)
-                    }
-                    symbolGrid
-                        .padding(.top, 24)
-                    if existing != nil {
-                        deleteButton
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        preview
+                            .padding(.top, 38)
+                        nameField
+                            .padding(.top, 32)
+                        if isNameTaken {
+                            Text("You already have a \(kind.singularTitle.lowercased()) with this name.")
+                                .font(.footnote)
+                                .foregroundStyle(Color.keaserSecondaryText)
+                                .padding(.top, 8)
+                                .transition(.opacity)
+                        }
+                        symbolGrid
                             .padding(.top, 24)
+                        if let defaultSymbol {
+                            resetSection(to: defaultSymbol)
+                                .padding(.top, 35)
+                                .id(Self.resetID)
+                        }
+                        if existing != nil {
+                            deleteButton
+                                .padding(.top, 24)
+                        }
                     }
+                    .padding(.horizontal, KeaserMetrics.screenPadding)
+                    .padding(.bottom, 24)
+                    .animation(.snappy(duration: 0.2), value: isNameTaken)
                 }
-                .padding(.horizontal, KeaserMetrics.screenPadding)
-                .padding(.bottom, 24)
-                .animation(.snappy(duration: 0.2), value: isNameTaken)
+                .scrollDismissesKeyboard(.interactively)
+                #if DEBUG
+                .task {
+                    // `-KeaserSettingsScroll bottom` shows Reset to Default,
+                    // below a long icon grid, for screenshots.
+                    guard DebugLaunch.string("KeaserSettingsScroll") == "bottom" else { return }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    proxy.scrollTo(Self.resetID, anchor: .bottom)
+                }
+                #endif
             }
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(existing == nil ? "New \(kind.singularTitle)" : "Edit \(kind.singularTitle)")
+            .background(Color.settingsCanvas.ignoresSafeArea())
+            .navigationTitle(existing == nil ? kind.newTitle : kind.editTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -119,7 +145,7 @@ struct LabelEditorSheet: View {
     private var preview: some View {
         Image(systemName: symbol ?? "questionmark")
             .font(.system(size: 46, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.keaserPrimaryText)
             .contentTransition(.symbolEffect(.replace))
             .frame(width: 100, height: 100)
             .background(Color.settingsField, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -154,6 +180,30 @@ struct LabelEditorSheet: View {
         .background(Color.settingsField, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
     }
 
+    /// "Reset to Default" and what it does, as in the reference. Disabled
+    /// while the label already wears its default icon.
+    private func resetSection(to defaultSymbol: String) -> some View {
+        let isDefault = symbol == defaultSymbol
+        return VStack(alignment: .leading, spacing: 11) {
+            Button {
+                withAnimation(.snappy(duration: 0.25)) { symbol = defaultSymbol }
+            } label: {
+                Text("Reset to Default")
+                    .font(.body)
+                    .foregroundStyle(isDefault ? Color.keaserTertiaryText : Color.keaserPrimaryText)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(Color.settingsField, in: RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(isDefault)
+            .accessibilityHint(kind.resetFootnote)
+            SettingsFootnote(kind.resetFootnote)
+                .padding(.horizontal, 16)
+                .accessibilityHidden(true)
+        }
+    }
+
     private var deleteButton: some View {
         Button {
             confirmsDelete = true
@@ -186,13 +236,13 @@ private struct SymbolChoiceButton: View {
         Button(action: action) {
             Image(systemName: choice.symbol)
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: 50, height: 50)
-                .background(Circle().fill(Color.white.opacity(0.06)))
+                .background(Circle().fill(Color.keaserInk.opacity(0.06)))
                 .padding(5)
                 .overlay {
                     Circle()
-                        .strokeBorder(Color.white.opacity(isSelected ? 0.4 : 0), lineWidth: 3)
+                        .strokeBorder(Color.symbolChoiceRing.opacity(isSelected ? 1 : 0), lineWidth: 3)
                 }
                 .contentShape(Circle())
         }
@@ -202,9 +252,15 @@ private struct SymbolChoiceButton: View {
     }
 }
 
+private extension Color {
+    /// The ring around the chosen symbol: the reference's #BFBEC3 on white
+    /// in light mode; unchanged in dark mode.
+    static let symbolChoiceRing = Color(light: .black.opacity(0.25), dark: .white.opacity(0.4))
+}
+
 /// The round checkmark that confirms a sheet. On iOS 26 the system draws it
 /// as a prominent glass button; before that, the shared `KeaserConfirmButton`
-/// (white once there is something valid to save), as on New Account.
+/// (filled with ink once there is something valid to save), as on New Account.
 struct ConfirmIconButton: View {
     let isEnabled: Bool
     let action: () -> Void

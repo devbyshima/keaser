@@ -35,7 +35,7 @@ struct TutorialDetailView: View {
                         .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                     Text(tutorial.title)
                         .keaserFont(22, weight: .bold, relativeTo: .title2)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.keaserPrimaryText)
                         .multilineTextAlignment(.center)
                         .accessibilityAddTraits(.isHeader)
                     Text(tutorial.intro)
@@ -90,14 +90,14 @@ private struct StepRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
             Text("\(number)")
                 .keaserFont(15, weight: .semibold, design: .rounded, relativeTo: .subheadline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: badge, height: badge)
-                .background(Circle().fill(Color.white.opacity(0.1)))
+                .background(Circle().fill(Color.keaserInk.opacity(0.1)))
                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
             VStack(alignment: .leading, spacing: 3) {
                 Text(step.title)
                     .keaserFont(17, weight: .semibold, relativeTo: .headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                 Text(step.detail)
                     .font(.subheadline)
                     .foregroundStyle(Color.keaserSecondaryText)
@@ -124,7 +124,7 @@ struct WhatsNewView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(release.title)
                                 .font(.body)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.keaserPrimaryText)
                             Text(release.date)
                                 .font(.footnote)
                                 .foregroundStyle(Color.keaserSecondaryText)
@@ -153,14 +153,14 @@ struct ReleaseDetailView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(release.title)
                             .keaserFont(28, weight: .bold, relativeTo: .title)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.keaserPrimaryText)
                             .accessibilityAddTraits(.isHeader)
                         Text(release.date)
                             .font(.subheadline)
                             .foregroundStyle(Color.keaserSecondaryText)
                         Text(release.summary)
                             .font(.body)
-                            .foregroundStyle(.white.opacity(0.85))
+                            .foregroundStyle(Color.keaserPrimaryText.opacity(0.85))
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, 6)
                     }
@@ -175,7 +175,7 @@ struct ReleaseDetailView: View {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(highlight.title)
                                     .keaserFont(17, weight: .semibold, relativeTo: .headline)
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color.keaserPrimaryText)
                                 Text(highlight.detail)
                                     .font(.subheadline)
                                     .foregroundStyle(Color.keaserSecondaryText)
@@ -250,7 +250,7 @@ struct FollowUsView: View {
                         Text("Follow along for product updates and a first look at upcoming features.")
                     }
                     .font(.body)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 40)

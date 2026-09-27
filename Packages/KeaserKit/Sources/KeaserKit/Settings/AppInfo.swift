@@ -20,6 +20,9 @@ public struct AppVersion: Hashable, Sendable {
 
     /// "1.0.0 (1)".
     public var display: String { "\(marketing) (\(build))" }
+
+    /// "v1.0.0", as under the logo at the end of Settings.
+    public var short: String { "v\(marketing)" }
 }
 
 /// The "Support Email" row's message.

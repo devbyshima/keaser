@@ -22,6 +22,36 @@ public enum LabelKind: String, CaseIterable, Hashable, Sendable {
         }
     }
 
+    /// The editor's title for a new label: "New Category", "New Payment".
+    public var newTitle: String { "New \(editorNoun)" }
+
+    /// The editor's title for an existing label: "Edit Category", "Edit
+    /// Payment".
+    public var editTitle: String { "Edit \(editorNoun)" }
+
+    /// The reference names the payment editor "Payment", not "Payment
+    /// Method", which would crowd its header.
+    private var editorNoun: String {
+        switch self {
+        case .category: "Category"
+        case .paymentMethod: "Payment"
+        }
+    }
+
+    /// The icon a built-in label with this name starts with, for "Reset to
+    /// Default". Nil for a label the user added.
+    public func defaultSymbol(forName name: String) -> String? {
+        switch self {
+        case .category: ExpenseCategory.defaultSymbol(forName: name)
+        case .paymentMethod: PaymentMethod.defaultSymbol(forName: name)
+        }
+    }
+
+    /// The line under "Reset to Default".
+    public var resetFootnote: String {
+        "Reset to the default icon for this \(singularTitle.lowercased())."
+    }
+
     /// The symbols the editor offers, in grid order.
     public var choices: [SymbolChoice] {
         switch self {

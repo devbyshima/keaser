@@ -25,6 +25,16 @@ struct AccountSettingsView: View {
         }
         .settingsPage("Account Settings")
         .sensoryFeedback(.success, trigger: committedChanges)
+        #if DEBUG
+        // `-KeaserSettingsAlert rename` opens the rename alert, for
+        // screenshots.
+        .task {
+            guard DebugLaunch.string("KeaserSettingsAlert") == "rename", let account = store.account(id: accountID) else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            draftName = account.name
+            isRenaming = true
+        }
+        #endif
     }
 
     private func content(for account: Account) -> some View {
@@ -67,7 +77,7 @@ struct AccountSettingsView: View {
             }
         }
         .settingsListStyle()
-        .alert("Account Name", isPresented: $isRenaming) {
+        .alert("Rename Account", isPresented: $isRenaming) {
             TextField("Account Name", text: $draftName)
                 .textInputAutocapitalization(.words)
             Button("Cancel", role: .cancel) {}
@@ -75,9 +85,9 @@ struct AccountSettingsView: View {
                 store.renameAccount(account.id, to: draftName)
                 if store.account(id: account.id)?.name != account.name { committedChanges += 1 }
             }
-                .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } message: {
-            Text("Choose a new name for this account.")
+            Text("Choose a display name for this account.")
         }
         .confirmationDialog("Delete \u{201C}\(account.name)\u{201D}?", isPresented: $confirmsDelete, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {

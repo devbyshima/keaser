@@ -56,6 +56,7 @@ enum SettingsPage: Hashable {
         case "editCategory": return account.map { [.account($0), .labels(.category, accountID: $0, opening: .firstLabel)] } ?? []
         case "paymentMethods": return account.map { [.account($0), .labels(.paymentMethod, accountID: $0)] } ?? []
         case "newPaymentMethod": return account.map { [.account($0), .labels(.paymentMethod, accountID: $0, opening: .newLabel)] } ?? []
+        case "editPaymentMethod": return account.map { [.account($0), .labels(.paymentMethod, accountID: $0, opening: .firstLabel)] } ?? []
         case "currency": return [.currency]
         case "startWeek": return [.startWeek]
         case "smartSuggestions": return [.smartSuggestions]

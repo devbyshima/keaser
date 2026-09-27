@@ -84,9 +84,9 @@ struct SmartSuggestionsView: View {
             Section {
                 Toggle("Smart Suggestions", isOn: isOn)
                     .font(.body)
-                    .foregroundStyle(.white)
-                    // The app tints everything white, which would turn the
-                    // switch into white on white; keep the system green.
+                    .foregroundStyle(Color.keaserPrimaryText)
+                    // The app's ink tint would turn the switch white on
+                    // white in dark mode; keep the system green.
                     .tint(Color(uiColor: .systemGreen))
                     .frame(minHeight: 52)
                     .cardRow(.single, insets: .settingsTextRow)
@@ -116,7 +116,7 @@ struct ShortcutSettingsView: View {
                         .background(Color.settingsCard, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                     Text("Add Expense Shortcut")
                         .keaserFont(22, weight: .bold, relativeTo: .title2)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.keaserPrimaryText)
                         .multilineTextAlignment(.center)
                         .accessibilityAddTraits(.isHeader)
                     Text("Keaser adds an \u{201C}\(Tutorials.addExpenseActionTitle)\u{201D} action to the Shortcuts app, so you can log a purchase without opening Keaser first.")
@@ -198,14 +198,14 @@ struct CheckRow: View {
         HStack(spacing: 12) {
             Text(title)
                 .font(.body)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if isChecked {
                 Image(systemName: "checkmark")
                     .keaserFont(17, weight: .semibold, relativeTo: .body)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                     .accessibilityHidden(true)
             }
         }
@@ -229,7 +229,7 @@ struct InfoRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                 Text(detail)
                     .font(.footnote)
                     .foregroundStyle(Color.keaserSecondaryText)
@@ -267,7 +267,7 @@ struct CompactRow: View {
         HStack(spacing: 16) {
             Image(systemName: symbol)
                 .keaserFont(19, weight: .medium, relativeTo: .body)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: symbolWidth)
                 .accessibilityHidden(true)
             if dynamicTypeSize.isAccessibilitySize {
@@ -303,7 +303,7 @@ struct CompactRow: View {
     private var titleText: some View {
         Text(title)
             .font(.body)
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.keaserPrimaryText)
     }
 
     private func valueText(_ value: String) -> some View {

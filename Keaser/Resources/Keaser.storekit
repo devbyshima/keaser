@@ -33,7 +33,29 @@
         {
           "adHocOffers" : [ ],
           "codeOffers" : [ ],
-          "displayPrice" : "14.99",
+          "displayPrice" : "3.99",
+          "familyShareable" : true,
+          "groupNumber" : 2,
+          "internalID" : "6753400003",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Every Keaser Pro feature, renewed each month.",
+              "displayName" : "Keaser Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.fulltimestudio.keaser.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Keaser Pro Monthly",
+          "subscriptionGroupID" : "21753401",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [ ]
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "24.99",
           "familyShareable" : true,
           "groupNumber" : 1,
           "internalID" : "6753400001",

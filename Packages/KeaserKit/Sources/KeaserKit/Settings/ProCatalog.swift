@@ -1,27 +1,32 @@
 import Foundation
 
-/// The two ways to buy Keaser Pro. Raw values are the App Store product IDs,
-/// matching `Keaser/Resources/Keaser.storekit`.
+/// The ways to buy Keaser Pro, in paywall order. Raw values are the App Store
+/// product IDs, matching `Keaser/Resources/Keaser.storekit`.
 public enum ProProduct: String, CaseIterable, Identifiable, Sendable {
+    case monthly = "com.fulltimestudio.keaser.pro.monthly"
     case yearly = "com.fulltimestudio.keaser.pro.yearly"
     case lifetime = "com.fulltimestudio.keaser.pro.lifetime"
 
-    /// The auto-renewable subscription group `yearly` belongs to.
+    /// The auto-renewable subscription group `monthly` and `yearly` share,
+    /// so a subscriber can switch between them without paying twice.
     public static let subscriptionGroupName = "Keaser Pro"
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
-        case .yearly: "Yearly"
+        case .monthly: "Monthly"
+        case .yearly: "Annual"
         case .lifetime: "Lifetime"
         }
     }
 
-    public var detail: String {
+    /// Written after a subscription's price: "$3.99 / mo".
+    public var priceSuffix: String? {
         switch self {
-        case .yearly: "Renews every year. Cancel anytime."
-        case .lifetime: "Pay once, keep Pro for good."
+        case .monthly: "/ mo"
+        case .yearly: "/ yr"
+        case .lifetime: nil
         }
     }
 
@@ -126,10 +131,10 @@ extension ProFeature {
     /// One line for the paywall.
     public var detail: String {
         switch self {
-        case .widgets: "Spending on your Home and Lock Screen."
-        case .moreFilters: "Filter by category and payment method."
-        case .multipleAccounts: "Keep personal and work spending apart."
-        case .longTermInsights: "Totals and charts for years, not weeks."
+        case .widgets: "Quick access from your Home Screen."
+        case .moreFilters: "Filter by categories and payment methods."
+        case .multipleAccounts: "Remove the limit of one account."
+        case .longTermInsights: "View all data and trends from past years."
         }
     }
 
@@ -141,7 +146,45 @@ extension ProFeature {
     }
 }
 
-/// Wording for Pro status in the Settings banner and on the paywall.
+/// Price wording on the paywall, worked out from the App Store's prices so it
+/// stays true in every storefront and after a price change.
+public enum ProPricing {
+    /// The "regular" lifetime price shown struck through beside the real one,
+    /// as a multiple of the lifetime price (2 shows $59.98 beside $29.99).
+    /// Change it to adjust the comparison, or set it to nil to show the
+    /// lifetime price alone.
+    public static let lifetimeRegularPriceMultiplier: Decimal? = 2
+
+    /// Under Lifetime on the paywall.
+    public static let lifetimeSubtitle = "Founding member price"
+
+    /// The struck-through price for a lifetime price, or nil when
+    /// `lifetimeRegularPriceMultiplier` is off or would not be higher.
+    public static func regularLifetimePrice(for lifetime: Decimal) -> Decimal? {
+        guard let multiplier = lifetimeRegularPriceMultiplier, multiplier > 1, lifetime > 0 else { return nil }
+        return lifetime * multiplier
+    }
+
+    /// How much cheaper a year of the annual plan is than twelve months of
+    /// the monthly one, in whole percent rounded down (so it never
+    /// overstates the saving). Nil when it is not a saving.
+    public static func annualSavingsPercent(monthly: Decimal, yearly: Decimal) -> Int? {
+        guard monthly > 0, yearly > 0 else { return nil }
+        var fraction = (1 - yearly / (monthly * 12)) * 100
+        var percent = Decimal()
+        NSDecimalRound(&percent, &fraction, 0, .down)
+        let whole = NSDecimalNumber(decimal: percent).intValue
+        return whole > 0 ? whole : nil
+    }
+
+    /// "47% off monthly plan" under Annual, or nil when there is no saving
+    /// to show.
+    public static func annualSubtitle(monthly: Decimal, yearly: Decimal) -> String? {
+        annualSavingsPercent(monthly: monthly, yearly: yearly).map { "\($0)% off monthly plan" }
+    }
+}
+
+/// Wording for Pro status in the Settings banner.
 public enum ProStatusText {
     /// "7 days left in trial", "1 day left in trial", "Your Pro pass has
     /// ended", or "Unlock the full experience" before any pass.

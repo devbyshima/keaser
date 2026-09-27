@@ -5,11 +5,14 @@ root-bottom | -KeaserSeed single -KeaserSheet settings -KeaserSettingsScroll bot
 root-expired | -KeaserSeed single -KeaserSheet settings -KeaserPro expired
 root-purchased | -KeaserSeed single -KeaserSheet settings -KeaserPro purchased
 account | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage account
+account-rename | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage account -KeaserSettingsAlert rename
 categories | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage categories
 new-category | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage newCategory
 edit-category | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editCategory
+edit-category-reset | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editCategory -KeaserSettingsScroll bottom
 payment-methods | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage paymentMethods
 new-payment-method | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage newPaymentMethod
+edit-payment-method | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editPaymentMethod
 currency | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage currency
 start-week | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage startWeek
 smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions
@@ -26,6 +29,8 @@ follow-us | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage followU
 privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy
 terms | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage terms
 paywall | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample
+paywall-plans | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample -KeaserPaywallPlans all
+paywall-purchased | -KeaserSeed single -KeaserSheet paywall -KeaserPro purchased
 paywall-live | -KeaserSeed single -KeaserSheet paywall
 root-links | -KeaserSeed demo -KeaserSheet settings -KeaserSettingsScroll bottom -KeaserSampleLinks 1
 help-links | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage help -KeaserSampleLinks 1
