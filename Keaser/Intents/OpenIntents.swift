@@ -19,6 +19,9 @@ struct OpenExpenseIntent: OpenIntent {
     static var description: IntentDescription {
         IntentDescription("Opens an expense in Keaser, ready to edit.")
     }
+    /// Expenses are only shown on this iPhone, unlocked. (Siri's search
+    /// schema demands at least this, so every open and search intent has it.)
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     @Parameter(title: "Expense")
     var target: ExpenseEntity
@@ -42,6 +45,7 @@ struct OpenAccountIntent: OpenIntent {
     static var description: IntentDescription {
         IntentDescription("Switches Keaser to an account and shows its spending.")
     }
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     @Parameter(title: "Account")
     var target: AccountEntity

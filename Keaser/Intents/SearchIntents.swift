@@ -11,6 +11,9 @@ struct SearchExpensesIntent: ShowInAppSearchResultsIntent {
     }
 
     static let searchScopes: [StringSearchScope] = [.general]
+    /// Expenses are only shown on this iPhone, unlocked. (Siri's search
+    /// schema demands at least this, so every open and search intent has it.)
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     @Parameter(title: "Search Term", requestValueDialog: "What would you like to search for?")
     var criteria: StringSearchCriteria
@@ -31,6 +34,7 @@ struct SearchExpensesIntent: ShowInAppSearchResultsIntent {
 struct SearchInKeaserIntent: ShowInAppSearchResultsIntent {
     static let isAssistantOnly = true
     static let searchScopes: [StringSearchScope] = [.general]
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     var criteria: StringSearchCriteria
 
