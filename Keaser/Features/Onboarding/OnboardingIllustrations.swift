@@ -59,7 +59,7 @@ struct SampleExpensesIllustration: View {
     }
 }
 
-/// A black expense row with an icon tile, as in the reference's first page.
+/// An expense row with an icon tile, as in the reference's first page.
 private struct SampleExpenseRow: View {
     let title: String
     let amount: String
@@ -76,7 +76,7 @@ private struct SampleExpenseRow: View {
                 .font(.system(size: 19, weight: .semibold))
                 .monospacedDigit()
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Color.keaserPrimaryText)
         .padding(.leading, 12)
         .padding(.trailing, 21)
         .frame(height: 70)
@@ -117,26 +117,26 @@ private struct ShortcutPrompt: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Amount")
                 .font(.system(size: 18))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .padding(.leading, 1)
             Text("16.99")
                 .font(.system(size: 37, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.keaserPrimaryText)
                 .frame(maxWidth: .infinity)
                 .frame(height: 73)
-                .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(OnboardingPalette.promptField, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .padding(.top, 11)
             HStack(spacing: 8) {
                 Text("Cancel")
                     .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.keaserPrimaryText)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .background(OnboardingPalette.promptCancel, in: Capsule())
                 Text("Done")
                     .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Color.keaserOnInk)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.white, in: Capsule())
+                    .background(Color.keaserInk, in: Capsule())
             }
             .frame(height: 50)
             .padding(.top, 12)
@@ -186,9 +186,9 @@ struct WidgetsIllustration: View {
                 .background(WidgetPalette.background, in: RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous)
-                        .strokeBorder(LinearGradient(colors: [.white.opacity(0.1), .clear], startPoint: .top, endPoint: .center), lineWidth: 1)
+                        .strokeBorder(LinearGradient(colors: [OnboardingPalette.widgetHighlight, .clear], startPoint: .top, endPoint: .center), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.35), radius: 1.5)
+                .shadow(color: OnboardingPalette.widgetShadow, radius: 1.5)
                 .offset(x: x, y: 20)
             }
         }
@@ -272,7 +272,7 @@ private struct ProFeaturePill: View {
                 .offset(x: 73 + (Self.width - 73) / 2 - width / 2)
                 .opacity(unfolded ? 1 : 0)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Color.keaserPrimaryText)
         .frame(width: width, height: unfolded ? 66 : 67)
         .onboardingPill(cornerRadius: unfolded ? 24 : 28)
     }
@@ -305,12 +305,12 @@ struct NotificationsIllustration: View {
                 .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             } else {
                 Circle()
-                    .fill(Color.white.opacity(0.21))
+                    .fill(OnboardingPalette.answerCircle)
                     .frame(width: 120, height: 120)
                     .overlay(
                         Image(systemName: step == .granted ? "checkmark" : "bell.slash.fill")
                             .font(.system(size: step == .granted ? 60 : 46, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.keaserPrimaryText)
                     )
                     .offset(y: 14)
                     .transition(reduceMotion ? .opacity : AnyTransition(.scale(0.6).combined(with: .opacity).combined(with: .blurReplace)))
@@ -335,7 +335,7 @@ private struct NotificationBanner: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(WeeklySummary.title)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.keaserPrimaryText)
                     Spacer(minLength: 8)
                     Text("now")
                         .font(.system(size: 13))
@@ -390,25 +390,25 @@ private struct LockScreenClock: View {
 
 private extension View {
     /// System glass for the drawn Shortcuts prompt and notification. Before
-    /// iOS 26 the material stand-in is darker than the glass these mimic, so
-    /// it gets a faint lift.
+    /// iOS 26 the material stand-in is duller than the glass these mimic, so
+    /// it gets a lift.
     @ViewBuilder
     func illustrationGlass(in shape: some Shape) -> some View {
         if #available(iOS 26.0, *) {
             keaserGlass(in: shape)
         } else {
-            background(Color.white.opacity(0.055), in: shape).keaserGlass(in: shape)
+            background(OnboardingPalette.glassLift, in: shape).keaserGlass(in: shape)
         }
     }
 
-    /// The black pill of the sample rows and Pro features, with the faint
-    /// lower rim the reference gives them.
+    /// The pill of the sample rows and Pro features, with the faint lower rim
+    /// the reference gives them.
     func onboardingPill(cornerRadius: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        return background(Color.black, in: shape)
+        return background(OnboardingPalette.pill, in: shape)
             .overlay(
                 shape.strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.03), .white.opacity(0.12)], startPoint: .top, endPoint: .bottom),
+                    LinearGradient(colors: [OnboardingPalette.pillRimTop, OnboardingPalette.pillRimBottom], startPoint: .top, endPoint: .bottom),
                     lineWidth: 1
                 )
             )

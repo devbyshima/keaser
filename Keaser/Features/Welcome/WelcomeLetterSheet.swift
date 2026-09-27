@@ -26,8 +26,9 @@ struct WelcomeLetterSheet: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // The text stays white until it reaches the button, which floats
-            // over it without a bar behind it, and shows faintly below it.
+            // The text stays fully opaque until it reaches the button, which
+            // floats over it without a bar behind it, and shows faintly below
+            // it. The mask only uses alpha, so its black is not a colour.
             .mask {
                 ZStack {
                     Color.black.opacity(0.2).ignoresSafeArea(edges: .bottom)
@@ -262,6 +263,8 @@ private struct FollowLinkRow: View {
     }
 
     // The glyphs are sized from the tile they sit in, not from the text.
+    // White on black in both appearances, like the brand marks in the
+    // reference's light and dark Follow Us rows.
     private var icon: some View {
         Image(systemName: link.symbol)
             .font(.system(size: tile * 13 / 24, weight: .semibold))

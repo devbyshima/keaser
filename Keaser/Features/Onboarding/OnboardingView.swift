@@ -275,7 +275,7 @@ extension OnboardingPage where Accessory == EmptyView {
     }
 }
 
-/// One dot per page; the current page is a wider white capsule.
+/// One dot per page; the current page is a wider ink capsule.
 private struct OnboardingPageIndicator: View {
     let count: Int
     let current: Int
@@ -285,7 +285,7 @@ private struct OnboardingPageIndicator: View {
         HStack(spacing: 6) {
             ForEach(0..<count, id: \.self) { index in
                 Capsule()
-                    .fill(index == current ? Color.white : Color.white.opacity(0.36))
+                    .fill(index == current ? Color.keaserInk : OnboardingPalette.inactiveDot)
                     .frame(width: index == current ? 24 : 6, height: 6)
             }
         }
@@ -328,16 +328,53 @@ enum OnboardingMetrics {
     }
 }
 
-/// Shades used only by the onboarding illustrations, measured from the
-/// reference. The page itself is a lifted black, not the app's pure black.
+/// Shades used only by onboarding. The dark values are measured from the
+/// reference; it never shows onboarding in light mode, so the light values
+/// follow the app's light palette (pale grey page, white cards, black ink).
 enum OnboardingPalette {
-    static let background = Color(white: 25 / 255)
-    /// The lock screen and home screen panels.
-    static let panel = Color(red: 38 / 255, green: 37 / 255, blue: 40 / 255)
+    /// The page: a lifted black in dark mode (not the app's pure black), the
+    /// app's pale grey canvas in light mode.
+    static let background = Color(light: .init(white: 245 / 255), dark: .init(white: 25 / 255))
+    /// Page dots other than the current one.
+    static let inactiveDot = Color(light: .black.opacity(0.25), dark: .white.opacity(0.36))
+
+    /// The lock screen and home screen panels. In light mode a step darker
+    /// than the page, like a light wallpaper, so the white widget and the
+    /// light glass on it keep an edge.
+    static let panel = Color(
+        light: .init(red: 226 / 255, green: 225 / 255, blue: 230 / 255),
+        dark: .init(red: 38 / 255, green: 37 / 255, blue: 40 / 255)
+    )
     /// The "9:41" on those panels.
-    static let clock = Color(red: 149 / 255, green: 148 / 255, blue: 156 / 255)
+    static let clock = Color(
+        light: .init(red: 108 / 255, green: 107 / 255, blue: 115 / 255),
+        dark: .init(red: 149 / 255, green: 148 / 255, blue: 156 / 255)
+    )
+
+    /// The sample expense rows and Pro pills: black pills sunk into the
+    /// lifted page in dark mode, white cards on the grey page in light mode
+    /// (as Home draws its rows).
+    static let pill = Color(light: .white, dark: .black)
+    /// The pills' faint rim, strongest along the bottom edge.
+    static let pillRimTop = Color(light: .black.opacity(0.03), dark: .white.opacity(0.03))
+    static let pillRimBottom = Color(light: .black.opacity(0.08), dark: .white.opacity(0.12))
     /// Icon tiles on the sample expense rows.
-    static let tile = Color(white: 0.2)
+    static let tile = Color(light: .init(white: 238 / 255), dark: .init(white: 0.2))
+
+    /// The amount field and Cancel button on the drawn Shortcuts prompt.
+    static let promptField = Color(light: .black.opacity(0.05), dark: .white.opacity(0.05))
+    static let promptCancel = Color(light: .black.opacity(0.07), dark: .white.opacity(0.07))
+    /// Before iOS 26 the material stand-in for glass is duller than the glass
+    /// it mimics, so the prompt and notification get this lift beneath it.
+    static let glassLift = Color(light: .white.opacity(0.45), dark: .white.opacity(0.055))
+
+    /// The top highlight and shadow that set the widget off its panel. Light
+    /// widgets need no highlight; the panel is darker than they are.
+    static let widgetHighlight = Color(light: .clear, dark: .white.opacity(0.1))
+    static let widgetShadow = Color(light: .black.opacity(0.12), dark: .black.opacity(0.35))
+
+    /// The circle behind the check (or bell) once notifications are answered.
+    static let answerCircle = Color(light: .black.opacity(0.07), dark: .white.opacity(0.21))
 }
 
 // MARK: - Launch arguments
