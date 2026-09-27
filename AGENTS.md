@@ -84,8 +84,11 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
 | `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
 | `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default) | settings |
-| `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one | shortcuts |
+| `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one; `confirmAccount`, `confirmCategory`, `confirmPayment`: the interactive card with that detail tapped, its options listed inside the card | shortcuts |
+| `-KeaserSnippet` | `spending`: the answer of "How Much Did I Spend" (`SpendingSnippetView`) for the selected account, This Week unless `-KeaserPeriod` says otherwise | intents |
 | `-KeaserSnippetLong` | `1` gives the card a long title and a long account name | shortcuts |
+| `-KeaserSnippetOptions` | `many` gives the account twelve more categories, so an open category list pages | shortcuts |
+| `-KeaserSnippetPage` | `n` (from 1): the page of the open list shown; without it, the page with the chosen option | shortcuts |
 | `-KeaserSettingsAlert` | `rename`: the Rename Account alert, with `-KeaserSettingsPage account` | settings |
 | `-KeaserPro` | `purchased`, `expired`, `never` | settings |
 | `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |
@@ -104,7 +107,39 @@ Seeded launches keep the database in memory and never touch the real file.
 
 - App Intents: `AddExpenseIntent` (title "Add Expense") and
   `LogWalletTransactionIntent` (title "Log Wallet Transaction"). Tutorials
-  refer to them by these titles.
+  refer to them by these titles, and to Add Expense's fields by its
+  parameter titles: Title, Amount, Category, Payment Method, Account and
+  Date (never asked for; empty means the moment it is added, and a Wallet
+  automation sets it to Current Date). In the app Add Expense returns the
+  `ExpenseEntity` it saved; the widget extension's fallback returns nothing.
+  With nothing on screen (`IntentSystemContext.isVoiceOnly`, iOS 27) it asks
+  the confirmation out loud (`QuickLog.confirmationQuestion`) and ends on a
+  spoken sentence (`QuickLog.confirmation`) instead of the card.
+- The confirmation card (iOS 26+): tapping Account, Category or Payment
+  opens that detail's options inside the card (`ShortcutCardList`: names
+  only, the chosen one checked, two columns or pages with More when long,
+  Go Back when it is on); picking one sets it and closes the list. The taps
+  are the non-discoverable `ShowExpenseCardOptionsIntent`,
+  `PickExpenseCardOptionIntent`, `PageExpenseCardOptionsIntent` and
+  `CloseExpenseCardOptionsIntent`, which only change the draft in
+  `AddExpenseDrafts`; `ExpenseCardSnippetIntent` then draws the card again.
+  The closed card must stay as the reference has it.
+- "How Much Did I Spend" (`GetSpendingIntent`): period (`SpendingPeriod`,
+  This Week by default), account (the selected one when empty), category
+  and payment method. Answered by `SpendingQuestion` exactly as Home totals
+  (week start, Pro): This Year, All Time and the filters need Pro, and
+  without it the intent says so (`SpendingOutcome.refusal`, thrown as an
+  `IntentRefusal`) rather than answering. Returns the total as a currency
+  amount; the card is the medium widget's caption over the total
+  (`SpendingSnippetView`). Needs an unlocked iPhone.
+- "Delete Expense" (`DeleteExpenseIntent`, a `DeleteIntent` over
+  `ExpenseEntity`): asks by name first, deletes through
+  `KeaserStore.delete(_:)` (which puts everything back if the save fails),
+  then refreshes widgets, the weekly summary and Spotlight
+  (`IntentSupport.delete`). On iOS 26+ it is an `UndoableIntent`: undo in
+  Keaser calls `KeaserStore.restore(_:)`. Needs an unlocked iPhone.
+- App Shortcuts: 7 of the 10 allowed (Add Expense, Log Transaction,
+  Spending, Search, Open Account, Open Expense, Delete Expense).
 - `AddExpenseIntent` and its entities are declared in `KeaserWidgets/Shared/`
   and compiled into both targets, because the Add Expense control names the
   intent. The app implements `perform()` in `Keaser/Intents/AddExpenseFlow.swift`;
@@ -164,9 +199,9 @@ Seeded launches keep the database in memory and never touch the real file.
 | foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, app icon |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
-| shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
+| shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
-| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan}.swift` |
+| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion}.swift` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
 (`Home`, `Settings`, `Platform`) with tests in
