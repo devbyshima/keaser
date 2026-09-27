@@ -1,4 +1,18 @@
+<div align="center">
+
+<img src="Keaser/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="Keaser" width="120">
+
 # Keaser
+
+**A simple, fast expense tracker for iPhone.**
+
+Native iOS · SwiftUI · iOS 18 and later · no third-party packages
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-138%20in%2020%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+
+</div>
 
 A simple, fast expense tracker for iPhone. Log an expense in a couple of taps,
 from the app, a Shortcut, or an Apple Wallet automation; see where the money
@@ -68,3 +82,9 @@ and `com.fulltimestudio.keaser.pro.lifetime`. The paywall's struck-through
 - `KeaserWidgets` - the WidgetKit extension.
 
 See `AGENTS.md` for architecture notes and the debug launch arguments.
+
+## License
+
+Keaser is free and open source. You can use, study, change and share it under
+the terms of the [GNU General Public License v3.0](LICENSE): if you distribute
+a modified version, it must stay open source under the same license.
