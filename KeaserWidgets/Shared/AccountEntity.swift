@@ -10,6 +10,9 @@ struct AccountEntity: AppEntity, Identifiable {
     static var typeDisplayRepresentation: TypeDisplayRepresentation { "Account" }
     static var defaultQuery: AccountEntityQuery { AccountEntityQuery() }
 
+    /// The Go Back row at the end of the Add Expense shortcut's account list.
+    static let goBack = AccountEntity(id: ShortcutFlow.goBackID, name: "Go Back")
+
     let id: UUID
     let name: String
 
@@ -35,9 +38,10 @@ struct AccountEntity: AppEntity, Identifiable {
 /// instead of freezing the one selected when the widget was added.
 struct AccountEntityQuery: EntityQuery {
     func entities(for identifiers: [UUID]) async throws -> [AccountEntity] {
-        DatabaseFile.shared.load().accounts
+        let found = DatabaseFile.shared.load().accounts
             .filter { identifiers.contains($0.id) }
             .map(AccountEntity.init)
+        return found + (identifiers.contains(ShortcutFlow.goBackID) ? [.goBack] : [])
     }
 
     func suggestedEntities() async throws -> [AccountEntity] {
