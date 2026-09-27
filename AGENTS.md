@@ -71,8 +71,7 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
 | `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing) | foundation |
 | `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (the Today, This Week and This Month medium widgets first, then small and lock screen), `widgetGalleryLocked` (every widget family); both need seed `fresh` | onboarding |
-| `-KeaserGalleryScroll` | `bottom` starts the widget gallery at its end (small and lock screen widgets) | onboarding |
-| `-KeaserGalleryScroll` | `large`, `extraLarge`: starts either gallery at the large widgets or at iOS 27's extra large portrait one | platform |
+| `-KeaserGalleryScroll` | `bottom` starts the widget gallery at the small and lock screen widgets; `large`, `extraLarge` start either gallery at the large widgets or at iOS 27's extra large portrait one | onboarding, platform |
 | `-KeaserGalleryRendering` | `accented`: the gallery's home screen widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total and bars) | platform |
 | `-KeaserNotifState` | `granted`, `denied`: page 4 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
@@ -85,7 +84,7 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
 | `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
-| `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default) | settings |
+| `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default); or a word: with `-KeaserSettingsPage privacy` or `terms`, starts at the first heading containing it | settings, intelligence |
 | `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one | shortcuts |
 | `-KeaserSnippetLong` | `1` gives the card a long title and a long account name | shortcuts |
 | `-KeaserSettingsAlert` | `rename`: the Rename Account alert, with `-KeaserSettingsPage account` | settings |
@@ -94,7 +93,6 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserPaywallFeature` | a `ProFeature` raw value to highlight | settings |
 | `-KeaserPaywallPlans` | `all`: every plan showing (after "Show more plans") | settings |
 | `-KeaserSampleLinks` | `1` fills Help and Follow Us with sample links | settings |
-| `-KeaserSettingsScroll` | a word: with `-KeaserSettingsPage privacy` or `terms`, starts at the first heading containing it | intelligence |
 | `-KeaserCategoryModel` | a category name: a stand-in for the on-device model that picks it about a second after being asked; `none` picks nothing; `off` is a device without Apple Intelligence (no model, no footer sentence, receipts read by the heuristics alone) | intelligence |
 | `-KeaserReceipt` | a `ReceiptSamples` name (`coffee`, `grocery`, `cafe-paris`, `not-a-receipt`, ...): New Expense reads that sample receipt as if it had just been scanned | intelligence |
 | `-KeaserReceiptImage` | `1`: with `-KeaserReceipt`, prints the sample onto an image first and reads it with Vision, the whole way a photo goes | intelligence |
