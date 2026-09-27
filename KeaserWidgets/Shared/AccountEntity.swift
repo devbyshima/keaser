@@ -7,14 +7,16 @@ import KeaserKit
 
 /// A Keaser account as Shortcuts and widget configuration see it.
 struct AccountEntity: AppEntity, Identifiable {
-    static var typeDisplayRepresentation: TypeDisplayRepresentation { "Account" }
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        TypeDisplayRepresentation(name: "Account", synonyms: ["Ledger"])
+    }
     static var defaultQuery: AccountEntityQuery { AccountEntityQuery() }
 
     /// The Go Back row at the end of the Add Expense shortcut's account list.
     static let goBack = AccountEntity(id: ShortcutFlow.goBackID, name: "Go Back")
 
     let id: UUID
-    let name: String
+    @Property(title: "Name") var name: String
 
     init(id: UUID, name: String) {
         self.id = id
@@ -35,8 +37,9 @@ struct AccountEntity: AppEntity, Identifiable {
 ///
 /// There is deliberately no default result: an empty account parameter means
 /// "the account selected in Keaser", which then follows the user's choice
-/// instead of freezing the one selected when the widget was added.
-struct AccountEntityQuery: EntityQuery {
+/// instead of freezing the one selected when the widget was added. Typed
+/// names ("Open Business") match accounts only, never Go Back.
+struct AccountEntityQuery: EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [AccountEntity] {
         let found = DatabaseFile.shared.load().accounts
             .filter { identifiers.contains($0.id) }
@@ -46,5 +49,9 @@ struct AccountEntityQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [AccountEntity] {
         DatabaseFile.shared.load().accounts.map(AccountEntity.init)
+    }
+
+    func entities(matching string: String) async throws -> [AccountEntity] {
+        EntityCatalog.accounts(matching: string, in: DatabaseFile.shared.load()).map(AccountEntity.init)
     }
 }
