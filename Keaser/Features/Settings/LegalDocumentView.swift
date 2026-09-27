@@ -71,6 +71,7 @@ private struct LegalDocumentBody: View {
                 .padding(.bottom, 40)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .keaserReadableScrollContent()
         } else {
             EmptyStateView(symbol: "doc.text", title: "Not Available", message: "This document could not be loaded.")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -76,7 +76,7 @@ extension View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Color.settingsCanvas.ignoresSafeArea())
-            .contentMargins(.horizontal, KeaserMetrics.screenPadding, for: .scrollContent)
+            .keaserReadableScrollContent(base: KeaserMetrics.screenPadding)
             .contentMargins(.top, topMargin, for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
             // Card rows set their own heights (52, 68 or 74pt); this floor

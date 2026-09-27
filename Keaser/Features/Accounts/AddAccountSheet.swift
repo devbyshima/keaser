@@ -81,6 +81,7 @@ struct AddAccountSheet: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
         }
+        .keaserReadableWidth()
         .onAppear { nameFocused = true }
     }
 

@@ -51,6 +51,7 @@ struct OnboardingView: View {
             .padding(.top, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .keaserReadableWidth(KeaserMetrics.narrowReadableWidth)
     }
 
     @ViewBuilder
