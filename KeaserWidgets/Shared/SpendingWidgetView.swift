@@ -1,5 +1,6 @@
 import KeaserKit
 import SwiftUI
+import UIKit
 import WidgetKit
 
 // Compiled into both the widget extension and the app, so onboarding and the
@@ -11,18 +12,33 @@ import WidgetKit
 // fixed sizes: they are fitted to that fixed frame and shrink to fit instead.
 
 /// Widget colours. The app's Theme is not part of the extension, so the few
-/// shades a widget needs live here, matched to the reference.
+/// shades a widget needs live here. Home screen widgets follow the system
+/// appearance like the system's own: charcoal with white type (measured from
+/// the reference) in dark mode, white with black type in light mode.
+/// Lock screen widgets use none of these; the system renders them vibrant.
 enum WidgetPalette {
-    /// The charcoal widget surface.
-    static let background = Color(red: 57 / 255, green: 56 / 255, blue: 59 / 255)
-    /// The period caption ("This Month"), as measured in the reference.
-    static let secondaryText = Color(white: 0.53)
+    static let background = adaptive(light: .white, dark: Color(red: 57 / 255, green: 56 / 255, blue: 59 / 255))
+    /// The total, titles and glyphs, and today's bar and label.
+    static let primaryText = adaptive(light: .black, dark: .white)
+    /// The period caption ("This Month").
+    static let secondaryText = adaptive(light: Color(white: 0.45), dark: Color(white: 0.53))
     /// The account name and chart labels. They are smaller than the caption,
-    /// so they need a lighter grey to stay readable (4.6:1 on the surface).
-    static let smallText = Color(white: 0.64)
-    static let inactiveBar = Color.white.opacity(0.2)
+    /// so they sit further from the surface to stay readable (4.6:1 on the
+    /// charcoal, 5.7:1 on white).
+    static let smallText = adaptive(light: Color(white: 0.4), dark: Color(white: 0.64))
+    static let inactiveBar = adaptive(light: .black.opacity(0.14), dark: .white.opacity(0.2))
+    /// The tile behind the lock on the locked widget.
+    static let tile = adaptive(light: .black.opacity(0.06), dark: .white.opacity(0.12))
     /// The home screen widget corner, for drawing widgets inside the app.
     static let cornerRadius: CGFloat = 24
+
+    /// One colour per appearance, resolved whenever the appearance changes.
+    /// The same as the app's `Color(light:dark:)`, which lives in its Theme.
+    private static func adaptive(light: Color, dark: Color) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        })
+    }
 }
 
 /// The Spending widget for one family. `inApp` swaps the system-provided
@@ -140,14 +156,14 @@ struct SpendingWidgetView: View {
     private func total(size: CGFloat) -> some View {
         Text(snapshot.formattedTotal)
             .font(.system(size: size, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(WidgetPalette.primaryText)
             .lineLimit(1)
             .minimumScaleFactor(0.45)
             .widgetAccentable()
     }
 }
 
-/// The medium widget's chart: one bar per day or month, today's in white.
+/// The medium widget's chart: one bar per day or month, today's in full ink.
 struct SpendingBars: View {
     let bars: [SpendingSnapshot.Bar]
 
@@ -163,14 +179,14 @@ struct SpendingBars: View {
                         VStack {
                             Spacer(minLength: 0)
                             RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                .fill(bar.isCurrent ? Color.white : WidgetPalette.inactiveBar)
+                                .fill(bar.isCurrent ? WidgetPalette.primaryText : WidgetPalette.inactiveBar)
                                 // Empty days keep a stub so the shape of the period shows.
                                 .frame(height: max(4, proxy.size.height * fraction))
                         }
                     }
                     Text(bar.id % labelEvery == 0 ? bar.label : " ")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(bar.isCurrent ? Color.white : WidgetPalette.smallText)
+                        .foregroundStyle(bar.isCurrent ? WidgetPalette.primaryText : WidgetPalette.smallText)
                         .lineLimit(1)
                         .fixedSize()
                         .frame(maxWidth: .infinity)
@@ -215,7 +231,7 @@ struct LockedWidgetView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Widgets are part of Keaser Pro")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(WidgetPalette.primaryText)
                     Text("Tap to open Settings and upgrade to keep your spending on the home screen.")
                         .font(.footnote)
                         .foregroundStyle(WidgetPalette.secondaryText)
@@ -230,7 +246,7 @@ struct LockedWidgetView: View {
                 Spacer(minLength: 0)
                 Text("Keaser Pro")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WidgetPalette.primaryText)
                     .lineLimit(1)
                 Text("Widgets are part of Keaser Pro. Tap to upgrade.")
                     .font(.footnote)
@@ -246,9 +262,9 @@ struct LockedWidgetView: View {
         Image(systemName: "lock.fill")
             .font(.system(size: 17, weight: .semibold))
             .accessibilityHidden(true)
-            .foregroundStyle(.white)
+            .foregroundStyle(WidgetPalette.primaryText)
             .frame(width: 36, height: 36)
-            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(WidgetPalette.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -280,12 +296,12 @@ struct NoAccountWidgetView: View {
             VStack(spacing: 4) {
                 Image(systemName: "person.crop.circle")
                     .font(.system(size: 24))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WidgetPalette.primaryText)
                     .padding(.bottom, 4)
                     .accessibilityHidden(true)
                 Text("No Account")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WidgetPalette.primaryText)
                 Text("Add an account in Keaser to see your spending.")
                     .font(.caption)
                     .foregroundStyle(WidgetPalette.secondaryText)
@@ -298,7 +314,8 @@ struct NoAccountWidgetView: View {
 }
 
 /// The circular lock screen backdrop: the system's inside WidgetKit, a drawn
-/// stand-in inside the app.
+/// stand-in inside the app. The lock screen draws it as a light veil over the
+/// wallpaper whatever the appearance, so the stand-in is fixed too.
 private struct AccessoryBackground: View {
     let inApp: Bool
 
@@ -312,7 +329,7 @@ private struct AccessoryBackground: View {
 }
 
 /// A home screen widget drawn inside the app at its real size, with the
-/// surface and corners WidgetKit would give it.
+/// surface and corners WidgetKit would give it, in the current appearance.
 struct WidgetPreviewFrame<Content: View>: View {
     var size: CGSize
     @ViewBuilder var content: Content
@@ -322,6 +339,5 @@ struct WidgetPreviewFrame<Content: View>: View {
             .padding(16)
             .frame(width: size.width, height: size.height)
             .background(WidgetPalette.background, in: RoundedRectangle(cornerRadius: WidgetPalette.cornerRadius, style: .continuous))
-            .environment(\.colorScheme, .dark)
     }
 }
