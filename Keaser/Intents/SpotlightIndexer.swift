@@ -50,13 +50,19 @@ final class SpotlightIndexer {
         guard store != nil else { return }
         pending?.cancel()
         pending = nil
-        let work = Task { await self.sync() }
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await work.value }
-            group.addTask { try? await Task.sleep(for: .seconds(3)) }
-            await group.next()
-            group.cancelAll()
+        // Whichever comes first. (A task group would wait for both, since
+        // waiting on a task's value ignores cancellation.)
+        let (finished, signal) = AsyncStream<Void>.makeStream()
+        Task {
+            await self.sync()
+            signal.yield()
         }
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            signal.yield()
+        }
+        for await _ in finished { break }
+        signal.finish()
     }
 
     private func schedule(after delay: Duration = .milliseconds(500)) {
