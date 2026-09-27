@@ -65,15 +65,80 @@ public enum SmartSuggester {
     /// account gets guesses too. With nothing else to go on, the payment
     /// method is the one used most often; in an account with no history, a
     /// recognised title is paid in Cash, as in the reference.
+    ///
+    /// `modelCategoryID` is the on-device language model's category for this
+    /// title, when it was asked (see `SmartLabels`). The person's history
+    /// beats it. A word rule beats it too when the rule lands on one of
+    /// Keaser's built-in categories, which the rules were written for; on a
+    /// category the person made, the model reads the name better than the
+    /// rules do. The model never chooses the payment method.
     public static func guessLabels(
         for title: String,
         categories: [ExpenseCategory],
         paymentMethods: [PaymentMethod],
         history: [Expense],
-        excluding excludedID: UUID? = nil
+        excluding excludedID: UUID? = nil,
+        modelCategoryID: UUID? = nil
     ) -> LabelGuess {
         let words = words(in: title)
         guard !words.isEmpty else { return LabelGuess() }
+        let learned = learnedLabels(words: words, categories: categories, paymentMethods: paymentMethods, history: history, excluding: excludedID)
+        let rule = ruleCategory(for: words, in: categories)
+        let model = modelCategoryID.flatMap { id in categories.contains { $0.id == id } ? id : nil }
+
+        let category = learned.categoryID
+            ?? (rule?.isBuiltIn == true ? rule?.id : nil)
+            ?? model
+            ?? rule?.id
+        let method = learned.paymentMethodID
+            ?? bestRule(paymentRules, for: words).flatMap { label(in: paymentMethods.map { ($0.id, $0.name) }, named: $0.labelNames) }
+            ?? learned.habitualMethodID
+            // Only when the title meant something: an unknown title stays
+            // unfiled rather than half-filled.
+            ?? (category == nil ? nil : label(in: paymentMethods.map { ($0.id, $0.name) }, named: ["cash"]))
+        return LabelGuess(categoryID: category, paymentMethodID: method)
+    }
+
+    /// Whether asking the on-device model could change the category guessed
+    /// for `title`: it has words, the account has categories, and neither
+    /// the person's history nor a word rule on a built-in category settles
+    /// it. Titles that are settled never cost a model request.
+    public static func wantsModelGuess(
+        for title: String,
+        categories: [ExpenseCategory],
+        history: [Expense],
+        excluding excludedID: UUID? = nil
+    ) -> Bool {
+        let words = words(in: title)
+        guard !words.isEmpty, !categories.isEmpty else { return false }
+        if ruleCategory(for: words, in: categories)?.isBuiltIn == true { return false }
+        return learnedLabels(words: words, categories: categories, paymentMethods: [], history: history, excluding: excludedID).categoryID == nil
+    }
+
+    /// The category a word rule points at, and whether it is one of Keaser's
+    /// built-in categories ("Health", not "Kids").
+    private static func ruleCategory(for words: [String], in categories: [ExpenseCategory]) -> (id: UUID, isBuiltIn: Bool)? {
+        guard let id = bestRule(categoryRules, for: words).flatMap({ label(in: categories.map { ($0.id, $0.name) }, named: $0.labelNames) }),
+              let category = categories.first(where: { $0.id == id })
+        else { return nil }
+        return (id, ExpenseCategory.defaultSymbol(forName: category.name) != nil)
+    }
+
+    private struct Learned {
+        var categoryID: UUID?
+        var paymentMethodID: UUID?
+        var habitualMethodID: UUID?
+    }
+
+    /// What past expenses teach: the labels used most often on titles that
+    /// share a word with this one, and the method used most often overall.
+    private static func learnedLabels(
+        words: [String],
+        categories: [ExpenseCategory],
+        paymentMethods: [PaymentMethod],
+        history: [Expense],
+        excluding excludedID: UUID?
+    ) -> Learned {
         let history = history.filter { $0.id != excludedID }
         let categoryIDs = Set(categories.map(\.id))
         let methodIDs = Set(paymentMethods.map(\.id))
@@ -86,25 +151,17 @@ public enum SmartSuggester {
             return weight > 0 ? (expense, weight) : nil
         }
 
-        let learnedCategory = mostUsed(similar.compactMap { item in
-            item.expense.categoryID.flatMap { categoryIDs.contains($0) ? Use(id: $0, weight: item.weight, expense: item.expense) : nil }
-        })
-        let learnedMethod = mostUsed(similar.compactMap { item in
-            item.expense.paymentMethodID.flatMap { methodIDs.contains($0) ? Use(id: $0, weight: item.weight, expense: item.expense) : nil }
-        })
-        let habitualMethod = mostUsed(history.compactMap { expense in
-            expense.paymentMethodID.flatMap { methodIDs.contains($0) ? Use(id: $0, weight: 1, expense: expense) : nil }
-        })
-
-        let category = learnedCategory
-            ?? bestRule(categoryRules, for: words).flatMap { label(in: categories.map { ($0.id, $0.name) }, named: $0.labelNames) }
-        let method = learnedMethod
-            ?? bestRule(paymentRules, for: words).flatMap { label(in: paymentMethods.map { ($0.id, $0.name) }, named: $0.labelNames) }
-            ?? habitualMethod
-            // Only when the title meant something: an unknown title stays
-            // unfiled rather than half-filled.
-            ?? (category == nil ? nil : label(in: paymentMethods.map { ($0.id, $0.name) }, named: ["cash"]))
-        return LabelGuess(categoryID: category, paymentMethodID: method)
+        return Learned(
+            categoryID: mostUsed(similar.compactMap { item in
+                item.expense.categoryID.flatMap { categoryIDs.contains($0) ? Use(id: $0, weight: item.weight, expense: item.expense) : nil }
+            }),
+            paymentMethodID: mostUsed(similar.compactMap { item in
+                item.expense.paymentMethodID.flatMap { methodIDs.contains($0) ? Use(id: $0, weight: item.weight, expense: item.expense) : nil }
+            }),
+            habitualMethodID: mostUsed(history.compactMap { expense in
+                expense.paymentMethodID.flatMap { methodIDs.contains($0) ? Use(id: $0, weight: 1, expense: expense) : nil }
+            })
+        )
     }
 
     private struct Use {
@@ -137,16 +194,28 @@ public enum SmartSuggester {
     private static func bestRule(_ rules: [Rule], for words: [String]) -> Rule? {
         var best: (rule: Rule, count: Int, first: Int)?
         for rule in rules {
-            let positions = words.indices.filter { index in
-                rule.titleWords.contains { keywordMatches($0, words[index]) }
-            }
-            guard let first = positions.first else { continue }
+            let positions = matchedPositions(of: rule, in: words)
+            guard let first = positions.min() else { continue }
             if let current = best, positions.count < current.count || (positions.count == current.count && first >= current.first) {
                 continue
             }
             best = (rule, positions.count, first)
         }
         return best?.rule
+    }
+
+    /// The positions of the title words a rule's keywords match. A keyword
+    /// of several words ("uber eats") matches them in a row and counts each
+    /// of them, so it outweighs a rule matching only one ("uber").
+    private static func matchedPositions(of rule: Rule, in words: [String]) -> Set<Int> {
+        var positions = Set<Int>()
+        for keyword in rule.keywords where keyword.count <= words.count {
+            for start in 0...(words.count - keyword.count)
+            where keyword.indices.allSatisfy({ keywordMatches(keyword[$0], words[start + $0]) }) {
+                positions.formUnion(start..<(start + keyword.count))
+            }
+        }
+        return positions
     }
 
     /// The first label with a word in its name starting with one of `names`,
@@ -189,7 +258,13 @@ public enum SmartSuggester {
     /// may start with, most specific first.
     private struct Rule {
         let labelNames: [String]
-        let titleWords: [String]
+        /// Each keyword's words: one for "lunch", two for "uber eats".
+        let keywords: [[String]]
+
+        init(labelNames: [String], titleWords: [String]) {
+            self.labelNames = labelNames
+            keywords = titleWords.map { $0.split(separator: " ").map(String.init) }
+        }
     }
 
     private static let categoryRules: [Rule] = [
@@ -198,7 +273,7 @@ public enum SmartSuggester {
             "breakfast", "brunch", "supper", "restaurant", "pizza", "burger", "sushi", "ramen", "taco", "tacos",
             "sandwich", "bakery", "bread", "snack", "snacks", "grocer", "supermarket", "takeaway", "takeout",
             "drink", "drinks", "beer", "beers", "wine", "bar", "pub", "cocktail", "juice", "smoothie", "dessert",
-            "icecream", "donut", "donuts", "doughnut", "boba",
+            "icecream", "donut", "donuts", "doughnut", "boba", "uber eats",
         ]),
         Rule(labelNames: ["shop", "cloth", "retail"], titleWords: [
             "shopping", "shop", "shops", "clothes", "clothing", "shirt", "tshirt", "jeans", "dress", "shoes",
@@ -214,7 +289,7 @@ public enum SmartSuggester {
             "haircut", "barber", "salon", "laundry", "cleaning", "cleaner", "repair", "plumber", "electrician",
             "mechanic", "subscription", "internet", "wifi", "phone", "mobile", "electricity", "water", "utilities",
             "insurance", "fee", "fees", "service", "postage", "shipping", "printing", "storage", "hosting",
-            "software",
+            "software", "gas bill", "gas bills",
         ]),
         Rule(labelNames: ["entertain", "fun", "leisure", "hobby", "hobbies"], titleWords: [
             "movie", "cinema", "film", "films", "concert", "show", "shows", "theatre", "theater", "netflix",
