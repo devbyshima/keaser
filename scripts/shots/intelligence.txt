@@ -12,3 +12,5 @@ smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage
 smart-suggestions-ineligible | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel off
 # The privacy policy's paragraph on Apple Intelligence.
 privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll Intelligence
+# The privacy policy's paragraph on receipts.
+privacy-receipts | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll Receipts

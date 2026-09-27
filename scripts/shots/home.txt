@@ -25,3 +25,13 @@ chart-callout | -KeaserSeed single -KeaserChartSelection last
 chart-callout-edge | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 0
 # A first expense in a fresh account: Food & Drinks, then Cash.
 guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount
+# Receipt scanning in New Expense (owner: intelligence). -KeaserCategoryModel
+# off keeps Apple Intelligence out, so these read the same on any Mac. A
+# receipt read and filled in (the merchant's labels come from Smart
+# Suggestions), while it is read, one in another currency, one printed onto
+# an image and read with Vision, and a photo that is not a receipt.
+receipt | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt coffee -KeaserCategoryModel off
+receipt-reading | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt coffee -KeaserReceiptHold 1 -KeaserCategoryModel off
+receipt-currency | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt cafe-paris -KeaserCategoryModel off
+receipt-image | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
+receipt-not-found | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt not-a-receipt -KeaserCategoryModel off
