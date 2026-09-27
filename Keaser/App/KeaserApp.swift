@@ -16,6 +16,7 @@ struct KeaserApp: App {
         // change can move them. WidgetKit coalesces reload requests.
         store.addObserver { _ in WidgetCenter.shared.reloadAllTimelines() }
         WeeklySummaryScheduler.shared.attach(to: store)
+        SpotlightIndexer.shared.attach(to: store)
     }
 
     var body: some Scene {

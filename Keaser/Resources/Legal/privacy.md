@@ -14,6 +14,8 @@ On your iPhone, in a single file inside Keaser's app group container. The app gr
 
 Keaser also keeps the date your 7-day Pro pass began in the iOS Keychain on this device, so reinstalling the app does not restart the pass.
 
+Keaser adds your expenses (title, amount and date, with the category, payment method and account they are filed under) and your account names to your iPhone's on-device Spotlight index, so system search and Siri can find them.
+
 Keaser has no servers. The makers of Keaser never receive a copy of your data, and nothing you enter leaves your iPhone.
 
 ## Purchases

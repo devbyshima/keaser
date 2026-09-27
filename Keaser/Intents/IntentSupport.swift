@@ -43,8 +43,9 @@ enum IntentSupport {
         return selected
     }
 
-    /// Saves, then brings the widgets and the weekly summary up to date before
-    /// the intent returns, since the system may suspend the app right after.
+    /// Saves, then brings the widgets, the weekly summary and Spotlight up to
+    /// date before the intent returns, since the system may suspend the app
+    /// right after.
     ///
     /// Throws when the expense did not reach the disk. It is taken back out
     /// of memory as well: kept there, a later save would write it anyway,
@@ -58,6 +59,8 @@ enum IntentSupport {
         WidgetCenter.shared.reloadAllTimelines()
         WeeklySummaryScheduler.shared.attach(to: store)
         await WeeklySummaryScheduler.shared.refreshNow()
+        SpotlightIndexer.shared.attach(to: store)
+        await SpotlightIndexer.shared.flush()
     }
 
     /// Above the card of an expense a shortcut or automation just added.
