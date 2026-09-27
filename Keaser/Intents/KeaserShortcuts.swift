@@ -64,5 +64,14 @@ struct KeaserShortcuts: AppShortcutsProvider {
             shortTitle: "Open Expense",
             systemImageName: "creditcard"
         )
+        AppShortcut(
+            intent: DeleteExpenseIntent(),
+            phrases: [
+                "Delete an expense in \(.applicationName)",
+                "Remove an expense from \(.applicationName)",
+            ],
+            shortTitle: "Delete Expense",
+            systemImageName: "trash"
+        )
     }
 }
