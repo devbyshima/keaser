@@ -359,6 +359,7 @@ struct ExpenseEditorView: View {
         expense.date = date
         focus = nil
         store.saveExpense(expense, in: accountID)
+        if isNew { IntentDonations.addedInApp(expense, accountID: accountID, store: store) }
         finished += 1
         dismiss()
     }
