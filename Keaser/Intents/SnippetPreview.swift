@@ -2,24 +2,26 @@
 import KeaserKit
 import SwiftUI
 
-/// `-KeaserSnippet confirm|confirmPlain|result|wallet`: the real
-/// `ExpenseCardView` inside a stand-in of the system's card (dialog, hairline,
-/// Cancel and Continue or Done) over a plain lock screen, so the cards can be
-/// screenshotted headlessly; the system's own chrome cannot be. Measurements
-/// follow the reference recording (iOS 26).
+/// `-KeaserSnippet confirm|confirmPlain|result|wallet|spending`: the real
+/// `ExpenseCardView` (or `SpendingSnippetView`) inside a stand-in of the
+/// system's card (dialog, hairline, Cancel and Continue or Done) over a plain
+/// lock screen, so the cards can be screenshotted headlessly; the system's
+/// own chrome cannot be. Measurements follow the reference recording (iOS 26).
 ///
 /// `confirm` is the interactive card of iOS 26, `confirmPlain` the one of iOS
 /// 18 to 25 (no chevrons), `result` the Add Expense card when confirmation is
 /// off, `wallet` the Wallet automation's. `-KeaserSnippetLong 1` gives the
-/// expense a long title and its account a long name.
+/// expense a long title and its account a long name. `spending` is the answer
+/// of "How Much Did I Spend" for the selected account (`-KeaserPeriod` picks
+/// the period; This Week by default).
 struct SnippetPreview: View {
     enum Kind: String {
-        case confirm, confirmPlain, result, wallet
+        case confirm, confirmPlain, result, wallet, spending
 
         var dialog: String {
             switch self {
             case .confirm, .confirmPlain: "Confirm expense details:"
-            case .result, .wallet: "Successfully added expense"
+            case .result, .wallet, .spending: "Successfully added expense"
             }
         }
 
@@ -28,7 +30,7 @@ struct SnippetPreview: View {
             switch self {
             case .confirm, .confirmPlain: ("Uniqlo", Decimal(string: "19.90")!, "Shopping", "Credit Card")
             case .result: ("Coffee", 5, "Food & Drinks", "Credit Card")
-            case .wallet: ("Watsons", Decimal(string: "1.60")!, "Shopping", "Credit Card")
+            case .wallet, .spending: ("Watsons", Decimal(string: "1.60")!, "Shopping", "Credit Card")
             }
         }
     }
@@ -40,13 +42,32 @@ struct SnippetPreview: View {
     var body: some View {
         ZStack(alignment: .top) {
             LockScreenBackdrop()
-            if let card {
-                platter(card)
+            if kind == .spending {
+                if let answer = spendingAnswer {
+                    platter(dialog: answer.sentence()) {
+                        SpendingSnippetView(snapshot: answer.snapshot)
+                    }
                     .padding(.horizontal, 8)
                     .padding(.top, 56)
+                }
+            } else if let card {
+                platter(dialog: kind.dialog) {
+                    ExpenseCardView(card: card, session: kind == .confirm ? "preview" : nil)
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 56)
             }
         }
         .ignoresSafeArea()
+    }
+
+    /// What "How Much Did I Spend" answers for the selected account.
+    private var spendingAnswer: SpendingAnswer? {
+        let period = Period(rawValue: DebugLaunch.string("KeaserPeriod") ?? "") ?? .thisWeek
+        guard case .answer(let answer) = SpendingQuestion(period: period).answer(in: store.database, isPro: true, now: .now) else {
+            return nil
+        }
+        return answer
     }
 
     private var card: ShortcutCard? {
@@ -63,9 +84,9 @@ struct SnippetPreview: View {
         return ShortcutCard(expense: expense, in: account, currencyCode: store.preferences.currencyCode)
     }
 
-    private func platter(_ card: ShortcutCard) -> some View {
+    private func platter(dialog: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(spacing: 0) {
-            Text(kind.dialog)
+            Text(dialog)
                 .keaserFont(18, weight: .medium, relativeTo: .body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -75,7 +96,7 @@ struct SnippetPreview: View {
             Rectangle()
                 .fill(Color.snippetHairline)
                 .frame(height: 1 / displayScale)
-            ExpenseCardView(card: card, session: kind == .confirm ? "preview" : nil)
+            content()
             buttons
                 .padding(.top, 8)
                 .padding(.horizontal, 14)
@@ -93,7 +114,7 @@ struct SnippetPreview: View {
                 SystemButton(title: "Cancel", fill: .snippetSecondaryButton, text: .keaserPrimaryText)
                 SystemButton(title: "Continue", fill: Color(uiColor: .systemBlue), text: .snippetOnBlue)
             }
-        case .result, .wallet:
+        case .result, .wallet, .spending:
             SystemButton(title: "Done", fill: Color(uiColor: .systemBlue), text: .snippetOnBlue)
         }
     }

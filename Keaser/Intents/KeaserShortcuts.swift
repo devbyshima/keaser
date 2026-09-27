@@ -24,6 +24,18 @@ struct KeaserShortcuts: AppShortcutsProvider {
             systemImageName: "wallet.bifold.fill"
         )
         AppShortcut(
+            intent: GetSpendingIntent(),
+            phrases: [
+                "How much did I spend in \(.applicationName)",
+                "How much did I spend \(\.$period) in \(.applicationName)",
+                "How much have I spent \(\.$period) in \(.applicationName)",
+                "What did I spend \(\.$period) in \(.applicationName)",
+                "\(.applicationName) spending \(\.$period)",
+            ],
+            shortTitle: "Spending",
+            systemImageName: "chart.bar.fill"
+        )
+        AppShortcut(
             intent: SearchExpensesIntent(),
             phrases: [
                 "Search \(.applicationName)",
