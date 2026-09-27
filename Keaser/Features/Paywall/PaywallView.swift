@@ -414,12 +414,16 @@ private struct PlanRow: View {
                 layout {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(kind.title)
-                            .font(.headline)
+                            .keaserFont(16, weight: .semibold, relativeTo: .headline)
                             .foregroundStyle(Color.keaserPrimaryText)
                         if let subtitle {
+                            // Caption-sized and on one line, as in the
+                            // reference, so the prices keep their room.
                             Text(subtitle)
-                                .font(.subheadline)
+                                .font(.caption)
                                 .foregroundStyle(Color.keaserSecondaryText)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                                .minimumScaleFactor(0.85)
                         }
                     }
                     if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
@@ -463,13 +467,13 @@ private struct PlanRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let regularPrice {
                     Text(regularPrice)
-                        .font(.subheadline)
+                        .font(.caption)
                         .strikethrough()
                         .foregroundStyle(Color.keaserSecondaryText)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(plan.displayPrice)
-                        .keaserFont(19, weight: .semibold, relativeTo: .headline)
+                        .keaserFont(17, weight: .semibold, relativeTo: .headline)
                         .foregroundStyle(Color.keaserPrimaryText)
                     if let suffix = kind.priceSuffix {
                         Text(suffix)
