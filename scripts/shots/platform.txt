@@ -1,0 +1,27 @@
+# Owned by the platform pass. The large Spending widgets (the widget gallery
+# scrolled to them), locked and without an account, the accented look of a
+# tinted or clear home screen, and a few screens whose titles and layout
+# the pass touched.
+widgets-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryScroll large
+widgets-extra-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryScroll extraLarge
+widgets-locked-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked -KeaserGalleryScroll large
+widgets-locked-extra-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked -KeaserGalleryScroll extraLarge
+
+# Accented rendering: captions stay quieter than the total; the total and the
+# bars take the (stand-in) tint.
+widgets-accented | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryRendering accented
+widgets-accented-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryRendering accented -KeaserGalleryScroll large
+widgets-accented-extra-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryRendering accented -KeaserGalleryScroll extraLarge
+widgets-accented-locked | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked -KeaserGalleryRendering accented
+
+# Settings page titles, centred beside the round back button.
+title-shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
+title-smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions
+title-currency | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage currency
+title-categories | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage categories
+
+# Wider screens: run these on a bigger simulator too, e.g.
+#   SIM="Keaser iPad" SIM_TYPE=com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M5-12GB ./scripts/screenshots.sh platform
+home | -KeaserSeed demo
+search | -KeaserSeed demo -KeaserSheet search -KeaserSearch co
+paywall | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample
