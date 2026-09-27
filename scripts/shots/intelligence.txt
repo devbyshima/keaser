@@ -1,0 +1,14 @@
+# Smart Suggestions with Apple Intelligence (owner: intelligence). The
+# simulator can use the Mac's model, so these pass -KeaserCategoryModel to
+# stand in a fixed one and look the same on any Mac.
+# A title nothing else knows, filed by the model a second after moving on.
+guess-model | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Watsons -KeaserExpenseFocus amount -KeaserCategoryModel Health
+# The model found nothing: the labels stay empty, as without it.
+guess-model-none | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Zxqv -KeaserExpenseFocus amount -KeaserCategoryModel none
+# A title the word rules know is never asked about: Food & Drinks, then Cash.
+guess-model-rules | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount -KeaserCategoryModel Health
+# The footer's Apple Intelligence sentence, and the page without it.
+smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel Health
+smart-suggestions-ineligible | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel off
+# The privacy policy's paragraph on Apple Intelligence.
+privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll Intelligence
