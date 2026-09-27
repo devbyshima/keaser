@@ -56,8 +56,12 @@ public struct ShortcutFlow: Hashable, Sendable {
     public let accounts: [Account]
     public let goBackEnabled: Bool
     public let suggestionsEnabled: Bool
-    /// The expense's date: when the shortcut started.
+    /// The expense's date: the one the shortcut supplied, otherwise when
+    /// it started.
     public let date: Date
+    /// When the shortcut started, which is when the expense was made even
+    /// when it is dated another day.
+    public let createdAt: Date
 
     /// As typed; empty means `QuickLog.defaultTitle`.
     public private(set) var title: String
@@ -75,6 +79,7 @@ public struct ShortcutFlow: Hashable, Sendable {
     /// here was supplied by the shortcut and is never asked for; a nil one
     /// is. `accountID` is the account the expense goes to unless someone
     /// picks another, and counts as supplied only with `accountSupplied`.
+    /// `date` is never asked for; `createdAt` defaults to `date`.
     public init?(
         accounts: [Account],
         accountID: UUID,
@@ -85,7 +90,8 @@ public struct ShortcutFlow: Hashable, Sendable {
         paymentMethod: Label? = nil,
         goBackEnabled: Bool = true,
         suggestionsEnabled: Bool = true,
-        date: Date = .now
+        date: Date = .now,
+        createdAt: Date? = nil
     ) {
         guard accounts.contains(where: { $0.id == accountID }) else { return nil }
         self.accounts = accounts
@@ -97,6 +103,7 @@ public struct ShortcutFlow: Hashable, Sendable {
         self.goBackEnabled = goBackEnabled
         self.suggestionsEnabled = suggestionsEnabled
         self.date = date
+        self.createdAt = createdAt ?? date
         var supplied = Set<Step>()
         if title != nil { supplied.insert(.title) }
         if amount != nil { supplied.insert(.amount) }
@@ -230,8 +237,8 @@ public struct ShortcutFlow: Hashable, Sendable {
             categoryID: categoryID,
             paymentMethodID: paymentMethodID,
             date: date,
-            createdAt: date,
-            updatedAt: date
+            createdAt: createdAt,
+            updatedAt: createdAt
         )
     }
 
@@ -270,7 +277,6 @@ public struct ShortcutFlow: Hashable, Sendable {
             if let method = account.paymentMethod(id: id) { paymentMethodID = method.id }
         }
     }
-
 }
 
 /// What the expense card of the "Add Expense" shortcut and the Wallet

@@ -40,11 +40,16 @@ struct AddExpenseIntent: AppIntent {
     @Parameter(title: "Account", description: "Asked for when empty and there is more than one account.")
     var account: AccountEntity?
 
+    /// Never asked for. A Wallet automation sets it to Current Date.
+    @Parameter(title: "Date", description: "The day of the expense. When empty, the moment it is added.", kind: .date)
+    var date: Date?
+
     static var parameterSummary: some ParameterSummary {
         Summary("Add \(\.$amount) as \(\.$expenseTitle)") {
             \.$category
             \.$paymentMethod
             \.$account
+            \.$date
         }
     }
 

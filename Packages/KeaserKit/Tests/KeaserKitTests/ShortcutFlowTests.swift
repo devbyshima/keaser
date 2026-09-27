@@ -402,6 +402,19 @@ struct ShortcutCardTests {
         let all = accounts()
         let f = ShortcutFlow(accounts: all, accountID: all[0].id, title: "Watsons", amount: 2, date: started)
         #expect(f?.expense?.date == started)
+        #expect(f?.expense?.createdAt == started)
+    }
+
+    @Test func aSuppliedDateDatesTheExpenseButNotItsCreation() {
+        let paid = date(2026, 3, 20)
+        let started = date(2026, 3, 24)
+        let all = accounts()
+        let f = ShortcutFlow(accounts: all, accountID: all[0].id, title: "Watsons", amount: 2, date: paid, createdAt: started)!
+        #expect(f.expense?.date == paid)
+        #expect(f.expense?.createdAt == started)
+        #expect(f.expense?.updatedAt == started)
+        let card = ShortcutCard(expense: f.expense!, in: all[0], currencyCode: "USD", locale: Locale(identifier: "en_US"), timeZone: utc)
+        #expect(card.date == "03/20/2026")
     }
 
     @Test func anUnknownAccountMakesNoFlow() {
