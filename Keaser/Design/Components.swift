@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The full-width white capsule: "Get Started", "Continue",
+/// The full-width ink capsule (white in dark mode, black in light mode):
+/// "Get Started", "Continue",
 /// "Enable Notifications".
 struct PrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
@@ -8,7 +9,7 @@ struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
-            .foregroundStyle(Color.black)
+            .foregroundStyle(Color.keaserOnInk)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -16,7 +17,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             // The design height, growing only when a large text size makes
             // the label wrap, so the label is never cut off.
             .frame(minHeight: KeaserMetrics.primaryButtonHeight)
-            .background(Capsule().fill(Color.white.opacity(isEnabled ? 1 : 0.4)))
+            .background(Capsule().fill(Color.keaserInk.opacity(isEnabled ? 1 : 0.4)))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.snappy(duration: 0.2), value: configuration.isPressed)
@@ -37,7 +38,7 @@ struct SymbolTile: View {
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: size * 0.45, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.keaserPrimaryText)
             .frame(width: size, height: size)
             .background(background, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
     }
@@ -59,7 +60,7 @@ struct EmptyStateView<Actions: View>: View {
         VStack(spacing: 0) {
             Image(systemName: symbol)
                 .keaserFont(style == .large ? 40 : 28)
-                .foregroundStyle(style == .large ? Color.keaserMutedIcon : Color.white)
+                .foregroundStyle(style == .large ? Color.keaserMutedIcon : Color.keaserPrimaryText)
                 .padding(.bottom, style == .large ? 21 : 14)
                 .accessibilityHidden(true)
             Text(title)

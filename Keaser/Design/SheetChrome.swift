@@ -7,7 +7,7 @@ import SwiftUI
 /// A round glass icon button: close, back, add, confirm.
 ///
 /// `xmark` is drawn grey and medium weight, like the reference; every other
-/// glyph is white and semibold.
+/// glyph is ink-coloured and semibold.
 struct KeaserCircleButton: View {
     let symbol: String
     let label: String
@@ -139,12 +139,12 @@ struct KeaserRowSeparator: View {
 struct HighlightRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(Color.white.opacity(configuration.isPressed ? 0.06 : 0))
+            .background(Color.keaserInk.opacity(configuration.isPressed ? 0.06 : 0))
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
-/// The small white capsule ("Add Account", "Upgrade"). Drawn at `height`
+/// The small ink capsule ("Add Account", "Upgrade"). Drawn at `height`
 /// but always at least 44pt tall to tap.
 struct KeaserCapsuleButtonStyle: ButtonStyle {
     var height: CGFloat = 36
@@ -153,14 +153,14 @@ struct KeaserCapsuleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
-            .foregroundStyle(Color.black)
+            .foregroundStyle(Color.keaserOnInk)
             .multilineTextAlignment(.center)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, 6)
             .frame(minHeight: height)
             // A capsule at the design height; a rounded card, not a clipped
             // pill, when a large text size wraps the label.
-            .background(RoundedRectangle(cornerRadius: height / 2, style: .continuous).fill(Color.white))
+            .background(RoundedRectangle(cornerRadius: height / 2, style: .continuous).fill(Color.keaserInk))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
@@ -176,7 +176,7 @@ extension ButtonStyle where Self == KeaserCapsuleButtonStyle {
 }
 
 /// The confirm button of a form sheet (New Account, New Category): a
-/// checkmark in a 44pt circle, filled white once the form is valid.
+/// checkmark in a 44pt circle, filled with ink once the form is valid.
 struct KeaserConfirmButton: View {
     let label: String
     var isEnabled: Bool
@@ -192,9 +192,9 @@ struct KeaserConfirmButton: View {
         Button(action: action) {
             Image(systemName: "checkmark")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(isEnabled ? Color.black : Color.white.opacity(0.55))
+                .foregroundStyle(isEnabled ? Color.keaserOnInk : Color.keaserInk.opacity(0.55))
                 .frame(width: 44, height: 44)
-                .background(Circle().fill(isEnabled ? Color.white : Color.white.opacity(0.14)))
+                .background(Circle().fill(isEnabled ? Color.keaserInk : Color.keaserInk.opacity(0.14)))
                 .contentShape(Circle())
                 .animation(.smooth(duration: 0.2), value: isEnabled)
         }

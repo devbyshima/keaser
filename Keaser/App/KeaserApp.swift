@@ -24,8 +24,7 @@ struct KeaserApp: App {
                 .environment(store)
                 .environment(router)
                 .environment(pro)
-                .preferredColorScheme(.dark)
-                .tint(.white)
+                .tint(Color.keaserInk)
                 .onOpenURL { router.handle($0) }
                 .task { await pro.start() }
         }

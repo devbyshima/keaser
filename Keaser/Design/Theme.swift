@@ -1,36 +1,58 @@
 import SwiftUI
+import UIKit
 
-/// Keaser is dark-only and monochrome: black canvas, charcoal cards, white
-/// type, white as the only accent. Every colour in the app comes from here.
+/// Keaser is monochrome and follows the system appearance. Dark: black
+/// canvas, charcoal cards, white ink. Light: pale grey canvas, white cards,
+/// black ink. "Ink" is the one accent: chart bars, the add button, primary
+/// buttons. Every colour in the app comes from here, and each one resolves
+/// per appearance, so nothing else needs to know which mode is on.
 extension Color {
-    /// Screen background. Pure black, as in the reference.
-    static let keaserBackground = Color.black
-    /// Cards, list rows, the chart panel. iOS dark secondary grouped.
-    static let keaserCard = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
+    /// Screen background: pure black, or the reference's pale grey.
+    static let keaserBackground = Color(light: .init(white: 245 / 255), dark: .black)
+    /// Cards, list rows, the chart panel.
+    static let keaserCard = Color(light: .white, dark: .init(red: 28 / 255, green: 28 / 255, blue: 30 / 255))
     /// Controls sitting on a card (icon tiles, date pill, text fields).
-    static let keaserCardRaised = Color(red: 44 / 255, green: 44 / 255, blue: 46 / 255)
+    static let keaserCardRaised = Color(light: .init(white: 242 / 255), dark: .init(red: 44 / 255, green: 44 / 255, blue: 46 / 255))
     /// Hairlines between rows.
-    static let keaserSeparator = Color.white.opacity(0.12)
-    static let keaserPrimaryText = Color.white
-    static let keaserSecondaryText = Color(white: 0.56)
-    static let keaserTertiaryText = Color(white: 0.36)
+    static let keaserSeparator = Color(light: .black.opacity(0.1), dark: .white.opacity(0.12))
+    static let keaserPrimaryText = Color(light: .black, dark: .white)
+    static let keaserSecondaryText = Color(light: .init(white: 0.45), dark: .init(white: 0.56))
+    static let keaserTertiaryText = Color(light: .init(white: 0.68), dark: .init(white: 0.36))
     static let keaserDestructive = Color(red: 1, green: 0.27, blue: 0.23)
-    /// The chart's long-press callout: darker than the card it floats over.
-    static let keaserCallout = Color(white: 0.045)
+
+    /// The accent: chart bars, the add button, primary and capsule buttons,
+    /// a filled confirm check. White in dark mode, black in light mode.
+    static let keaserInk = Color(light: .black, dark: .white)
+    /// Text and glyphs drawn on `keaserInk`.
+    static let keaserOnInk = Color(light: .white, dark: .black)
+
+    /// The chart's long-press callout.
+    static let keaserCallout = Color(light: .white, dark: .init(white: 0.045))
     /// Large empty-state symbols ("No Expenses") and other muted icons.
-    static let keaserMutedIcon = Color(white: 0.62)
+    static let keaserMutedIcon = Color(light: .init(white: 0.55), dark: .init(white: 0.62))
     /// The close (xmark) glyph: grey and lighter in weight than the other
     /// header glyphs (back, add, confirm), as in the reference.
-    static let keaserCloseGlyph = Color(white: 0.56)
+    static let keaserCloseGlyph = Color(light: .init(white: 0.45), dark: .init(white: 0.56))
 
-    /// Card fill for content on a sheet. A light veil rather than a solid
-    /// colour, so it reads the same on the iOS 18 charcoal sheet and on iOS 26
-    /// glass.
-    static let keaserSheetCard = Color.white.opacity(0.055)
+    /// A sheet's own background before iOS 26 (from iOS 26 the system draws
+    /// glass). Charcoal in dark mode; grouped grey in light mode, so white
+    /// cards stand out on it.
+    static let keaserSheetBackground = Color(light: .init(red: 242 / 255, green: 242 / 255, blue: 247 / 255), dark: .init(red: 28 / 255, green: 28 / 255, blue: 30 / 255))
+    /// Card fill for content on a sheet: a light veil in dark mode, so it
+    /// reads the same on the charcoal sheet and on glass; white in light mode.
+    static let keaserSheetCard = Color(light: .white, dark: .white.opacity(0.055))
     /// The barely visible tile behind row symbols and monograms on a sheet.
-    static let keaserSheetTile = Color.white.opacity(0.014)
+    static let keaserSheetTile = Color(light: .black.opacity(0.03), dark: .white.opacity(0.014))
     /// Symbol tiles and text fields sitting directly on a sheet.
-    static let keaserSheetField = Color.white.opacity(0.03)
+    static let keaserSheetField = Color(light: .black.opacity(0.05), dark: .white.opacity(0.03))
+
+    /// One colour per appearance, resolved by the system whenever the
+    /// appearance changes.
+    init(light: Color, dark: Color) {
+        self.init(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        })
+    }
 }
 
 enum KeaserMetrics {

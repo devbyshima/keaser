@@ -116,6 +116,14 @@ struct LogicTests {
         #expect(MoneyFormat.parse("", locale: us) == nil)
     }
 
+    @Test func builtInLabelsRememberTheirDefaultIcon() {
+        #expect(ExpenseCategory.defaultSymbol(forName: "Food & Drinks") == "fork.knife")
+        #expect(ExpenseCategory.defaultSymbol(forName: " travel ") == "airplane")
+        #expect(ExpenseCategory.defaultSymbol(forName: "Pets") == nil)
+        #expect(PaymentMethod.defaultSymbol(forName: "Cash") == "banknote.fill")
+        #expect(PaymentMethod.defaultSymbol(forName: "Crypto") == nil)
+    }
+
     @Test func formatsMoney() {
         #expect(MoneyFormat.string(20, currencyCode: "USD", locale: Locale(identifier: "en_US")) == "$20.00")
     }

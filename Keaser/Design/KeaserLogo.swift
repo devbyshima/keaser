@@ -7,10 +7,13 @@ import SwiftUI
 /// sits on (the black canvas, a charcoal sheet).
 struct KeaserLogo: View {
     var size: CGFloat = 96
+    /// Ink by default: white in dark mode, black in light mode. The app
+    /// icon picture passes white, since the icon itself never changes.
+    var color: Color = .keaserInk
 
     var body: some View {
         KeaserMark()
-            .fill(Color.white)
+            .fill(color)
             .frame(width: size, height: size)
             .accessibilityElement()
             .accessibilityLabel("Keaser")
@@ -62,7 +65,7 @@ struct KeaserAppIcon: View {
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
             .fill(Color.black)
-            .overlay(KeaserLogo(size: size * 0.6))
+            .overlay(KeaserLogo(size: size * 0.6, color: .white))
             .overlay(
                 RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)

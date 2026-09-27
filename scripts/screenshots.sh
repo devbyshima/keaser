@@ -10,6 +10,7 @@
 #   ./scripts/screenshots.sh home       # only scripts/shots/home.txt
 #   SIM="Keaser home" ./scripts/screenshots.sh home
 #   SETTLE=4 ./scripts/screenshots.sh   # slower machine
+#   APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,6 +29,8 @@ xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || true
 # inflate line heights, so text would not measure like the reference.
 xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array en-US en >/dev/null 2>&1 || true
 xcrun simctl spawn "$UDID" defaults write -g AppleLocale en_US >/dev/null 2>&1 || true
+# APPEARANCE=light|dark (default dark) sets the system appearance.
+xcrun simctl ui "$UDID" appearance "${APPEARANCE:-dark}" >/dev/null 2>&1 || true
 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 >/dev/null 2>&1 || true
 # A fresh install each run, so no shot inherits state from the previous run.
 xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true

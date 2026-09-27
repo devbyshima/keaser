@@ -67,10 +67,9 @@ targets:
         CFBundleDisplayName: Keaser
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        # Resembles the first screen: the app is black in every state.
+        # Resembles the first screen: black in dark mode, pale grey in light.
         UILaunchScreen:
           UIColorName: LaunchBackground
-        UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false

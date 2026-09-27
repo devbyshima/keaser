@@ -59,3 +59,28 @@ extension PaymentMethod {
         ]
     }
 }
+
+extension ExpenseCategory {
+    /// The icon a built-in category ("Food & Drinks", "Travel"...) starts
+    /// with, for "Reset to Default". Matched by name, ignoring case and
+    /// accents, so it also works for accounts created before this existed.
+    /// Nil for a category the user added.
+    public static func defaultSymbol(forName name: String) -> String? {
+        let key = labelKey(name)
+        return defaults().first { labelKey($0.name) == key }?.symbol
+    }
+}
+
+extension PaymentMethod {
+    /// The icon a built-in payment method starts with, for "Reset to
+    /// Default". Nil for a method the user added.
+    public static func defaultSymbol(forName name: String) -> String? {
+        let key = labelKey(name)
+        return defaults().first { labelKey($0.name) == key }?.symbol
+    }
+}
+
+private func labelKey(_ name: String) -> String {
+    name.trimmingCharacters(in: .whitespacesAndNewlines)
+        .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+}

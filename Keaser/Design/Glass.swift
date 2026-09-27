@@ -13,7 +13,7 @@ extension View {
         } else {
             self
                 .background(.ultraThinMaterial, in: shape)
-                .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+                .overlay(shape.stroke(Color.keaserInk.opacity(0.10), lineWidth: 0.5))
         }
     }
 
@@ -54,11 +54,11 @@ private struct FallbackGlassButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.medium))
-            .foregroundStyle(isEnabled ? Color.white : Color.keaserTertiaryText)
+            .foregroundStyle(isEnabled ? Color.keaserPrimaryText : Color.keaserTertiaryText)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+            .overlay(Capsule().stroke(Color.keaserInk.opacity(0.10), lineWidth: 0.5))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.snappy(duration: 0.2), value: configuration.isPressed)
@@ -74,7 +74,7 @@ extension View {
             self
         } else {
             self
-                .presentationBackground(Color.keaserCard)
+                .presentationBackground(Color.keaserSheetBackground)
                 .presentationCornerRadius(32)
         }
     }
