@@ -43,7 +43,6 @@ struct RootView: View {
             switch sheet {
             case .settings: SettingsView()
             case .paywall: PaywallView()
-            case .notion: NotionConnectView { _ in debugSheet = nil }
             }
         }
         #endif
@@ -106,7 +105,7 @@ private struct StorageBanner: View {
 /// directly from `-KeaserSheet` so they can be screenshotted in isolation.
 /// Home's own sheets (`newExpense`, `accounts`...) are handled by HomeView.
 private enum DebugSheet: String, Identifiable {
-    case settings, paywall, notion
+    case settings, paywall
     var id: String { rawValue }
 }
 #endif

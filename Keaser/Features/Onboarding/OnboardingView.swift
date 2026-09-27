@@ -1,7 +1,7 @@
 import KeaserKit
 import SwiftUI
 
-/// The six-page first-run flow. Calls `onFinish` after the last page.
+/// The five-page first-run flow. Calls `onFinish` after the last page.
 ///
 /// Pages advance only with the button (no swiping), so every page's entrance
 /// animation plays from the start and the Pro pass and notification steps
@@ -16,7 +16,7 @@ struct OnboardingView: View {
     @State private var page: Int
     @State private var notifications: NotificationStep
 
-    nonisolated static let pageCount = 6
+    nonisolated static let pageCount = 5
 
     init(onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
@@ -100,15 +100,6 @@ struct OnboardingView: View {
                 WidgetsIllustration(currencyCode: store.preferences.currencyCode)
             }
         case 3:
-            OnboardingPage(
-                title: "Syncs with Notion",
-                subtitle: "Continue where you left off in Notion, with a faster, dedicated experience.",
-                button: "Continue",
-                action: advance
-            ) {
-                NotionIllustration()
-            }
-        case 4:
             OnboardingPage(
                 title: "7-Day Pro Pass,\nOn Us",
                 subtitle: "Enjoy full Pro features for 7 days. No automatic billing after pass expires.",
@@ -284,7 +275,7 @@ extension OnboardingPage where Accessory == EmptyView {
     }
 }
 
-/// Six dots; the current page is a wider white capsule.
+/// One dot per page; the current page is a wider white capsule.
 private struct OnboardingPageIndicator: View {
     let count: Int
     let current: Int
@@ -351,7 +342,7 @@ enum OnboardingPalette {
 
 // MARK: - Launch arguments
 
-/// `-KeaserOnboardingPage 0...5 | widgetGallery | widgetGalleryLocked` and
+/// `-KeaserOnboardingPage 0...4 | widgetGallery | widgetGalleryLocked` and
 /// `-KeaserNotifState granted|denied` (DEBUG only; see AGENTS.md).
 enum OnboardingLaunch {
     enum Gallery { case unlocked, locked }

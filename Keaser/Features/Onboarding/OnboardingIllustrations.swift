@@ -204,89 +204,7 @@ struct WidgetsIllustration: View {
     }
 }
 
-// MARK: - Page 3: Notion
-
-/// Keaser and Notion linked by travelling dots, then what the link brings,
-/// one line at a time.
-struct NotionIllustration: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shownLines = 0
-
-    private let lines = [
-        "Fast logging with Apple Shortcuts.",
-        "Easily filter and visualize your data using charts.",
-        "Add home screen widgets to view total spending at a glance.",
-    ]
-
-    var body: some View {
-        VStack(spacing: 44) {
-            HStack(spacing: 16) {
-                KeaserLogo(size: 90)
-                    .frame(width: 100, height: 100)
-                TravellingDots()
-                NotionMark(size: 100)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Keaser linked with Notion")
-            // Every line is laid out from the start, hidden, so the picture
-            // does not move as they appear.
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                    let visible = index < shownLines
-                    HStack(spacing: 15) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 17, weight: .medium))
-                            .frame(width: 13)
-                            .accessibilityHidden(true)
-                        Text(line)
-                            .font(.body)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .opacity(visible ? 1 : 0)
-                    // Reduce Motion keeps the fade and drops the drift.
-                    .blur(radius: visible || reduceMotion ? 0 : 6)
-                    .offset(y: visible || reduceMotion ? 0 : 8)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 43)
-        }
-        .offset(y: 24)
-        .task {
-            for index in lines.indices {
-                try? await Task.sleep(for: .milliseconds(index == 0 ? 500 : 900))
-                withAnimation(.smooth(duration: 0.5)) { shownLines = index + 1 }
-            }
-        }
-    }
-}
-
-/// Five dots with a bright one running from Keaser to Notion, on a loop.
-/// With Reduce Motion the loop stops and the dots brighten towards Notion.
-private struct TravellingDots: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            // The head moves 4.5 dots a second over 5 dots plus a short rest.
-            let head = (context.date.timeIntervalSinceReferenceDate * 4.5).truncatingRemainder(dividingBy: 7)
-            HStack(spacing: 6) {
-                ForEach(0..<5, id: \.self) { index in
-                    let behind = head - Double(index)
-                    let moving = behind >= 0 && behind < 1.6 ? 1 - behind / 1.6 : 0
-                    let glow = reduceMotion ? Double(index) / 4 : moving
-                    Circle()
-                        .fill(Color.white.opacity(0.27 + 0.61 * glow))
-                        .frame(width: 8, height: 8)
-                }
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-// MARK: - Page 4: Pro pass
+// MARK: - Page 3: Pro pass
 
 /// The four Pro features as a 2x2 grid of icon tiles, unfolding into a list of
 /// labelled pills.
@@ -360,7 +278,7 @@ private struct ProFeaturePill: View {
     }
 }
 
-// MARK: - Page 5: notifications
+// MARK: - Page 4: notifications
 
 /// A lock screen that receives the weekly summary; once the user answers the
 /// permission prompt it gives way to a large check (or a muted bell).

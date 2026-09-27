@@ -9,7 +9,7 @@ import KeaserKit
 ///
 /// Keys (see AGENTS.md for the full table):
 /// - `-KeaserSeed fresh|onboarded|account|single|demo`
-/// - `-KeaserOnboardingPage 0...5`
+/// - `-KeaserOnboardingPage 0...4`
 /// - `-KeaserSheet <name>` (each feature documents its own sheet names)
 /// - `-KeaserSettingsPage <name>`
 /// - `-KeaserPeriod today|thisWeek|thisMonth|thisYear|allTime`

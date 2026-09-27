@@ -84,9 +84,9 @@ public enum AmountInput {
 
     /// The amount to save for what the field shows. While the field still
     /// shows exactly what `seed` was filled in as, `seed` itself comes back:
-    /// an amount with more fraction digits than the currency (from Notion,
-    /// or logged before a currency change) must survive an edit that never
-    /// touched it, even though the field can only show it rounded.
+    /// an amount with more fraction digits than the currency (logged before
+    /// a currency change, or from a Shortcut) must survive an edit that
+    /// never touched it, even though the field can only show it rounded.
     public static func amount(
         from field: String,
         seed: Decimal?,

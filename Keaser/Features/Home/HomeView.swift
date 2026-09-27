@@ -89,7 +89,7 @@ struct HomeView: View {
             message: "Add an account to start tracking expenses.",
             style: .large
         ) {
-            Button("Add Account") { sheet = .addAccount(startsWithForm: false) }
+            Button("Add Account") { sheet = .addAccount }
                 .buttonStyle(.keaserCapsule(height: 36, horizontalPadding: 11))
                 // The style taps across 44pt; lay it out at the drawn 36pt so
                 // the block sits where the reference has it.
@@ -223,8 +223,8 @@ struct HomeView: View {
         switch presented {
         case .accounts:
             AccountsSheet()
-        case .addAccount(let startsWithForm):
-            AddAccountSheet(startsWithForm: startsWithForm)
+        case .addAccount:
+            AddAccountSheet()
         case .newExpense:
             if let account = store.selectedAccount {
                 ExpenseEditorView(accountID: account.id)
@@ -349,7 +349,7 @@ struct HomeView: View {
         guard let route else { return }
         switch route {
         case .newExpense:
-            sheet = store.selectedAccount == nil ? .addAccount(startsWithForm: false) : .newExpense
+            sheet = store.selectedAccount == nil ? .addAccount : .newExpense
         case .settings:
             sheet = .settings
         }
@@ -366,8 +366,7 @@ struct HomeView: View {
         }
         switch DebugLaunch.sheet {
         case "accounts": sheet = .accounts
-        case "addAccount": sheet = .addAccount(startsWithForm: false)
-        case "newAccount": sheet = .addAccount(startsWithForm: true)
+        case "addAccount": sheet = .addAccount
         case "newExpense" where store.selectedAccount != nil: sheet = .newExpense
         case "editExpense":
             if let newest = store.selectedAccount?.expensesNewestFirst.first {
@@ -385,7 +384,7 @@ struct HomeView: View {
 /// Everything Home presents as a sheet.
 enum HomeSheet: Identifiable, Hashable {
     case accounts
-    case addAccount(startsWithForm: Bool)
+    case addAccount
     case newExpense
     case editExpense(UUID)
     case settings

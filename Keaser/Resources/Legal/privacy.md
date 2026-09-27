@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 26 September 2026
+Last updated: 27 September 2026
 
 Keaser is an expense tracker that works without an account. This page explains, in plain terms, what the app stores, where it is kept, and what it never does.
 
@@ -12,17 +12,9 @@ Only what you enter: your accounts, expenses, categories and payment methods, an
 
 On your iPhone, in a single file inside Keaser's app group container. The app group lets Keaser's widgets read your totals; nothing else can. The file is protected by iOS data protection and, like other app data, is included in your device backups if you have them turned on.
 
-Keaser has no servers. The makers of Keaser never receive a copy of your data.
+Keaser also keeps the date your 7-day Pro pass began in the iOS Keychain on this device, so reinstalling the app does not restart the pass.
 
-## Notion
-
-Nothing is sent to Notion unless you connect an account to a Notion database. When you do:
-
-- You provide your own Notion integration token. Keaser keeps it in the iOS Keychain on this device.
-- Keaser talks to Notion directly from your iPhone, using that token, to read and write the database you chose.
-- The expenses of the linked account (title, amount, category, payment method and date) move between your iPhone and that database.
-
-Data in your Notion workspace is covered by Notion's own privacy policy. You can disconnect an account from Notion at any time in Account Settings.
+Keaser has no servers. The makers of Keaser never receive a copy of your data, and nothing you enter leaves your iPhone.
 
 ## Purchases
 
@@ -45,7 +37,7 @@ The optional weekly summary is scheduled on your iPhone. No notification server 
 
 ## Deleting your data
 
-Delete an account from Account Settings, or delete the app to remove everything it stored on your iPhone. Expenses already synced to Notion stay in your Notion workspace until you remove them there.
+Delete an account from Account Settings, or delete the app to remove everything it stored on your iPhone.
 
 ## Children
 

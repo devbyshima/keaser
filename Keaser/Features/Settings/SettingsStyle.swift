@@ -6,7 +6,7 @@ import UIKit
 // buttons.
 
 // The settings names predate the shared sheet tokens in Theme.swift and are
-// kept for the pages (and the Notion section) that use them.
+// kept for the pages that use them.
 extension Color {
     static var settingsCard: Color { .keaserSheetCard }
     static var settingsTile: Color { .keaserSheetTile }

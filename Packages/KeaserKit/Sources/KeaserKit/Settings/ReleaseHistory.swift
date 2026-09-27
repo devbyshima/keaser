@@ -54,8 +54,6 @@ public enum ReleaseHistory {
                       detail: "Your spending on the Home Screen and the Lock Screen, always in your currency and week settings."),
                 .init(symbol: "bell.badge.fill", title: "Weekly summary",
                       detail: "An optional notification each week with what you spent."),
-                .init(symbol: "arrow.triangle.2.circlepath", title: "Notion sync",
-                      detail: "Link an account to a Notion database and keep both in step, using your own Notion integration."),
                 .init(symbol: "lock.fill", title: "Private by design",
                       detail: "No sign-up, no analytics and no tracking. Your data stays on your iPhone."),
             ]

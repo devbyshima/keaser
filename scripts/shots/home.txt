@@ -1,7 +1,6 @@
 # Home, accounts and the expense editor (owner: home-expenses).
 no-account | -KeaserSeed onboarded
 add-account | -KeaserSeed onboarded -KeaserSheet addAccount
-new-account | -KeaserSeed onboarded -KeaserSheet newAccount
 empty-account | -KeaserSeed account
 accounts | -KeaserSeed account -KeaserSheet accounts
 accounts-demo | -KeaserSeed demo -KeaserSheet accounts

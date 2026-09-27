@@ -1,6 +1,6 @@
 # Terms of Service
 
-Last updated: 26 September 2026
+Last updated: 27 September 2026
 
 These terms apply when you use Keaser. By using the app, you agree to them.
 
@@ -19,10 +19,6 @@ Your data belongs to you and stays on your device, as described in the Privacy P
 - The yearly subscription renews automatically unless you cancel it at least 24 hours before the end of the current period. You can manage or cancel it in your Apple Account settings under Subscriptions.
 - Payment is charged to your Apple Account when you confirm the purchase. Refunds are handled by Apple under its policies.
 - Restore Purchases brings Pro back on any device signed in to the same Apple Account.
-
-## Notion and other services
-
-If you connect Notion, your use of Notion is governed by Notion's terms. Keaser only works with the database you choose, using the token you provide.
 
 ## Fair use
 

@@ -148,10 +148,9 @@ struct AccountsSheet: View {
     private func deletionMessage(for account: Account) -> String {
         let count = account.expenses.count
         let expenses = count == 1 ? "its 1 expense" : "all \(count) of its expenses"
-        let notion = account.isNotionLinked ? " The linked Notion database is not changed." : ""
         return count == 0
-            ? "This account will be deleted. This cannot be undone.\(notion)"
-            : "This account and \(expenses) will be deleted. This cannot be undone.\(notion)"
+            ? "This account will be deleted. This cannot be undone."
+            : "This account and \(expenses) will be deleted. This cannot be undone."
     }
 }
 

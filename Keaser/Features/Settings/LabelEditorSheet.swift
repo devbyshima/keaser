@@ -29,7 +29,7 @@ struct LabelEditorSheet: View {
     }
 
     /// The kind's symbols, plus the label's own when it is not one of them
-    /// (a label imported from Notion, say), so it still shows selected.
+    /// (a default from an earlier version, say), so it still shows selected.
     private var choices: [SymbolChoice] {
         let base = kind.choices
         guard let existing, !base.contains(where: { $0.symbol == existing.symbol }) else { return base }

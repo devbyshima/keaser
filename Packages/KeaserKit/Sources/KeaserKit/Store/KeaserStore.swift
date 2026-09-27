@@ -3,16 +3,16 @@ import Observation
 import os
 
 /// What just changed, for observers that react to edits (widget reloads,
-/// notification rescheduling, Notion push).
+/// notification rescheduling).
 public enum StoreChange: Sendable, Equatable {
     case expenseSaved(accountID: UUID, expenseID: UUID)
-    case expenseDeleted(accountID: UUID, expenseID: UUID, notionPageID: String?)
+    case expenseDeleted(accountID: UUID, expenseID: UUID)
     case accountCreated(accountID: UUID)
     case accountUpdated(accountID: UUID)
     case accountDeleted(accountID: UUID)
     case accountsReordered
     case preferencesChanged
-    /// The whole database was replaced (reload from disk, sync pull).
+    /// The whole database was replaced (reload from disk).
     case reloaded
 }
 
@@ -93,9 +93,9 @@ public final class KeaserStore {
     /// Creates an account with the default categories and payment methods and
     /// selects it.
     @discardableResult
-    public func createAccount(name: String, notion: NotionConnection? = nil) -> Account {
+    public func createAccount(name: String) -> Account {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let account = Account(name: trimmed.isEmpty ? "Personal" : trimmed, notion: notion)
+        let account = Account(name: trimmed.isEmpty ? "Personal" : trimmed)
         database.accounts.append(account)
         database.preferences.selectedAccountID = account.id
         commit(.accountCreated(accountID: account.id))
@@ -108,15 +108,13 @@ public final class KeaserStore {
         updateAccount(id) { $0.name = trimmed }
     }
 
-    /// General-purpose edit of one account. `notify: false` is for the sync
-    /// engine writing pulled data, so it does not trigger a push of its own
-    /// write; observers still get `.reloaded` so the widget refreshes.
-    public func updateAccount(_ id: UUID, notify: Bool = true, _ body: (inout Account) -> Void) {
+    /// General-purpose edit of one account.
+    public func updateAccount(_ id: UUID, _ body: (inout Account) -> Void) {
         guard let index = database.accounts.firstIndex(where: { $0.id == id }) else { return }
         let before = database.accounts[index]
         body(&database.accounts[index])
         guard database.accounts[index] != before else { return }
-        commit(notify ? .accountUpdated(accountID: id) : .reloaded)
+        commit(.accountUpdated(accountID: id))
     }
 
     /// Removes the account and everything in it. Selects the next account.
@@ -150,19 +148,12 @@ public final class KeaserStore {
         commit(.expenseSaved(accountID: accountID, expenseID: expense.id))
     }
 
-    public func deleteExpense(_ expenseID: UUID, in accountID: UUID, now: Date = .now) {
+    public func deleteExpense(_ expenseID: UUID, in accountID: UUID) {
         guard let a = database.accounts.firstIndex(where: { $0.id == accountID }),
               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == expenseID })
         else { return }
-        let removed = database.accounts[a].expenses.remove(at: e)
-        if database.accounts[a].notion != nil {
-            if let page = removed.notionPageID {
-                database.accounts[a].deletedNotionPageIDs.append(page)
-            } else {
-                database.accounts[a].unlinkedDeletions.append(UnlinkedDeletion(expenseID: removed.id, deletedAt: now))
-            }
-        }
-        commit(.expenseDeleted(accountID: accountID, expenseID: expenseID, notionPageID: removed.notionPageID))
+        database.accounts[a].expenses.remove(at: e)
+        commit(.expenseDeleted(accountID: accountID, expenseID: expenseID))
     }
 
     // MARK: Categories

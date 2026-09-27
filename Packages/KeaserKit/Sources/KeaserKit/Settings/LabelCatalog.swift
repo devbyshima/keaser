@@ -166,8 +166,8 @@ public enum LabelNaming {
     }
 
     /// Whether another label already uses `name`, ignoring case and accents.
-    /// Names must be unique because filters and Notion sync match labels by
-    /// name.
+    /// Names must be unique so filters and Shortcuts, which match labels by
+    /// name, stay unambiguous.
     public static func isTaken(_ name: String, by existing: [(id: UUID, name: String)], excluding id: UUID?) -> Bool {
         let key = normalized(name)
         return existing.contains { $0.id != id && normalized($0.name) == key }

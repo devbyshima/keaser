@@ -1,7 +1,7 @@
 import KeaserKit
 import SwiftUI
 
-/// Name, labels, Notion link and deletion for one account.
+/// Name, labels and deletion for one account.
 struct AccountSettingsView: View {
     let accountID: UUID
 
@@ -49,10 +49,6 @@ struct AccountSettingsView: View {
                     SettingsRow(symbol: "creditcard.fill", title: "Payment Methods")
                 }
                 .cardRow(.last)
-            }
-
-            if account.notion != nil {
-                NotionAccountSection(accountID: account.id)
             }
 
             Section {

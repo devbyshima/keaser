@@ -5,9 +5,8 @@ page1 | -KeaserSeed fresh -KeaserOnboardingPage 1
 page2 | -KeaserSeed fresh -KeaserOnboardingPage 2
 page3 | -KeaserSeed fresh -KeaserOnboardingPage 3
 page4 | -KeaserSeed fresh -KeaserOnboardingPage 4
-page5 | -KeaserSeed fresh -KeaserOnboardingPage 5
-page5-granted | -KeaserSeed fresh -KeaserOnboardingPage 5 -KeaserNotifState granted
-page5-denied | -KeaserSeed fresh -KeaserOnboardingPage 5 -KeaserNotifState denied
+page4-granted | -KeaserSeed fresh -KeaserOnboardingPage 4 -KeaserNotifState granted
+page4-denied | -KeaserSeed fresh -KeaserOnboardingPage 4 -KeaserNotifState denied
 
 # The welcome letter over Home.
 letter | -KeaserSeed account -KeaserLetter 1

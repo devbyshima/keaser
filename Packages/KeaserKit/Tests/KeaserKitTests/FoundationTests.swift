@@ -24,17 +24,16 @@ struct StoreTests {
         #expect(store.account(id: account.id)?.expenses.first?.amount == 25)
     }
 
-    @Test func deletingANotionExpenseQueuesItsPage() {
+    @Test func deletingAnExpenseAnnouncesIt() {
         let store = KeaserStore(file: nil)
-        let map = NotionPropertyMap(title: "Name")
-        let account = store.createAccount(name: "N", notion: NotionConnection(databaseID: "db", databaseTitle: "Expenses", properties: map))
-        let expense = Expense(title: "Synced", amount: 1, notionPageID: "page-1")
+        let account = store.createAccount(name: "Personal")
+        let expense = Expense(title: "Lunch", amount: 1)
         store.saveExpense(expense, in: account.id)
         var changes: [StoreChange] = []
         store.addObserver { changes.append($0) }
         store.deleteExpense(expense.id, in: account.id)
-        #expect(store.account(id: account.id)?.deletedNotionPageIDs == ["page-1"])
-        #expect(changes == [.expenseDeleted(accountID: account.id, expenseID: expense.id, notionPageID: "page-1")])
+        #expect(store.account(id: account.id)?.expenses.isEmpty == true)
+        #expect(changes == [.expenseDeleted(accountID: account.id, expenseID: expense.id)])
     }
 
     @Test func deletingACategoryUncategorisesItsExpenses() {

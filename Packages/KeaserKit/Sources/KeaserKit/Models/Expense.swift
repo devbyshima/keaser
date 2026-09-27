@@ -1,7 +1,7 @@
 import Foundation
 
-/// One spend. Money is `Decimal` so that 0.1 + 0.2 stays 0.3 on screen and in
-/// Notion; it is only ever converted to `Double` for chart geometry.
+/// One spend. Money is `Decimal` so that 0.1 + 0.2 stays 0.3 on screen; it is
+/// only ever converted to `Double` for chart geometry.
 public struct Expense: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var title: String
@@ -12,8 +12,6 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
     public var date: Date
     public var createdAt: Date
     public var updatedAt: Date
-    /// Set once the expense exists as a page in a connected Notion database.
-    public var notionPageID: String?
 
     public init(
         id: UUID = UUID(),
@@ -23,8 +21,7 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         paymentMethodID: UUID? = nil,
         date: Date = .now,
         createdAt: Date = .now,
-        updatedAt: Date = .now,
-        notionPageID: String? = nil
+        updatedAt: Date = .now
     ) {
         self.id = id
         self.title = title
@@ -34,7 +31,6 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         self.date = date
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-        self.notionPageID = notionPageID
     }
 
     // Tolerant decoding: a field added in a later version must not make an
@@ -49,6 +45,5 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? .now
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? date
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
-        notionPageID = try c.decodeIfPresent(String.self, forKey: .notionPageID)
     }
 }

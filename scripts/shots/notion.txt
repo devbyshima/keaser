@@ -1,8 +1,0 @@
-# Owned by the notion builder. Every shot uses the in-memory demo workspace.
-intro | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1
-databases | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1 -KeaserNotionStep databases
-newDatabase | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1 -KeaserNotionStep newDatabase
-review | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1 -KeaserNotionStep review
-section | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1 -KeaserNotionStep section
-tokenError | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1 -KeaserNotionStep tokenError
-created | -KeaserSeed demo -KeaserSheet notion -KeaserNotionDemo 1 -KeaserNotionStep created

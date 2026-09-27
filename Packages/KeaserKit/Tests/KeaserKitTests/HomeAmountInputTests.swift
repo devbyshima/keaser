@@ -40,8 +40,9 @@ struct HomeAmountInputTests {
     }
 
     /// Edit Expense fills its field from the stored amount, which can have
-    /// more fraction digits than the currency (from Notion, or logged before
-    /// a currency change). Saving without touching the field keeps it.
+    /// more fraction digits than the currency (logged before a currency
+    /// change, or from a Shortcut). Saving without touching the field keeps
+    /// it.
     @Test(arguments: [("4.555", "USD"), ("20.5", "JPY"), ("1.2345", "KWD"), ("20", "USD")])
     func anUntouchedFieldSavesTheStoredAmount(_ raw: String, _ code: String) {
         let stored = Decimal(string: raw)!
