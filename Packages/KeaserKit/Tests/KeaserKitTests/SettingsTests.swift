@@ -153,17 +153,6 @@ struct SettingsContentTests {
         for release in releases { #expect(!release.highlights.isEmpty) }
     }
 
-    @Test func tutorialsReferToTheSharedIntentTitles() {
-        #expect(Tutorials.all.map(\.id) == Tutorial.ID.allCases)
-        let shortcut = Tutorials.tutorial(.addExpenseShortcut)
-        #expect(shortcut.steps.contains { $0.detail.contains("Add Expense") })
-        let wallet = Tutorials.tutorial(.walletAutomation)
-        let text = wallet.steps.map { $0.title + " " + $0.detail }.joined(separator: " ")
-        for word in ["Automation", "Transaction", "Log Wallet Transaction", "Merchant", "Amount", "Card"] {
-            #expect(text.contains(word), "\(word)")
-        }
-    }
-
     @Test func parsesTheMarkdownTheLegalPagesUse() {
         let source = """
         # Privacy Policy

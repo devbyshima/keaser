@@ -20,8 +20,22 @@ weekly-summary | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage we
 weekly-summary-denied | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage weeklySummary -KeaserNotifState denied
 shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
 tutorials | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorials
-tutorial-wallet | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet
+# Tutorial articles: the top, then -KeaserTutorialScroll <section id,
+# illustration name or end> for the rest of each page.
 tutorial-shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut
+tutorial-shortcut-search | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll actionSearch
+tutorial-shortcut-prefill | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll prefilledAction
+tutorial-shortcut-back-tap | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll backTap
+tutorial-shortcut-control-center | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll controlCenter
+tutorial-shortcut-control-sizes | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll addControl
+tutorial-shortcut-end | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll end
+tutorial-shortcut-ax | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialShortcut -KeaserTutorialScroll backTap -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL
+tutorial-wallet | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet
+tutorial-wallet-options | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll walletTrigger
+tutorial-wallet-action | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll action
+tutorial-wallet-variables | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll walletVariables
+tutorial-wallet-date | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll currentDate
+tutorial-wallet-end | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll end
 whats-new | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage whatsNew
 release | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage release
 help | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage help
