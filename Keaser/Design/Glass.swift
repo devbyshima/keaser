@@ -5,21 +5,23 @@ import SwiftUI
 // so the deployment target can stay at iOS 18.
 
 extension View {
-    /// Glass behind this view, clipped to `shape`.
+    /// Glass behind this view, clipped to `shape`. `tint` colours the glass
+    /// (pass it with its opacity); before iOS 26 it is laid over the material.
     @ViewBuilder
-    func keaserGlass(in shape: some Shape, interactive: Bool = false) -> some View {
+    func keaserGlass(in shape: some Shape, interactive: Bool = false, tint: Color? = nil) -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+            self.glassEffect(Glass.regular.tint(tint).interactive(interactive), in: shape)
         } else {
             self
+                .background(tint ?? .clear, in: shape)
                 .background(.ultraThinMaterial, in: shape)
                 .overlay(shape.stroke(Color.keaserInk.opacity(0.10), lineWidth: 0.5))
         }
     }
 
     /// Capsule glass, the shape of every toolbar control in the reference.
-    func keaserGlass(interactive: Bool = false) -> some View {
-        keaserGlass(in: Capsule(), interactive: interactive)
+    func keaserGlass(interactive: Bool = false, tint: Color? = nil) -> some View {
+        keaserGlass(in: Capsule(), interactive: interactive, tint: tint)
     }
 
     /// The system glass button style ("Cancel", "Save", the round close
