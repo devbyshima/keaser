@@ -6,7 +6,8 @@ import WidgetKit
 /// Every Spending widget family at its real point size, drawn with the
 /// widget's own views, so screenshots can check them without adding widgets to
 /// a home screen. Opened with `-KeaserOnboardingPage widgetGallery` (demo data)
-/// or `widgetGalleryLocked` (the Pro-locked and no-account states).
+/// or `widgetGalleryLocked` (the Pro-locked and no-account states);
+/// `-KeaserGalleryScroll bottom` starts at the end of the page.
 ///
 /// Home screen widgets follow the current appearance, as on a real home
 /// screen; lock screen widgets look the same in both, as the system draws
@@ -14,12 +15,17 @@ import WidgetKit
 struct WidgetGallery: View {
     let showsLockedStates: Bool
 
-    // iPhone 16 Pro sizes.
-    private static let small = CGSize(width: 170, height: 170)
-    private static let medium = CGSize(width: 364, height: 170)
+    // iPhone 16 Pro sizes, and the home screen's side margin on it.
+    private static let small = CGSize(width: 158, height: 158)
+    private static let medium = CGSize(width: 338, height: 158)
     private static let rectangular = CGSize(width: 172, height: 76)
     private static let circular = CGSize(width: 72, height: 72)
     private static let inline = CGSize(width: 250, height: 26)
+    private static let margin: CGFloat = 32
+
+    /// A plain home screen behind the widgets: the light grey and the black
+    /// the reference widgets sit on, so the two compare side by side.
+    private static let homeScreen = Color(light: Color(white: 239 / 255), dark: .black)
 
     private let now = Date.now
 
@@ -31,23 +37,30 @@ struct WidgetGallery: View {
                     .foregroundStyle(Color.keaserPrimaryText)
                 if showsLockedStates { lockedStates } else { readyStates }
             }
-            .padding(.horizontal, 19)
+            .padding(.horizontal, Self.margin)
             .padding(.top, 4)
             .padding(.bottom, 8)
         }
         .scrollIndicators(.hidden)
+        .defaultScrollAnchor(DebugLaunch.string("KeaserGalleryScroll") == "bottom" ? .bottom : .top)
+        .background(Self.homeScreen.ignoresSafeArea())
     }
 
     @ViewBuilder
     private var readyStates: some View {
         let demo = DemoData.database(.demo, now: now)
         section("Home Screen")
-        HStack(spacing: 24) {
+        // The three periods the reference stacks, with its spacing.
+        VStack(spacing: 18) {
+            home(snapshot(demo, .today), .systemMedium)
+            home(snapshot(demo, .thisWeek), .systemMedium)
+            home(snapshot(demo, .thisMonth), .systemMedium)
+        }
+        // Two small widgets span a medium one, as on the home screen.
+        HStack(spacing: Self.medium.width - Self.small.width * 2) {
             home(snapshot(demo, .thisMonth), .systemSmall)
             home(snapshot(demo, .thisWeek), .systemSmall)
         }
-        home(snapshot(demo, .thisMonth), .systemMedium)
-        home(snapshot(demo, .thisYear), .systemMedium)
         section("Lock Screen")
         lockScreen(
             rectangular: snapshot(demo, .today),
@@ -61,7 +74,7 @@ struct WidgetGallery: View {
         let locked = snapshot(expiredPass, .thisMonth)
         let empty = snapshot(DemoData.database(.onboarded, now: now), .thisMonth)
         section("Pass over")
-        HStack(spacing: 24) {
+        HStack(spacing: Self.medium.width - Self.small.width * 2) {
             home(locked, .systemSmall)
             home(empty, .systemSmall)
         }
@@ -94,8 +107,6 @@ struct WidgetGallery: View {
         WidgetPreviewFrame(size: family == .systemMedium ? Self.medium : Self.small) {
             SpendingWidgetView(snapshot: snapshot, family: family, inApp: true)
         }
-        // A white widget on the pale page needs a soft edge to show its size.
-        .shadow(color: Color(light: .black.opacity(0.1), dark: .clear), radius: 8, y: 2)
     }
 
     /// Accessory widgets on a lock-screen-like backdrop, in the white the
