@@ -35,4 +35,8 @@ enum DebugLaunch {
 
     /// A page inside Settings, e.g. "currency".
     static var settingsPage: String? { string("KeaserSettingsPage") }
+
+    /// A shortcut card drawn in a stand-in of the system's, e.g. "confirm"
+    /// (see `SnippetPreview`).
+    static var snippet: String? { string("KeaserSnippet") }
 }
