@@ -99,11 +99,11 @@ struct ExpenseEditorView: View {
         VStack(spacing: 0) {
             KeaserSheetHeader(title: isNew ? "New Expense" : "Edit Expense") {
                 Button("Cancel") { dismiss() }
-                    .keaserGlassButtonStyle()
+                    .homeSheetHeaderButton()
                     .accessibilityShowsLargeContentViewer()
             } trailing: {
                 Button("Save", action: save)
-                    .keaserGlassButtonStyle()
+                    .homeSheetHeaderButton(confirms: true)
                     .disabled(!canSave)
                     .accessibilityShowsLargeContentViewer()
             }
