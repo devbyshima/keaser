@@ -44,10 +44,6 @@ struct ExpenseEditorView: View {
     @State private var receiptNotFound = false
     @State private var date: Date
     @State private var confirmingDelete = false
-    /// Where the scroll view and Delete Expense end on screen: the button
-    /// only shows when all of it is above the keyboard.
-    @State private var visibleBottom = CGFloat.infinity
-    @State private var deleteBottom = CGFloat.zero
     @State private var suggestionTaken = 0
     @State private var finished = 0
     @FocusState private var focus: Field?
@@ -129,9 +125,6 @@ struct ExpenseEditorView: View {
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
             .keaserReadableScrollContent()
-            // Where the scroll view ends on screen: at the keyboard's top
-            // edge while it is up. Delete Expense only shows above it.
-            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { visibleBottom = $0 }
         }
         // One detent, as in the reference: the keyboard lifts the sheet
         // instead of expanding it.
@@ -323,12 +316,11 @@ struct ExpenseEditorView: View {
         .editorRow(height: EditorMetrics.dateRowHeight)
     }
 
-    /// Delete Expense under the card. Smart Suggestions' rows (or a large
-    /// text size) can push it down to the keyboard's edge; rather than show
-    /// it cut in half there, it stays out of sight until it is scrolled
-    /// fully into view, or the keyboard or the rows go away.
+    /// Delete Expense under the card, shown only while no field is being
+    /// typed in: the reference's Edit Expense opens with the keyboard up and
+    /// no button under the card. Rows keep Delete in their menu and swipe.
     private var deleteButton: some View {
-        let fits = deleteBottom <= visibleBottom + 0.5
+        let shows = focus == nil
         return KeaserCard(fill: .homeSheetCard) {
             Button {
                 focus = nil
@@ -345,10 +337,10 @@ struct ExpenseEditorView: View {
             }
             .buttonStyle(HighlightRowButtonStyle())
         }
-        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { deleteBottom = $0 }
-        .opacity(fits ? 1 : 0)
-        .allowsHitTesting(fits)
-        .animation(.easeOut(duration: 0.15), value: fits)
+        .opacity(shows ? 1 : 0)
+        .allowsHitTesting(shows)
+        .accessibilityHidden(!shows)
+        .animation(.easeOut(duration: 0.15), value: shows)
     }
 
     // MARK: Actions
