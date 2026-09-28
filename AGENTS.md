@@ -23,6 +23,8 @@ The Xcode project is generated. After editing `project.yml`, run
     ./scripts/intents-test.sh    # App Intents tests (AppIntentsTesting) on their own iOS 27 simulator
     ./scripts/screenshots.sh home   # one area only
     SIM="Keaser home" ./scripts/screenshots.sh home   # use your own simulator
+    ./scripts/intents-test.sh    # App Intents through the system (AppIntentsTesting, iOS 27 sim, ~15 min)
+    KEASER_MODEL_EVALS=1 ./scripts/eval.sh   # opt-in on-device model evals (Mac with Apple Intelligence)
 
 Screenshots land in `screenshots/<area>-<name>.png` at 1206x2622, the same
 size as the reference recording. Verify UI by looking at them. Do not drive the
@@ -51,6 +53,18 @@ simulator GUI; add launch arguments instead.
   The onboarding illustration keeps its own measured charcoal
   (`OnboardingPalette.widgetSurface`).
 
+- Screens that sit under an inline navigation bar start 4pt lower on iOS 27
+  than on the iOS 26 reference; `settingsListStyle` (SettingsListInset) and the
+  paywall take it off on iOS 27 only, so pass margins as iOS 26 lays them out.
+- Theme tokens beyond the basics: `keaserCaptionText` (settings section titles
+  and footnotes), `keaserListSeparator` (settings list hairlines; sheets and cards
+  keep `keaserSeparator`), `keaserSnippetLabel` (the expense card's labels and
+  symbols), `keaserSwipeAction` (the Edit swipe action).
+- Screenshot timing: the first shot of a fresh install can catch a sheet
+  mid-presentation; retake it or use `SETTLE=10`. The system argument
+  `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL` (or an
+  `...Accessibility...` size) sets the text size for one shot.
+
 ## Data
 
 One JSON file (`DatabaseFile.shared`) in the app group
@@ -62,7 +76,11 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 `store.preferences.currencyCode`. The shortcut has its own switches:
 `shortcutConfirmsDetails`, `shortcutGoBackEnabled` and
 `shortcutSmartSuggestionsEnabled` (the last is separate from
-`smartSuggestionsEnabled`, which drives New Expense). Week maths must use
+`smartSuggestionsEnabled`, which drives New Expense); Add Expense and Log Wallet
+Transaction both follow the shortcut switch. Smart Suggestions rank a category
+as history > word rule on a built-in category > on-device model > word rule on
+a custom category (measured on the Mac with `scripts/eval.sh`); the model never
+picks a payment method. Week maths must use
 `store.preferences.calendar` (it honours Start Week On).
 
 ## Launch arguments (DEBUG only)
@@ -70,9 +88,9 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | Argument | Values | Area |
 |---|---|---|
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
-| `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing) | foundation |
+| `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing); `settingsPaywall` opens Settings with the paywall on a second sheet over it, as Upgrade does | foundation |
 | `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (the Today, This Week and This Month medium widgets first, then small and lock screen), `widgetGalleryLocked` (every widget family); both need seed `fresh` | onboarding |
-| `-KeaserGalleryScroll` | `bottom` starts the widget gallery at the small and lock screen widgets; `large`, `extraLarge` start either gallery at the large widgets or at iOS 27's extra large portrait one | onboarding, platform |
+| `-KeaserGalleryScroll` | `bottom` starts the widget gallery at the small and lock screen widgets; `large`, `extraLarge` start either gallery at the large widgets or at iOS 27's extra large portrait one (the sections before the start are left out, so shots begin at its heading) | onboarding, platform |
 | `-KeaserGalleryRendering` | `accented`: the gallery's home screen widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total and bars) | platform |
 | `-KeaserNotifState` | `granted`, `denied`: page 4 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
@@ -98,7 +116,7 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserPaywallPlans` | `all`: every plan showing (after "Show more plans") | settings |
 | `-KeaserSampleLinks` | `1` fills Help and Follow Us with sample links | settings |
 | `-KeaserCategoryModel` | a category name: a stand-in for the on-device model that picks it about a second after being asked; `none` picks nothing; `off` is a device without Apple Intelligence (no model, no footer sentence, receipts read by the heuristics alone) | intelligence |
-| `-KeaserReceipt` | a `ReceiptSamples` name (`coffee`, `grocery`, `cafe-paris`, `not-a-receipt`, ...): New Expense reads that sample receipt as if it had just been scanned | intelligence |
+| `-KeaserReceipt` | a `ReceiptSamples` name (`coffee`, `grocery`, `cafe-paris`, `not-a-receipt`, `tip-suggestions`, `cash-change`, `gross-net`, `cable`, ...): New Expense reads that sample receipt as if it had just been scanned | intelligence |
 | `-KeaserReceiptImage` | `1`: with `-KeaserReceipt`, prints the sample onto an image first and reads it with Vision, the whole way a photo goes | intelligence |
 | `-KeaserReceiptHold` | `1`: with `-KeaserReceipt`, keeps the receipt reading (the spinner in the title row) | intelligence |
 | `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, Edit Expense over Home) | intents |
@@ -156,6 +174,23 @@ Seeded launches keep the database in memory and never touch the real file.
   lock screen. The flow's rules (step order, skips, Go Back targets) live in
   `ShortcutFlow` (KeaserKit/Platform); the confirmation card's draft lives in
   `AddExpenseDrafts`, keyed by session.
+- Writing intents (Add Expense, Log Wallet Transaction, Delete Expense) wait at
+  most 3 s for the Spotlight flush and 3 s for the weekly summary
+  (`WeeklySummaryScheduler.intentWait`); the summary is handed to a private
+  serial queue because the notification calls can block. Every Spotlight write,
+  including iOS 27 re-index requests, goes through one `SerialWork` queue
+  (KeaserKit/Platform); the index manifest lives in `Library/Caches/Keaser/`
+  so a restored backup rebuilds the index.
+- Add Expense: a supplied amount in another currency always gets the
+  confirmation (with `ShortcutCard.otherCurrencyNote`); nothing is converted.
+  `ShortcutFlow` keeps a category or payment method the person picked when
+  moving forward again, until the title or account changes. The in-card option
+  list is fitted to the text size (`ShortcutCardList.lines(forLineHeight:)`,
+  7 lines up to Large, down to 3) to stay under the 340pt snippet limit.
+- App Intents tests (`KeaserIntentTests`, 31 tests): every test resets data with
+  the DEBUG `ResetTestDataIntent` (`IntentTestFixture`, fixed IDs). AppIntentsTesting
+  accepts confirmations on its own, so confirmation paths are device-only checks.
+  Spotlight searches go through `IntentTestCase.spotlight(_:_:)`, bounded at 40 s.
 - Deep links: `keaser://new-expense`, `keaser://settings` (see `AppRouter`).
   App Intents and Spotlight results use the routes `AppRouter.Route.expense(UUID)`
   (select its account, Edit Expense), `.account(UUID)` (select it, Home) and
