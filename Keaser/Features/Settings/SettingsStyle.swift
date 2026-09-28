@@ -182,7 +182,7 @@ struct SettingsRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 13) {
+        HStack(spacing: 12) {
             SettingsSymbol(symbol: symbol)
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 2) {
@@ -214,9 +214,10 @@ struct SettingsRow: View {
         .contentShape(Rectangle())
     }
 
+    /// Medium, as in the reference; the value stays regular.
     private var titleText: some View {
         Text(title)
-            .font(.body)
+            .font(.body.weight(.medium))
             .foregroundStyle(Color.keaserPrimaryText)
     }
 

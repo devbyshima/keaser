@@ -176,34 +176,39 @@ private struct AccountSummary: View {
     let account: Account
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    /// The monogram tile grows with the text, up to half as big again.
+    /// The monogram circle grows with the text, up to half as big again.
     @ScaledMetric(relativeTo: .title) private var textScale: CGFloat = 1
+    /// Narrow enough that the subtitle breaks after "categories", as in the
+    /// reference, at every text size.
+    @ScaledMetric(relativeTo: .footnote) private var subtitleWidth: CGFloat = 160
 
     var body: some View {
         let isLarge = dynamicTypeSize.isAccessibilitySize
         let scale = min(textScale, 1.5)
         let layout = isLarge
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(spacing: 18))
+            : AnyLayout(HStackLayout(spacing: 16))
         layout {
-            // Sized with the tile rather than as text, so the letter always
+            // Sized with the circle rather than as text, so the letter always
             // fills it the same way.
             Text(account.initial)
-                .font(.system(size: 30 * scale, weight: .bold, design: .rounded))
+                .font(.system(size: 32 * scale, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: 70 * scale, height: 70 * scale)
-                .background(Color.settingsTile, in: RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
+                .background(Color.settingsTile, in: Circle())
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(account.name)
                     .keaserFont(22, weight: .bold, relativeTo: .title2)
                     .foregroundStyle(Color.keaserPrimaryText)
                     .lineLimit(isLarge ? 3 : 1)
+                // 13pt on an 18pt line, as in the reference.
                 Text("Account info, categories and payments")
-                    .keaserFont(14, relativeTo: .subheadline)
+                    .keaserFont(13, relativeTo: .footnote)
+                    .lineSpacing(2.5)
                     .foregroundStyle(Color.keaserSecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: isLarge ? .infinity : 180, alignment: .leading)
+                    .frame(maxWidth: isLarge ? .infinity : subtitleWidth, alignment: .leading)
             }
         }
         .padding(.vertical, isLarge ? 16 : 0)
