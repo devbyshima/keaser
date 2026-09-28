@@ -17,6 +17,13 @@ struct WelcomeLetterSheet: View {
 
     private let links = WelcomeLetterLaunch.socialLinks
 
+    /// How much of the text shows below the button, measured from the
+    /// reference.
+    private static let belowButtonOpacity = 0.17
+
+    /// The home indicator's inset, where the text below the button fades out.
+    @State private var bottomSafeArea: CGFloat = 0
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             ZStack {
@@ -29,10 +36,16 @@ struct WelcomeLetterSheet: View {
             .keaserReadableWidth()
             // The text stays fully opaque until it reaches the button, which
             // floats over it without a bar behind it, and shows faintly below
-            // it. The mask only uses alpha, so its black is not a colour.
+            // it, fading out toward the bottom edge as in the reference. The
+            // mask only uses alpha, so its black is not a colour.
             .mask {
                 ZStack {
-                    Color.black.opacity(0.2).ignoresSafeArea(edges: .bottom)
+                    VStack(spacing: 0) {
+                        Color.black.opacity(Self.belowButtonOpacity)
+                        LinearGradient(colors: [.black.opacity(Self.belowButtonOpacity), .clear], startPoint: .top, endPoint: .bottom)
+                            .frame(height: bottomSafeArea)
+                    }
+                    .ignoresSafeArea(edges: .bottom)
                     VStack(spacing: 0) {
                         Color.black
                         LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
@@ -50,6 +63,7 @@ struct WelcomeLetterSheet: View {
                 .padding(.horizontal, 28)
                 .keaserReadableWidth(KeaserMetrics.narrowReadableWidth)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomSafeArea = $0 }
         .presentationDetents([.large])
         .keaserSheetChrome()
     }
