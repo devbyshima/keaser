@@ -252,8 +252,19 @@ public enum ReceiptParser {
 
         let leading = mark(in: characters, before: start)
         let trailing = mark(in: characters, after: end)
-        let leadingCurrency = currency(forMark: leading.text)
-        let trailingCurrency = currency(forMark: trailing.text)
+        var leadingCurrency = currency(forMark: leading.text)
+        var trailingCurrency = currency(forMark: trailing.text)
+        // Letters after a count are its unit, even where they spell a
+        // currency: "6 FT HDMI CABLE 12.99" (feet, not forints) and
+        // "RICE 5 KGS 250.00" (kilograms, not Kyrgyz som, for either
+        // number). A currency after a whole number ends the line: "3,000 Frw".
+        let isCount = text.allSatisfy(\.isASCIIDigit)
+        if isCount, trailingCurrency.isMark, hasText(in: characters, from: trailing.start + trailing.text.count) {
+            trailingCurrency = (nil, false)
+        }
+        if leadingCurrency.isMark, followsCount(characters, before: leading.start) {
+            leadingCurrency = (nil, false)
+        }
 
         var hasUnit = false
         if leading.isAttached, !leading.text.isEmpty, !leadingCurrency.isMark { hasUnit = true }
@@ -331,6 +342,21 @@ public enum ReceiptParser {
         var digits = 0
         while index + 2 + digits < characters.count, characters[index + 2 + digits].isASCIIDigit { digits += 1 }
         return digits == 3 ? digits : nil
+    }
+
+    /// Whether a letter or a digit comes at or after `index`.
+    private static func hasText(in characters: [Character], from index: Int) -> Bool {
+        characters[min(index, characters.count)...].contains { $0.isLetter || $0.isNumber }
+    }
+
+    /// Whether a whole number ends just before `index`, give or take a
+    /// space: "5 " in "RICE 5 KGS 250.00".
+    private static func followsCount(_ characters: [Character], before index: Int) -> Bool {
+        var end = index
+        if end > 0, characters[end - 1] == " " { end -= 1 }
+        var start = end
+        while start > 0, characters[start - 1].isASCIIDigit { start -= 1 }
+        return start < end && (start == 0 || characters[start - 1] == " ")
     }
 
     private static func isHyphen(_ character: Character) -> Bool {

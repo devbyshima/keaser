@@ -98,6 +98,21 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.amounts(in: "TOP 19.99").first?.currencyCode == nil)
     }
 
+    @Test func lettersAfterACountAreItsUnitNotACurrency() {
+        // Six feet, not forints; five kilograms, not Kyrgyz som (for either number).
+        #expect(ReceiptParser.amounts(in: "6 FT HDMI CABLE 12.99").map(\.currencyCode) == [nil, nil])
+        #expect(ReceiptParser.amounts(in: "6 FT HDMI CABLE 12.99").first?.looksLikeMoney == false)
+        #expect(ReceiptParser.amounts(in: "RICE 5 KGS 250.00").map(\.currencyCode) == [nil, nil])
+        #expect(ReceiptParser.amounts(in: "6FT HDMI CABLE 12.99").first?.hasUnit == true)
+        #expect(ReceiptParser.currencyCode(in: ["6 FT HDMI CABLE 12.99", "TOTAL $12.99"]) == nil)
+        #expect(ReceiptParser.currencyCode(in: ["RICE 5 KGS 250.00", "TOTAL PHP 250.00"]) == "PHP")
+        // A currency still ends a line, or comes before its amount.
+        #expect(ReceiptParser.amounts(in: "3,000 Frw").first?.currencyCode == "RWF")
+        #expect(ReceiptParser.amounts(in: "Total 250 Ft").first?.currencyCode == "HUF")
+        #expect(ReceiptParser.amounts(in: "TOTAL KGS 250.00").first?.currencyCode == "KGS")
+        #expect(ReceiptParser.amounts(in: "Total 12.50 EUR Visa").first?.currencyCode == "EUR")
+    }
+
     // MARK: Total
 
     @Test func takesTheTotalNotTheSubtotalTaxOrCash() {
