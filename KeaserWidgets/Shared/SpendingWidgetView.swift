@@ -128,13 +128,13 @@ struct SpendingWidgetView: View {
     private var ready: some View {
         switch family {
         case .systemMedium: medium
-        case .systemLarge: SpendingBreakdownView(snapshot: snapshot, inks: inks, showsLatest: false)
+        case .systemLarge: SpendingBreakdownView(snapshot: snapshot, inks: inks, isExtraLarge: false)
         case .accessoryRectangular: rectangular
         case .accessoryCircular: circular
         case .accessoryInline: inline
         default:
             if family.isExtraLargePortrait {
-                SpendingBreakdownView(snapshot: snapshot, inks: inks, showsLatest: true)
+                SpendingBreakdownView(snapshot: snapshot, inks: inks, isExtraLarge: true)
             } else {
                 small
             }
@@ -239,21 +239,13 @@ private struct SpendingHeadline: View {
 
 /// The large widgets: the medium widget's caption and total, then what each
 /// category took in the period with a thin bar for its share of the total,
-/// the largest first and the rest grouped as Other. The extra large portrait
-/// widget adds the period's latest expenses under it.
+/// the largest first and the rest grouped as Other. The period's latest
+/// expenses follow: always on the extra large portrait widget, and on the
+/// large one when the breakdown leaves room (`breakdownPlans(extraLarge:)`).
 private struct SpendingBreakdownView: View {
     let snapshot: SpendingSnapshot
     let inks: WidgetInks
-    let showsLatest: Bool
-
-    /// Category rows and latest expenses to try, most first: the first that
-    /// fits the widget under the headline is shown, so larger text sizes
-    /// drop rows instead of cutting one off.
-    private var plans: [(categories: Int, latest: Int)] {
-        showsLatest
-            ? [(5, 5), (5, 4), (5, 3), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1)]
-            : [(6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0)]
-    }
+    let isExtraLarge: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -265,6 +257,8 @@ private struct SpendingBreakdownView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                // The first plan that fits under the headline is shown.
+                let plans = snapshot.breakdownPlans(extraLarge: isExtraLarge)
                 ViewThatFits(in: .vertical) {
                     ForEach(plans.indices, id: \.self) { index in
                         rows(categories: plans[index].categories, latest: plans[index].latest)

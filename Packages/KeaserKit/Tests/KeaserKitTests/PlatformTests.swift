@@ -472,6 +472,51 @@ struct SpendingBreakdownTests {
         #expect(today.emptyText == "No expenses today.")
     }
 
+    private func plans(_ list: [(Int, Int)]) -> [SpendingSnapshot.BreakdownPlan] {
+        list.map { SpendingSnapshot.BreakdownPlan(categories: $0.0, latest: $0.1) }
+    }
+
+    @Test func theExtraLargeWidgetAlwaysListsTheLatest() {
+        let db = database([
+            ("Coffee", "4", "Food & Drinks", date(2026, 9, 21, in: cal)),
+            ("Shoes", "80", "Shopping", date(2026, 9, 2, in: cal)),
+        ])
+        #expect(snapshot(db).breakdownPlans(extraLarge: true) == plans([(5, 5), (5, 4), (5, 3), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1)]))
+    }
+
+    /// Today with two categories: the large widget fills the room under
+    /// them with the latest expenses rather than leaving it empty.
+    @Test func aShortBreakdownIsFollowedByTheLatest() {
+        let db = database([
+            ("Netflix", "15.89", "Entertainment", date(2026, 9, 23, 9, in: cal)),
+            ("Coffee", "6.74", "Food & Drinks", date(2026, 9, 23, 8, in: cal)),
+            ("Shoes", "80", "Shopping", date(2026, 9, 2, in: cal)),
+        ])
+        let today = snapshot(db, .today)
+        #expect(today.breakdownPlans(extraLarge: false) == plans([(2, 2), (2, 1), (2, 0), (1, 0)]))
+        // At most five, as on the extra large widget.
+        let month = snapshot(database((1...8).map { ("Day \($0)", "1", "Food & Drinks", date(2026, 9, $0, in: cal)) }))
+        #expect(month.breakdownPlans(extraLarge: false) == plans([(1, 5), (1, 4), (1, 3), (1, 2), (1, 1), (1, 0)]))
+    }
+
+    @Test func aFullBreakdownKeepsEveryRow() {
+        let names = ["Food & Drinks", "Shopping", "Travel", "Services", "Entertainment", "Health", "Transportation"]
+        let db = database(names.enumerated().map { index, name in ("E\(index)", "\(10 + index)", name, date(2026, 9, 3, in: cal)) })
+        let month = snapshot(db)
+        let large = month.breakdownPlans(extraLarge: false)
+        // Every plan with expenses keeps all six rows (five and Other); the
+        // fallbacks for larger text drop rows and never add expenses.
+        #expect(large.filter { $0.latest > 0 }.allSatisfy { $0.categories == SpendingSnapshot.largeBreakdownRows })
+        #expect(Array(large.suffix(6)) == plans([(6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0)]))
+        #expect(month.categoryRows(maxRows: large[0].categories).last?.kind == .other)
+    }
+
+    @Test func noBreakdownNoPlans() {
+        let empty = snapshot(database([]))
+        #expect(empty.breakdownPlans(extraLarge: false).isEmpty)
+        #expect(empty.breakdownPlans(extraLarge: true).isEmpty)
+    }
+
     @Test func aLockedSnapshotCarriesNoSpending() {
         let db = database([("Coffee", "4", "Food & Drinks", date(2026, 9, 21, in: cal))], pro: false)
         let locked = snapshot(db)
