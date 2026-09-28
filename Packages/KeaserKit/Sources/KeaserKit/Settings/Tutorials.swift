@@ -8,7 +8,6 @@ import Foundation
 /// `Tutorials.plain(_:)` strips the markers.
 public struct Tutorial: Identifiable, Hashable, Sendable {
     public enum ID: String, CaseIterable, Hashable, Sendable {
-        case addExpenseShortcut
         case walletAutomation
     }
 
@@ -122,20 +121,6 @@ public struct TutorialNote: Hashable, Sendable {
 
 /// The schematic drawings the tutorials use. The app draws each one.
 public enum TutorialIllustration: String, CaseIterable, Hashable, Sendable {
-    /// The Shortcuts search finding Keaser's Add Expense action, and the
-    /// action once added, with its Title and Amount fields.
-    case actionSearch
-    /// The Add Expense action opened up, with a payment method and the
-    /// current date filled in.
-    case prefilledAction
-    /// Settings > Accessibility > Touch > Back Tap, then a shortcut picked
-    /// under Double Tap.
-    case backTapSettings
-    /// Control Center in edit mode with Add a Control, then the Run Shortcut
-    /// control found in the gallery.
-    case addControl
-    /// The Run Shortcut control at one, two and four slots.
-    case controlSizes
     /// The automation triggers, scrolled to Wallet.
     case walletTrigger
     /// The Wallet trigger's cards and categories, and Run Immediately.
@@ -160,12 +145,6 @@ public enum Tutorials {
     public static let accountFieldTitle = "Account"
     public static let dateFieldTitle = "Date"
 
-    /// Every field of the action, in the order the tutorials draw them.
-    public static let addExpenseFieldTitles = [
-        titleFieldTitle, amountFieldTitle, categoryFieldTitle,
-        paymentMethodFieldTitle, accountFieldTitle, dateFieldTitle,
-    ]
-
     /// Opens the Shortcuts app, from the button at the end of each tutorial.
     public static let shortcutsURL = URL(string: "shortcuts://")!
 
@@ -173,11 +152,10 @@ public enum Tutorials {
     /// take this id.
     public static let endAnchor = "end"
 
-    public static let all: [Tutorial] = [addExpenseShortcut, walletAutomation]
+    public static let all: [Tutorial] = [walletAutomation]
 
     public static func tutorial(_ id: Tutorial.ID) -> Tutorial {
         switch id {
-        case .addExpenseShortcut: addExpenseShortcut
         case .walletAutomation: walletAutomation
         }
     }
@@ -193,72 +171,7 @@ public enum Tutorials {
     private static let amountField = amountFieldTitle
     private static let categoryField = categoryFieldTitle
     private static let paymentField = paymentMethodFieldTitle
-    private static let accountField = accountFieldTitle
     private static let dateField = dateFieldTitle
-
-    static let addExpenseShortcut = Tutorial(
-        id: .addExpenseShortcut,
-        title: "Add Expense Shortcut",
-        summary: "Set up a Shortcut that lets you quickly log an expense from anywhere on your device.",
-        symbol: "command",
-        headline: "Add Expenses with a Shortcut",
-        intro: "Keaser gives the Shortcuts app an **\(action)** action. Put it in a shortcut and you can run it from the Lock Screen, Control Center or the back of your iPhone, and log a purchase without opening any app.",
-        sections: [
-            TutorialSection(id: "create", title: "Create a Shortcut", blocks: [
-                .paragraph("You only need to do this once."),
-                .steps([
-                    "Open the **Shortcuts** app and tap **+** in the top right corner to start a new shortcut.",
-                    "Search for **Keaser**, then tap **\(action)** to add the action.",
-                ]),
-                .illustration(.actionSearch),
-                .paragraph("That is all it takes. The action works as it is, and asks for what it needs each time it runs."),
-                .note(TutorialNote(
-                    symbol: "slider.horizontal.3",
-                    title: "Prefill What Stays the Same",
-                    text: "If you like, tap the arrow on the action to see all of its fields and fill some in. Set **\(paymentField)** to the method you always use, or **\(dateField)** to **Current Date** so each expense is dated the moment you log it. With more than one account, **\(accountField)** picks where it goes."
-                )),
-                .illustration(.prefilledAction),
-            ]),
-            TutorialSection(id: "assign", title: "Assign the Shortcut", blocks: [
-                .paragraph("Next, give the shortcut a home, so it is only a tap or a swipe away when you have just paid for something. Two places work especially well."),
-            ]),
-            TutorialSection(id: "backTap", level: .subsection, title: "Back Tap", blocks: [
-                .paragraph("Back Tap runs the shortcut when you tap the back of your iPhone two or three times in a row."),
-                .steps([
-                    "Open the **Settings** app and go to **Accessibility** > **Touch** > **Back Tap**.",
-                    "Choose **Double Tap** or **Triple Tap**.",
-                    "Scroll down to the **Shortcuts** section and select your shortcut.",
-                ]),
-                .illustration(.backTapSettings),
-            ]),
-            TutorialSection(id: "controlCenter", level: .subsection, title: "Control Center", blocks: [
-                .paragraph("A control puts the shortcut one swipe away, whatever is on the screen."),
-                .steps([
-                    "Swipe down from the top right corner of the screen to open **Control Center**.",
-                    "Tap **+** in the top left corner, then tap **Add a Control** at the bottom.",
-                    "Search for **Shortcut** and add the **Run Shortcut** control.",
-                    "Pick your shortcut from the list. Searching for its name, or for **Keaser**, finds it quickly.",
-                ]),
-                .illustration(.addControl),
-                .note(TutorialNote(
-                    symbol: "paintbrush.pointed.fill",
-                    title: "Choose Your Own Icon",
-                    text: "The control starts out with an app icon. To give it another, open the shortcut in the Shortcuts app, tap the arrow next to its name and choose **Choose Icon**."
-                )),
-                .paragraph("While Control Center is in edit mode, drag the handle on the corner of the control to resize it. It can take one slot, two side by side, or a square of four."),
-                .illustration(.controlSizes),
-            ]),
-            TutorialSection(id: "closing", title: "Closing Remarks", blocks: [
-                .paragraph("We suggest Back Tap and Control Center because few people have anything there yet, so the shortcut is unlikely to push something else out of the way."),
-                .paragraph("They are not the only places a shortcut can run from. You can also add it to the Lock Screen as a control, or put it on the Action button of an iPhone that has one."),
-                .note(TutorialNote(
-                    symbol: "plus.circle.fill",
-                    title: "Quickest of All: Keaser's Control",
-                    text: "Keaser comes with its own **\(action)** control for Control Center, the Lock Screen and the Action button. It asks the same questions as the shortcut, right where you tap it, with no shortcut to build."
-                )),
-            ]),
-        ]
-    )
 
     static let walletAutomation = Tutorial(
         id: .walletAutomation,
