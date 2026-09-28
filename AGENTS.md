@@ -79,8 +79,10 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 `smartSuggestionsEnabled`, which drives New Expense); Add Expense and Log Wallet
 Transaction both follow the shortcut switch. Smart Suggestions rank a category
 as history > word rule on a built-in category > on-device model > word rule on
-a custom category (measured on the Mac with `scripts/eval.sh`); the model never
-picks a payment method. Week maths must use
+a custom category (measured on the Mac with `scripts/eval.sh`). A payment
+method never comes from the model, but in an account with no payment history
+any recognised category, the model's included, brings the Cash fallback
+(`SmartSuggester.guessLabels`). Week maths must use
 `store.preferences.calendar` (it honours Start Week On).
 
 ## Launch arguments (DEBUG only)
