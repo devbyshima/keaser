@@ -40,11 +40,46 @@ STATUS=$?
 
 grep -E "^$ROOT/.*(error|warning):" "$LOG" | sort -u
 grep -E "^(error|fatal error):|error: -\[|: error: " "$LOG" | grep -v "^$ROOT" | sort -u
-grep -E "^Test Case .* (passed|failed|skipped)" "$LOG"
-grep -E "Executed [0-9]+ tests?" "$LOG" | tail -1
-if [ $STATUS -eq 0 ]; then
-  echo "TESTS PASSED"
-else
-  echo "TESTS FAILED (full log: $LOG)"
+
+# The tally comes from the test cases themselves, not from xcodebuild's
+# suite summaries: after a test exceeds its time allowance the runner
+# restarts, and the restarted run reports "Executed 0 tests" and "passed"
+# for the suite it skipped.
+PASSED="$(grep -cE "^Test Case '.*' passed" "$LOG")"
+FAILED="$(grep -cE "^Test Case '.*' failed" "$LOG")"
+TIMED_OUT="$(grep -cE "^Test Case '.*' exceeded execution time allowance" "$LOG")"
+RESTARTS="$(grep -c "^Restarting after unexpected exit, crash, or test timeout" "$LOG")"
+# Tests that started but never passed or failed (killed by a timeout or a
+# crash).
+UNFINISHED="$(python3 - "$LOG" <<'PY'
+import re, sys
+started, ended = [], set()
+for line in open(sys.argv[1], errors="replace"):
+    m = re.match(r"Test Case '-\[(\S+) (\S+)\]' (started|passed|failed)", line)
+    if not m: continue
+    name = f"{m.group(1).split('.')[-1]}.{m.group(2)}"
+    if m.group(3) == "started": started.append(name)
+    else: ended.add(name)
+for name in dict.fromkeys(started):
+    if name not in ended: print(name)
+PY
+)"
+
+grep -E "^Test Case '.*' (passed|failed|skipped)" "$LOG"
+grep -E "^Test Case '.*' exceeded execution time allowance" "$LOG" | sed -E "s/ The test may have hung.*//"
+if [ -n "$UNFINISHED" ]; then
+  echo "Did not finish:"
+  echo "$UNFINISHED" | sed 's/^/    /'
 fi
+sed -n '/^Failing tests:/,/^$/p' "$LOG"
+echo "$PASSED passed, $FAILED failed, $TIMED_OUT over the time allowance, $RESTARTS runner restarts"
+
+PROBLEMS=$((FAILED + TIMED_OUT + RESTARTS))
+[ -n "$UNFINISHED" ] && PROBLEMS=$((PROBLEMS + 1))
+if [ $STATUS -eq 0 ] && [ "$PROBLEMS" -eq 0 ] && [ "$PASSED" -gt 0 ]; then
+  echo "TESTS PASSED"
+  exit 0
+fi
+echo "TESTS FAILED (full log: $LOG)"
+[ $STATUS -eq 0 ] && STATUS=1
 exit $STATUS

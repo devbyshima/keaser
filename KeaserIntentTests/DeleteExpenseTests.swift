@@ -21,7 +21,7 @@ final class DeleteExpenseTests: IntentTestCase {
         XCTAssertEqual(others.count, 1, "nothing else is deleted")
         // And from Spotlight (the intent waits for the index).
         try await eventually("the deleted expense leaves Spotlight") {
-            try await self.expenses.spotlightQuery("Wrong entry").isEmpty
+            try await self.spotlight(self.expenses, "Wrong entry").isEmpty
         }
     }
 
