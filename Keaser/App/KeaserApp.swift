@@ -1,3 +1,4 @@
+import CoreSpotlight
 import KeaserKit
 import SwiftUI
 import WidgetKit
@@ -16,6 +17,7 @@ struct KeaserApp: App {
         // change can move them. WidgetKit coalesces reload requests.
         store.addObserver { _ in WidgetCenter.shared.reloadAllTimelines() }
         WeeklySummaryScheduler.shared.attach(to: store)
+        SpotlightIndexer.shared.attach(to: store)
     }
 
     var body: some Scene {
@@ -26,6 +28,7 @@ struct KeaserApp: App {
                 .environment(pro)
                 .tint(Color.keaserInk)
                 .onOpenURL { router.handle($0) }
+                .onContinueUserActivity(CSSearchableItemActionType) { router.handleSpotlight($0, in: store.database) }
                 .task { await pro.start() }
         }
         .onChange(of: scenePhase) { _, phase in

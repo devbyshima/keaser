@@ -9,11 +9,13 @@ import SwiftUI
 extension AddExpenseIntent {
     /// Asks for whatever the shortcut left empty, in the order `ShortcutFlow`
     /// decides, then shows the expense for confirmation when Settings >
-    /// Shortcut asks for it, and saves.
+    /// Shortcut asks for it, and saves. Returns the expense, so a shortcut
+    /// can pass it on.
     @MainActor
-    func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
+    func perform() async throws -> some IntentResult & ReturnsValue<ExpenseEntity> & ProvidesDialog & ShowsSnippetView {
         let store = try IntentSupport.freshStore()
         let preferences = store.preferences
+        let voiceOnly = isVoiceOnly
         var flow = try makeFlow(store: store)
         // Titles nothing else knows get their category from the on-device
         // model when it answers in time; otherwise the question is asked.
@@ -24,7 +26,7 @@ extension AddExpenseIntent {
             step = await flow.next(after: current, answer: answer, model: model, budget: SmartLabels.intentBudget)
         }
         if preferences.shortcutConfirmsDetails {
-            flow = try await confirm(flow, currencyCode: preferences.currencyCode)
+            flow = try await confirm(flow, currencyCode: preferences.currencyCode, voiceOnly: voiceOnly)
         }
 
         // The questions may have taken a while: file the expense with the
@@ -35,16 +37,31 @@ extension AddExpenseIntent {
         expense.categoryID = account.category(id: expense.categoryID)?.id
         expense.paymentMethodID = account.paymentMethod(id: expense.paymentMethodID)?.id
         try await IntentSupport.save(expense, in: account, store: latest)
+        let saved = latest.account(id: account.id)?.expenses.first { $0.id == expense.id } ?? expense
+        let entity = ExpenseEntity(ExpenseSummary(saved, in: account, currencyCode: latest.preferences.currencyCode))
 
+        if voiceOnly {
+            // Nothing is shown, so the answer is said in full.
+            let spoken = QuickLog.confirmation(amount: saved.amount, currencyCode: latest.preferences.currencyCode, accountName: account.name, title: saved.title)
+            return .result(value: entity, dialog: "\(spoken)", view: EmptyView())
+        }
         if preferences.shortcutConfirmsDetails {
             // Continue was the last word: the shortcut ends there, back where
             // it started, with nothing more to say or show.
-            var quiet = IntentResultContainer.result(dialog: "", view: EmptyView())
+            var quiet = IntentResultContainer.result(value: entity, dialog: "", view: EmptyView())
             quiet.dialog = nil
             return quiet
         }
-        let card = IntentSupport.card(for: expense, in: account, store: latest)
-        return .result(dialog: IntentSupport.addedDialog, view: ExpenseCardView(card: card))
+        let card = IntentSupport.card(for: saved, in: account, store: latest)
+        return .result(value: entity, dialog: IntentSupport.addedDialog, view: ExpenseCardView(card: card))
+    }
+
+    /// Whether Siri is answering with no screen to show the card on
+    /// (iOS 27; earlier systems do not say).
+    @MainActor
+    private var isVoiceOnly: Bool {
+        if #available(iOS 27.0, *) { return systemContext.isVoiceOnly }
+        return false
     }
 
     /// The flow with everything the shortcut supplied. A supplied amount
@@ -60,6 +77,7 @@ extension AddExpenseIntent {
             }
             suppliedAmount = value
         }
+        let now = Date.now
         guard let flow = ShortcutFlow(
             accounts: store.accounts,
             accountID: target.id,
@@ -69,7 +87,9 @@ extension AddExpenseIntent {
             category: category.map { ShortcutFlow.Label(id: $0.id, name: $0.name) },
             paymentMethod: paymentMethod.map { ShortcutFlow.Label(id: $0.id, name: $0.name) },
             goBackEnabled: preferences.shortcutGoBackEnabled,
-            suggestionsEnabled: preferences.shortcutSmartSuggestionsEnabled
+            suggestionsEnabled: preferences.shortcutSmartSuggestionsEnabled,
+            date: date ?? now,
+            createdAt: now
         ) else { throw KeaserIntentError.noAccount }
         return flow
     }
@@ -108,9 +128,15 @@ extension AddExpenseIntent {
 
     /// Shows the expense with Cancel and Continue; throws when cancelled.
     /// From iOS 26 the card is interactive (see `ExpenseCardView`) and the
-    /// flow comes back with whatever was changed on it.
+    /// flow comes back with whatever was changed on it. With nothing shown
+    /// (Siri by voice alone) every detail is asked out loud instead.
     @MainActor
-    private func confirm(_ flow: ShortcutFlow, currencyCode: String) async throws -> ShortcutFlow {
+    private func confirm(_ flow: ShortcutFlow, currencyCode: String, voiceOnly: Bool) async throws -> ShortcutFlow {
+        if voiceOnly, let expense = flow.expense {
+            let question = QuickLog.confirmationQuestion(for: expense, in: flow.account, currencyCode: currencyCode)
+            try await requestConfirmation(actionName: .add, dialog: "\(question)")
+            return flow
+        }
         let dialog: IntentDialog = "Confirm expense details:"
         if #available(iOS 26.0, *) {
             let drafts = AddExpenseDrafts.shared

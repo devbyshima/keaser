@@ -1,3 +1,4 @@
+import AppIntents
 import KeaserKit
 import UIKit
 import UserNotifications
@@ -77,6 +78,11 @@ final class WeeklySummaryScheduler {
         content.body = plan.body
         content.sound = .default
         content.threadIdentifier = WeeklySummary.identifier
+        if #available(iOS 27.0, *) {
+            // Which account the total is for, so Siri can act on the
+            // summary ("open it", "how much on food?") when it is read out.
+            content.appEntityIdentifiers = [EntityIdentifier(for: AccountEntity.self, identifier: plan.accountID)]
+        }
         // Wall-clock components, so 7:00 pm stays 7:00 pm if the user travels.
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: plan.fireDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)

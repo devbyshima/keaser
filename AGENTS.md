@@ -20,6 +20,7 @@ The Xcode project is generated. After editing `project.yml`, run
     ./scripts/build.sh           # xcodegen + simulator build; prints errors only
     ./scripts/test.sh            # KeaserKit tests on the Mac
     ./scripts/screenshots.sh     # headless screenshots from scripts/shots/*.txt
+    ./scripts/intents-test.sh    # App Intents tests (AppIntentsTesting) on their own iOS 27 simulator
     ./scripts/screenshots.sh home   # one area only
     SIM="Keaser home" ./scripts/screenshots.sh home   # use your own simulator
 
@@ -85,8 +86,11 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
 | `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
 | `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default); or a word: with `-KeaserSettingsPage privacy` or `terms`, starts at the first heading containing it | settings, intelligence |
-| `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one | shortcuts |
+| `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one; `confirmAccount`, `confirmCategory`, `confirmPayment`: the interactive card with that detail tapped, its options listed inside the card | shortcuts |
+| `-KeaserSnippet` | `spending`: the answer of "How Much Did I Spend" (`SpendingSnippetView`) for the selected account, This Week unless `-KeaserPeriod` says otherwise | intents |
 | `-KeaserSnippetLong` | `1` gives the card a long title and a long account name | shortcuts |
+| `-KeaserSnippetOptions` | `many` gives the account twelve more categories, so an open category list pages | shortcuts |
+| `-KeaserSnippetPage` | `n` (from 1): the page of the open list shown; without it, the page with the chosen option | shortcuts |
 | `-KeaserSettingsAlert` | `rename`: the Rename Account alert, with `-KeaserSettingsPage account` | settings |
 | `-KeaserPro` | `purchased`, `expired`, `never` | settings |
 | `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |
@@ -97,6 +101,11 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 | `-KeaserReceipt` | a `ReceiptSamples` name (`coffee`, `grocery`, `cafe-paris`, `not-a-receipt`, ...): New Expense reads that sample receipt as if it had just been scanned | intelligence |
 | `-KeaserReceiptImage` | `1`: with `-KeaserReceipt`, prints the sample onto an image first and reads it with Vision, the whole way a photo goes | intelligence |
 | `-KeaserReceiptHold` | `1`: with `-KeaserReceipt`, keeps the receipt reading (the spinner in the title row) | intelligence |
+| `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, Edit Expense over Home) | intents |
+| `-KeaserOpenAccount` | an account index: the route `OpenAccountIntent` leaves (the account selected, Home with nothing over it) | intents |
+| `-KeaserOpenSearch` | search text: the route `SearchExpensesIntent` leaves (Search with the results, keyboard down) | intents |
+| `-KeaserSelectAccount` | an account index selected at launch, with a seed; `1` with seed `demo` starts on Business, to see an opened Personal expense switch back | intents |
+| `-KeaserSpotlight` | `index`: a seeded launch writes its data to Spotlight too (seeded launches normally never index) | intents |
 
 Seeded launches keep the database in memory and never touch the real file.
 
@@ -104,7 +113,39 @@ Seeded launches keep the database in memory and never touch the real file.
 
 - App Intents: `AddExpenseIntent` (title "Add Expense") and
   `LogWalletTransactionIntent` (title "Log Wallet Transaction"). Tutorials
-  refer to them by these titles.
+  refer to them by these titles, and to Add Expense's fields by its
+  parameter titles: Title, Amount, Category, Payment Method, Account and
+  Date (never asked for; empty means the moment it is added, and a Wallet
+  automation sets it to Current Date). In the app Add Expense returns the
+  `ExpenseEntity` it saved; the widget extension's fallback returns nothing.
+  With nothing on screen (`IntentSystemContext.isVoiceOnly`, iOS 27) it asks
+  the confirmation out loud (`QuickLog.confirmationQuestion`) and ends on a
+  spoken sentence (`QuickLog.confirmation`) instead of the card.
+- The confirmation card (iOS 26+): tapping Account, Category or Payment
+  opens that detail's options inside the card (`ShortcutCardList`: names
+  only, the chosen one checked, two columns or pages with More when long,
+  Go Back when it is on); picking one sets it and closes the list. The taps
+  are the non-discoverable `ShowExpenseCardOptionsIntent`,
+  `PickExpenseCardOptionIntent`, `PageExpenseCardOptionsIntent` and
+  `CloseExpenseCardOptionsIntent`, which only change the draft in
+  `AddExpenseDrafts`; `ExpenseCardSnippetIntent` then draws the card again.
+  The closed card must stay as the reference has it.
+- "How Much Did I Spend" (`GetSpendingIntent`): period (`SpendingPeriod`,
+  This Week by default), account (the selected one when empty), category
+  and payment method. Answered by `SpendingQuestion` exactly as Home totals
+  (week start, Pro): This Year, All Time and the filters need Pro, and
+  without it the intent says so (`SpendingOutcome.refusal`, thrown as an
+  `IntentRefusal`) rather than answering. Returns the total as a currency
+  amount; the card is the medium widget's caption over the total
+  (`SpendingSnippetView`). Needs an unlocked iPhone.
+- "Delete Expense" (`DeleteExpenseIntent`, a `DeleteIntent` over
+  `ExpenseEntity`): asks by name first, deletes through
+  `KeaserStore.delete(_:)` (which puts everything back if the save fails),
+  then refreshes widgets, the weekly summary and Spotlight
+  (`IntentSupport.delete`). On iOS 26+ it is an `UndoableIntent`: undo in
+  Keaser calls `KeaserStore.restore(_:)`. Needs an unlocked iPhone.
+- App Shortcuts: 7 of the 10 allowed (Add Expense, Log Transaction,
+  Spending, Search, Open Account, Open Expense, Delete Expense).
 - `AddExpenseIntent` and its entities are declared in `KeaserWidgets/Shared/`
   and compiled into both targets, because the Add Expense control names the
   intent. The app implements `perform()` in `Keaser/Intents/AddExpenseFlow.swift`;
@@ -116,6 +157,62 @@ Seeded launches keep the database in memory and never touch the real file.
   `ShortcutFlow` (KeaserKit/Platform); the confirmation card's draft lives in
   `AddExpenseDrafts`, keyed by session.
 - Deep links: `keaser://new-expense`, `keaser://settings` (see `AppRouter`).
+  App Intents and Spotlight results use the routes `AppRouter.Route.expense(UUID)`
+  (select its account, Edit Expense), `.account(UUID)` (select it, Home) and
+  `.search(String)` (Search with the text); `HomeView.handle(_:)` follows them.
+- Siri, Spotlight and Shortcuts entities: `ExpenseEntity` (app only,
+  `Keaser/Intents/ExpenseEntity.swift`; an `IndexedEntity` whose
+  `ExpenseEntityQuery` resolves IDs in every account, matches titles and
+  suggests recent expenses), plus `AccountEntity`, `CategoryEntity` and
+  `PaymentMethodEntity` in `KeaserWidgets/Shared` (each with a Name property
+  and a string query; the Go Back sentinels are untouched). Only the app's
+  copy of `AccountEntity` is indexed (`Keaser/Intents/AccountIndexing.swift`).
+  Their lookups live in `EntityCatalog` (KeaserKit/Platform).
+- Open and search intents: `OpenExpenseIntent` ("Open Expense"),
+  `OpenAccountIntent` ("Open Account"), `SearchExpensesIntent` ("Search
+  Expenses") and, on iOS 27, the assistant-only `SearchInKeaserIntent`
+  (`.system.searchInApp`). There is no `.system.open` version: the schema is
+  iOS 27 only and a second OpenIntent for the same entity fails the build
+  ("OpenIntent targets should be unique"). All four require
+  `.requiresLocalDeviceAuthentication` (the search schema refuses anything
+  less); Add Expense and Log Wallet Transaction keep working while locked.
+  App Shortcut phrases may only interpolate AppEntity or AppEnum parameters,
+  so the search phrases carry no term.
+- Spotlight: `SpotlightIndexer` keeps the named index `SpotlightPlan.indexName`
+  in step with every `StoreChange` (on device, all expenses and accounts, no
+  setting). It remembers what it wrote in
+  `Application Support/Keaser/spotlight-index.json` and writes only the
+  difference; a new build or `SpotlightPlan.formatVersion` rebuilds the whole
+  index, so bump that whenever what `ExpenseEntity` indexes changes. Seeded
+  launches never index. Intents that save call `SpotlightIndexer.shared.flush()`
+  (through `IntentSupport.save`).
+- On-screen awareness: `.keaserEntity(expense:)` and `.keaserEntity(account:)`
+  (`Keaser/Intents/EntityAnnotations.swift`, iOS 18.4+, no visual change) on
+  Home and Search rows (`HomeExpenseRows`), Home's top bar and the expense
+  editor.
+- App Intents tests: `KeaserIntentTests` (a UI-test bundle, iOS 27 only,
+  run by `./scripts/intents-test.sh` on the simulator "Keaser intents
+  test") performs every intent and entity query through the system with
+  AppIntentsTesting, including Spotlight searches and the entities views
+  say are on screen. It never imports the app: intents, entities, enum
+  cases and parameters are named as declared (`definitions.intents["AddExpenseIntent"]`,
+  `makeIntent(expenseTitle:)`, `"thisWeek"`), so renaming any of them must
+  be done in the tests too. Every test launches Keaser, then starts from
+  `IntentTestFixture` (Personal full of demo expenses and selected, Business
+  empty), written to the real file by `ResetTestDataIntent` (Debug builds
+  only, not discoverable). Tests read the screen through accessibility and
+  never tap.
+- Errors on iOS 27: `KeaserIntentError` and `IntentRefusal` adopt
+  `CustomAppIntentErrorConvertible`. No account yet is
+  `AppIntentError.UserActionRequired.accountSetup`; a deleted expense or
+  account, or a label the account lacks, is `Unrecoverable.entityNotFound`;
+  everything else (Pro, amounts, locked data) keeps its sentence only.
+- Donations: saving a new expense in New Expense donates Add Expense with
+  its title, amount, category, payment method and account, never its date
+  (`IntentDonations.addedInApp`, one call in `ExpenseEditorView.save()`).
+  Edits donate nothing.
+- The weekly summary notification names the account it reports
+  (`WeeklySummaryPlan.accountID`, `appEntityIdentifiers` on iOS 27).
 - Pro features (`ProFeature`): Widgets, More Filters (category and payment
   filters), Multiple Accounts (more than one account), Long-term Insights
   (This Year and All Time periods). Gate on `ProStore.isPro` in the app and
@@ -132,9 +229,10 @@ Seeded launches keep the database in memory and never touch the real file.
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, app icon |
 | platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), the large and extra large portrait families and `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, the breakdown in `Packages/KeaserKit/Sources/KeaserKit/Platform/SpendingSnapshot.swift`, `scripts/shots/platform.txt` |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
-| shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
+| shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph, document camera, photo picker), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
+| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
 (`Home`, `Settings`, `Platform`) with tests in

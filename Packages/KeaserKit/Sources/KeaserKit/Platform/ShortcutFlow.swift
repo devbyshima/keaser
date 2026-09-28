@@ -31,7 +31,7 @@ public struct ShortcutFlow: Hashable, Sendable {
         case goBack
     }
 
-    /// The details on the confirmation card that change with a tap.
+    /// The details on the confirmation card that open a list of options.
     public enum Field: String, CaseIterable, Sendable {
         case account, category, paymentMethod
     }
@@ -56,8 +56,12 @@ public struct ShortcutFlow: Hashable, Sendable {
     public let accounts: [Account]
     public let goBackEnabled: Bool
     public let suggestionsEnabled: Bool
-    /// The expense's date: when the shortcut started.
+    /// The expense's date: the one the shortcut supplied, otherwise when
+    /// it started.
     public let date: Date
+    /// When the shortcut started, which is when the expense was made even
+    /// when it is dated another day.
+    public let createdAt: Date
 
     /// As typed; empty means `QuickLog.defaultTitle`.
     public private(set) var title: String
@@ -78,6 +82,7 @@ public struct ShortcutFlow: Hashable, Sendable {
     /// here was supplied by the shortcut and is never asked for; a nil one
     /// is. `accountID` is the account the expense goes to unless someone
     /// picks another, and counts as supplied only with `accountSupplied`.
+    /// `date` is never asked for; `createdAt` defaults to `date`.
     public init?(
         accounts: [Account],
         accountID: UUID,
@@ -88,7 +93,8 @@ public struct ShortcutFlow: Hashable, Sendable {
         paymentMethod: Label? = nil,
         goBackEnabled: Bool = true,
         suggestionsEnabled: Bool = true,
-        date: Date = .now
+        date: Date = .now,
+        createdAt: Date? = nil
     ) {
         guard accounts.contains(where: { $0.id == accountID }) else { return nil }
         self.accounts = accounts
@@ -100,6 +106,7 @@ public struct ShortcutFlow: Hashable, Sendable {
         self.goBackEnabled = goBackEnabled
         self.suggestionsEnabled = suggestionsEnabled
         self.date = date
+        self.createdAt = createdAt ?? date
         var supplied = Set<Step>()
         if title != nil { supplied.insert(.title) }
         if amount != nil { supplied.insert(.amount) }
@@ -243,24 +250,23 @@ public struct ShortcutFlow: Hashable, Sendable {
             categoryID: categoryID,
             paymentMethodID: paymentMethodID,
             date: date,
-            createdAt: date,
-            updatedAt: date
+            createdAt: createdAt,
+            updatedAt: createdAt
         )
     }
 
     // MARK: Changing the card
 
-    /// Moves a detail of the confirmation card on to its next option, back
-    /// to the first after the last: what one tap on it does.
-    public mutating func cycle(_ field: Field) {
+    /// The options a detail of the confirmation card offers, in the user's
+    /// order, and the one chosen now (nil for none).
+    public func options(for field: Field) -> (options: [ShortcutFlow.Label], current: UUID?) {
         switch field {
         case .account:
-            guard let next = Self.option(after: accountID, in: accounts.map(\.id)) else { return }
-            change(.account, to: next)
+            (accounts.map { Label(id: $0.id, name: $0.name) }, accountID)
         case .category:
-            categoryID = Self.option(after: categoryID, in: account.categories.map(\.id))
+            (account.categories.map { Label(id: $0.id, name: $0.name) }, categoryID)
         case .paymentMethod:
-            paymentMethodID = Self.option(after: paymentMethodID, in: account.paymentMethods.map(\.id))
+            (account.paymentMethods.map { Label(id: $0.id, name: $0.name) }, paymentMethodID)
         }
     }
 
@@ -283,13 +289,6 @@ public struct ShortcutFlow: Hashable, Sendable {
         case .paymentMethod:
             if let method = account.paymentMethod(id: id) { paymentMethodID = method.id }
         }
-    }
-
-    /// The option after `current`, wrapping around; the first when
-    /// `current` is not one of them. Nil when there are none.
-    static func option(after current: UUID?, in options: [UUID]) -> UUID? {
-        guard let index = options.firstIndex(where: { $0 == current }) else { return options.first }
-        return options[(index + 1) % options.count]
     }
 }
 

@@ -10,6 +10,9 @@ public struct WeeklySummaryPlan: Equatable, Sendable {
     public var week: DateInterval
     public var title: String
     public var body: String
+    /// The account whose spending `body` reports (the selected one), so the
+    /// notification can say which account it is about.
+    public var accountID: UUID
 }
 
 public enum WeeklySummary {
@@ -57,7 +60,8 @@ public enum WeeklySummary {
             fireDate: fire,
             week: week,
             title: title,
-            body: body(total: account.total(in: week), currencyCode: preferences.currencyCode, locale: locale)
+            body: body(total: account.total(in: week), currencyCode: preferences.currencyCode, locale: locale),
+            accountID: account.id
         )
     }
 

@@ -23,5 +23,55 @@ struct KeaserShortcuts: AppShortcutsProvider {
             shortTitle: "Log Transaction",
             systemImageName: "wallet.bifold.fill"
         )
+        AppShortcut(
+            intent: GetSpendingIntent(),
+            phrases: [
+                "How much did I spend in \(.applicationName)",
+                "How much did I spend \(\.$period) in \(.applicationName)",
+                "How much have I spent \(\.$period) in \(.applicationName)",
+                "What did I spend \(\.$period) in \(.applicationName)",
+                "\(.applicationName) spending \(\.$period)",
+            ],
+            shortTitle: "Spending",
+            systemImageName: "chart.bar.fill"
+        )
+        AppShortcut(
+            intent: SearchExpensesIntent(),
+            phrases: [
+                "Search \(.applicationName)",
+                "Search in \(.applicationName)",
+                "Search expenses in \(.applicationName)",
+            ],
+            shortTitle: "Search Expenses",
+            systemImageName: "magnifyingglass"
+        )
+        AppShortcut(
+            intent: OpenAccountIntent(),
+            phrases: [
+                "Open \(\.$target) in \(.applicationName)",
+                "Switch \(.applicationName) to \(\.$target)",
+                "Open an account in \(.applicationName)",
+            ],
+            shortTitle: "Open Account",
+            systemImageName: "person.crop.circle"
+        )
+        AppShortcut(
+            intent: OpenExpenseIntent(),
+            phrases: [
+                "Open an expense in \(.applicationName)",
+                "Show an expense in \(.applicationName)",
+            ],
+            shortTitle: "Open Expense",
+            systemImageName: "creditcard"
+        )
+        AppShortcut(
+            intent: DeleteExpenseIntent(),
+            phrases: [
+                "Delete an expense in \(.applicationName)",
+                "Remove an expense from \(.applicationName)",
+            ],
+            shortTitle: "Delete Expense",
+            systemImageName: "trash"
+        )
     }
 }

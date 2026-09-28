@@ -34,9 +34,41 @@ public enum QuickLog {
         return amount(fromDecimal: parsed, currencyCode: currencyCode)
     }
 
-    /// "Added $16.99 to Personal"
-    public static func confirmation(amount: Decimal, currencyCode: String, accountName: String, locale: Locale = .current) -> String {
-        "Added \(MoneyFormat.string(amount, currencyCode: currencyCode, locale: locale)) to \(accountName)"
+    /// Said after the Add Expense shortcut adds an expense when nothing is
+    /// shown (Siri without the screen): "Added $16.99 for Coffee to
+    /// Personal." Without a title, or with the default one: "Added $16.99
+    /// to Personal."
+    public static func confirmation(amount: Decimal, currencyCode: String, accountName: String, title: String? = nil, locale: Locale = .current) -> String {
+        let money = MoneyFormat.string(amount, currencyCode: currencyCode, locale: locale)
+        let title = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !title.isEmpty, title != defaultTitle else { return "Added \(money) to \(accountName)." }
+        return "Added \(money) for \(title) to \(accountName)."
+    }
+
+    /// Asked instead of showing the confirmation card when nothing is shown
+    /// (Siri without the screen), so every detail is heard: "Add $19.90 for
+    /// Uniqlo to Personal, under Shopping, paid with Credit Card?" A date
+    /// other than today is said too.
+    public static func confirmationQuestion(
+        for expense: Expense,
+        in account: Account,
+        currencyCode: String,
+        now: Date = .now,
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) -> String {
+        let money = MoneyFormat.string(expense.amount, currencyCode: currencyCode, locale: locale)
+        var text = expense.title == defaultTitle || expense.title.isEmpty
+            ? "Add \(money) to \(account.name)"
+            : "Add \(money) for \(expense.title) to \(account.name)"
+        if let category = account.category(id: expense.categoryID) { text += ", under \(category.name)" }
+        if let method = account.paymentMethod(id: expense.paymentMethodID) { text += ", paid with \(method.name)" }
+        if !calendar.isDate(expense.date, inSameDayAs: now) {
+            var style = Date.FormatStyle.dateTime.month(.wide).day().year().locale(locale)
+            style.timeZone = calendar.timeZone
+            text += ", dated \(expense.date.formatted(style))"
+        }
+        return text + "?"
     }
 
     /// The most recent expense with this title, ignoring case, accents and

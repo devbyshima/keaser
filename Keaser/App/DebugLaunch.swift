@@ -39,4 +39,24 @@ enum DebugLaunch {
     /// A shortcut card drawn in a stand-in of the system's, e.g. "confirm"
     /// (see `SnippetPreview`).
     static var snippet: String? { string("KeaserSnippet") }
+
+    /// The route an App Intent or a Spotlight result would leave waiting at
+    /// launch, taken through `AppRouter` like the real thing:
+    /// `-KeaserOpenExpense first` (the newest expense in any account) or an
+    /// index into every expense newest first, `-KeaserOpenAccount <index>`,
+    /// `-KeaserOpenSearch <text>`.
+    static func route(in database: Database) -> AppRouter.Route? {
+        if let value = string("KeaserOpenExpense") {
+            let expenses = EntityCatalog.allExpenses(in: database)
+            let index = value == "first" ? 0 : Int(value) ?? -1
+            return expenses.indices.contains(index) ? .expense(expenses[index].id) : nil
+        }
+        if let index = int("KeaserOpenAccount") {
+            return database.accounts.indices.contains(index) ? .account(database.accounts[index].id) : nil
+        }
+        if let text = string("KeaserOpenSearch") {
+            return .search(text)
+        }
+        return nil
+    }
 }

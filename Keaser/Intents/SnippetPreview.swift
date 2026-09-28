@@ -2,36 +2,68 @@
 import KeaserKit
 import SwiftUI
 
-/// `-KeaserSnippet confirm|confirmPlain|result|wallet`: the real
-/// `ExpenseCardView` inside a stand-in of the system's card (dialog, hairline,
-/// Cancel and Continue or Done) over a plain lock screen, so the cards can be
-/// screenshotted headlessly; the system's own chrome cannot be. Measurements
-/// follow the reference recording (iOS 26).
+/// `-KeaserSnippet <kind>`: the real `ExpenseCardView` (or
+/// `SpendingSnippetView`) inside a stand-in of the system's card (dialog,
+/// hairline, Cancel and Continue or Done) over a plain lock screen, so the
+/// cards can be screenshotted headlessly; the system's own chrome cannot be.
+/// Measurements follow the reference recording (iOS 26).
 ///
 /// `confirm` is the interactive card of iOS 26, `confirmPlain` the one of iOS
 /// 18 to 25 (no chevrons), `result` the Add Expense card when confirmation is
-/// off, `wallet` the Wallet automation's. `-KeaserSnippetLong 1` gives the
-/// expense a long title and its account a long name.
+/// off, `wallet` the Wallet automation's. `confirmAccount`, `confirmCategory`
+/// and `confirmPayment` are the interactive card with that detail tapped,
+/// showing its options. `-KeaserSnippetLong 1` gives the expense a long title
+/// and its account a long name; `-KeaserSnippetOptions many` gives the account
+/// twelve more categories, so the list pages, and `-KeaserSnippetPage <n>`
+/// shows its page n (from 1). `spending` is the answer of "How Much Did I
+/// Spend" for the selected account (`-KeaserPeriod` picks the period; This
+/// Week by default).
 struct SnippetPreview: View {
     enum Kind: String {
-        case confirm, confirmPlain, result, wallet
+        case confirm, confirmPlain, result, wallet, spending
+        case confirmAccount, confirmCategory, confirmPayment
 
         var dialog: String {
             switch self {
-            case .confirm, .confirmPlain: "Confirm expense details:"
-            case .result, .wallet: "Successfully added expense"
+            case .confirm, .confirmPlain, .confirmAccount, .confirmCategory, .confirmPayment: "Confirm expense details:"
+            case .result, .wallet, .spending: "Successfully added expense"
             }
         }
 
         /// The expenses in the reference frames.
         var sample: (title: String, amount: Decimal, category: String, paymentMethod: String) {
             switch self {
-            case .confirm, .confirmPlain: ("Uniqlo", Decimal(string: "19.90")!, "Shopping", "Credit Card")
+            case .confirm, .confirmPlain, .confirmAccount, .confirmCategory, .confirmPayment:
+                ("Uniqlo", Decimal(string: "19.90")!, "Shopping", "Credit Card")
             case .result: ("Coffee", 5, "Food & Drinks", "Credit Card")
-            case .wallet: ("Watsons", Decimal(string: "1.60")!, "Shopping", "Credit Card")
+            case .wallet, .spending: ("Watsons", Decimal(string: "1.60")!, "Shopping", "Credit Card")
+            }
+        }
+
+        /// The interactive card, with Cancel and Continue and chevrons.
+        var isInteractive: Bool {
+            switch self {
+            case .confirm, .confirmAccount, .confirmCategory, .confirmPayment: true
+            default: false
+            }
+        }
+
+        /// The detail tapped open.
+        var openField: ShortcutFlow.Field? {
+            switch self {
+            case .confirmAccount: .account
+            case .confirmCategory: .category
+            case .confirmPayment: .paymentMethod
+            default: nil
             }
         }
     }
+
+    /// More categories for `-KeaserSnippetOptions many`.
+    private static let extraCategories = [
+        "Groceries", "Rent", "Utilities", "Subscriptions", "Gifts", "Education",
+        "Pets", "Kids", "Insurance", "Taxes", "Fitness", "Coffee",
+    ].map { ExpenseCategory(name: $0, symbol: "tag.fill") }
 
     let kind: Kind
     @Environment(KeaserStore.self) private var store
@@ -40,32 +72,88 @@ struct SnippetPreview: View {
     var body: some View {
         ZStack(alignment: .top) {
             LockScreenBackdrop()
-            if let card {
-                platter(card)
+            if kind == .spending {
+                if let answer = spendingAnswer {
+                    platter(dialog: answer.sentence()) {
+                        SpendingSnippetView(snapshot: answer.snapshot)
+                    }
                     .padding(.horizontal, 8)
                     .padding(.top, 56)
+                }
+            } else if let card {
+                platter(dialog: kind.dialog) {
+                    ExpenseCardView(card: card, session: kind.isInteractive ? "preview" : nil, list: list)
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 56)
             }
         }
         .ignoresSafeArea()
     }
 
-    private var card: ShortcutCard? {
+    /// What "How Much Did I Spend" answers for the selected account.
+    private var spendingAnswer: SpendingAnswer? {
+        let period = Period(rawValue: DebugLaunch.string("KeaserPeriod") ?? "") ?? .thisWeek
+        guard case .answer(let answer) = SpendingQuestion(period: period).answer(in: store.database, isPro: true, now: .now) else {
+            return nil
+        }
+        return answer
+    }
+
+    private var long: Bool { DebugLaunch.int("KeaserSnippetLong") == 1 }
+
+    /// The selected account, renamed or given more categories on request.
+    private var account: Account? {
         guard var account = store.selectedAccount else { return nil }
-        let long = DebugLaunch.int("KeaserSnippetLong") == 1
         if long { account.name = "Shared household expenses" }
+        if DebugLaunch.string("KeaserSnippetOptions") == "many" { account.categories += Self.extraCategories }
+        return account
+    }
+
+    private func expense(in account: Account) -> Expense {
         let sample = kind.sample
-        let expense = Expense(
+        return Expense(
             title: long ? "Weekly groceries and household supplies" : sample.title,
             amount: sample.amount,
             categoryID: account.categories.first { $0.name == sample.category }?.id,
             paymentMethodID: account.paymentMethods.first { $0.name == sample.paymentMethod }?.id
         )
-        return ShortcutCard(expense: expense, in: account, currencyCode: store.preferences.currencyCode)
     }
 
-    private func platter(_ card: ShortcutCard) -> some View {
+    private var card: ShortcutCard? {
+        guard let account else { return nil }
+        return ShortcutCard(expense: expense(in: account), in: account, currencyCode: store.preferences.currencyCode)
+    }
+
+    /// The open detail's options, as the draft of a real card gives them.
+    private var list: ShortcutCardList? {
+        guard let field = kind.openField, let account else { return nil }
+        let expense = expense(in: account)
+        let options: [ShortcutFlow.Label]
+        let current: UUID?
+        switch field {
+        case .account:
+            options = store.accounts.map { ShortcutFlow.Label(id: $0.id, name: $0.id == account.id ? account.name : $0.name) }
+            current = account.id
+        case .category:
+            options = account.categories.map { ShortcutFlow.Label(id: $0.id, name: $0.name) }
+            current = expense.categoryID
+        case .paymentMethod:
+            options = account.paymentMethods.map { ShortcutFlow.Label(id: $0.id, name: $0.name) }
+            current = expense.paymentMethodID
+        }
+        return ShortcutCardList(
+            field: field,
+            options: options,
+            current: current,
+            offersGoBack: store.preferences.shortcutGoBackEnabled,
+            page: DebugLaunch.int("KeaserSnippetPage").map { $0 - 1 }
+        )
+    }
+
+    private func platter(dialog: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(spacing: 0) {
-            Text(kind.dialog)
+            Text(dialog)
                 .keaserFont(18, weight: .medium, relativeTo: .body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -75,7 +163,7 @@ struct SnippetPreview: View {
             Rectangle()
                 .fill(Color.snippetHairline)
                 .frame(height: 1 / displayScale)
-            ExpenseCardView(card: card, session: kind == .confirm ? "preview" : nil)
+            content()
             buttons
                 .padding(.top, 8)
                 .padding(.horizontal, 14)
@@ -88,12 +176,12 @@ struct SnippetPreview: View {
     @ViewBuilder
     private var buttons: some View {
         switch kind {
-        case .confirm, .confirmPlain:
+        case .confirm, .confirmPlain, .confirmAccount, .confirmCategory, .confirmPayment:
             HStack(spacing: 11) {
                 SystemButton(title: "Cancel", fill: .snippetSecondaryButton, text: .keaserPrimaryText)
                 SystemButton(title: "Continue", fill: Color(uiColor: .systemBlue), text: .snippetOnBlue)
             }
-        case .result, .wallet:
+        case .result, .wallet, .spending:
             SystemButton(title: "Done", fill: Color(uiColor: .systemBlue), text: .snippetOnBlue)
         }
     }

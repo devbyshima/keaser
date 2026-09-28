@@ -294,33 +294,40 @@ struct ShortcutCardEditTests {
         return f
     }
 
-    @Test func tappingCyclesThroughTheOptionsAndWraps() {
+    @Test func pickingAnOptionSetsIt() {
         var f = finished(accounts())
         let personal = f.account
-        f.cycle(.category)
+        f.change(.category, to: category("Shopping", in: personal).id)
         #expect(f.categoryID == category("Shopping", in: personal).id)
-        for _ in 0..<(personal.categories.count - 1) { f.cycle(.category) }
-        #expect(f.categoryID == category("Food & Drinks", in: personal).id)
-        f.cycle(.paymentMethod)
+        f.change(.paymentMethod, to: method("Bank Transfer", in: personal).id)
         #expect(f.paymentMethodID == method("Bank Transfer", in: personal).id)
+        // An option of another account changes nothing.
+        f.change(.category, to: UUID())
+        #expect(f.categoryID == category("Shopping", in: personal).id)
     }
 
-    @Test func anEmptyLabelStartsAtTheFirstOption() {
-        var f = flow(accounts(), title: "Coffee", amount: 4, category: .init(id: UUID(), name: "Nothing"))
-        _ = f.start()
-        #expect(f.categoryID == nil)
-        f.cycle(.category)
-        #expect(f.categoryID == f.account.categories.first?.id)
+    @Test func eachDetailOffersItsAccountsOptions() {
+        let all = accounts(["Personal", "Business"])
+        let f = finished(all)
+        let accountChoice = f.options(for: .account)
+        #expect(accountChoice.options.map(\.name) == ["Personal", "Business"])
+        #expect(accountChoice.current == all[0].id)
+        let categoryChoice = f.options(for: .category)
+        #expect(categoryChoice.options.map(\.id) == all[0].categories.map(\.id))
+        #expect(categoryChoice.current == category("Food & Drinks", in: all[0]).id)
+        let empty = flow(accounts(), title: "Coffee", amount: 4, category: .init(id: UUID(), name: "Nothing"))
+        #expect(empty.options(for: .category).current == nil)
     }
 
     @Test func anotherAccountKeepsTheLabelsByName() {
         let all = accounts(["Personal", "Business"])
         var f = finished(all)
-        f.cycle(.account)
+        f.change(.account, to: all[1].id)
         #expect(f.account.id == all[1].id)
         #expect(f.categoryID == category("Food & Drinks", in: all[1]).id)
         #expect(f.paymentMethodID == method("Cash", in: all[1]).id)
-        f.cycle(.account)
+        #expect(f.options(for: .category).options.map(\.id) == all[1].categories.map(\.id))
+        f.change(.account, to: all[0].id)
         #expect(f.account.id == all[0].id)
     }
 
@@ -337,15 +344,6 @@ struct ShortcutCardEditTests {
         // "Coffee" names Food & Drinks, paid in Cash.
         #expect(f.categoryID == category("Food & Drinks", in: personal).id)
         #expect(f.paymentMethodID == method("Cash", in: personal).id)
-    }
-
-    @Test func optionAfterWraps() {
-        let ids = [UUID(), UUID(), UUID()]
-        #expect(ShortcutFlow.option(after: ids[0], in: ids) == ids[1])
-        #expect(ShortcutFlow.option(after: ids[2], in: ids) == ids[0])
-        #expect(ShortcutFlow.option(after: nil, in: ids) == ids[0])
-        #expect(ShortcutFlow.option(after: UUID(), in: ids) == ids[0])
-        #expect(ShortcutFlow.option(after: nil, in: []) == nil)
     }
 }
 
@@ -404,6 +402,19 @@ struct ShortcutCardTests {
         let all = accounts()
         let f = ShortcutFlow(accounts: all, accountID: all[0].id, title: "Watsons", amount: 2, date: started)
         #expect(f?.expense?.date == started)
+        #expect(f?.expense?.createdAt == started)
+    }
+
+    @Test func aSuppliedDateDatesTheExpenseButNotItsCreation() {
+        let paid = date(2026, 3, 20)
+        let started = date(2026, 3, 24)
+        let all = accounts()
+        let f = ShortcutFlow(accounts: all, accountID: all[0].id, title: "Watsons", amount: 2, date: paid, createdAt: started)!
+        #expect(f.expense?.date == paid)
+        #expect(f.expense?.createdAt == started)
+        #expect(f.expense?.updatedAt == started)
+        let card = ShortcutCard(expense: f.expense!, in: all[0], currencyCode: "USD", locale: Locale(identifier: "en_US"), timeZone: utc)
+        #expect(card.date == "03/20/2026")
     }
 
     @Test func anUnknownAccountMakesNoFlow() {

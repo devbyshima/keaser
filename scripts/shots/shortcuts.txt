@@ -10,3 +10,13 @@ confirm-plain | -KeaserSeed single -KeaserSnippet confirmPlain
 result | -KeaserSeed single -KeaserSnippet result
 wallet | -KeaserSeed demo -KeaserSnippet wallet
 confirm-long | -KeaserSeed single -KeaserSnippet confirm -KeaserSnippetLong 1
+
+# The interactive card with a detail tapped: its options drawn inside the
+# card (the chosen one checked, then Go Back). Long lists take two columns,
+# then pages that More steps through.
+confirm-account | -KeaserSeed demo -KeaserSnippet confirmAccount
+confirm-category | -KeaserSeed single -KeaserSnippet confirmCategory
+confirm-payment | -KeaserSeed single -KeaserSnippet confirmPayment
+confirm-category-more | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many
+confirm-category-more-2 | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many -KeaserSnippetPage 2
+confirm-account-long | -KeaserSeed demo -KeaserSnippet confirmAccount -KeaserSnippetLong 1

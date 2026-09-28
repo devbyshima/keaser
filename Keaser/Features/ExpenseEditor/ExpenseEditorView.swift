@@ -131,6 +131,8 @@ struct ExpenseEditorView: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
         .keaserSheetChrome()
+        // Edit Expense tells Siri which expense is open.
+        .keaserEntity(expense: original?.id)
         .onAppear {
             if let original {
                 amountDisplay = AmountInput.field(for: original.amount, currencyCode: currencyCode)
@@ -505,6 +507,7 @@ struct ExpenseEditorView: View {
         expense.date = date
         focus = nil
         store.saveExpense(expense, in: accountID)
+        if isNew { IntentDonations.addedInApp(expense, accountID: accountID, store: store) }
         finished += 1
         dismiss()
     }

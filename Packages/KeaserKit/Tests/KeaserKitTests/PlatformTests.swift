@@ -130,8 +130,27 @@ struct QuickLogTests {
     }
 
     @Test func confirmationNamesAmountAndAccount() {
-        let text = QuickLog.confirmation(amount: Decimal(string: "16.99")!, currencyCode: "USD", accountName: "Personal", locale: Locale(identifier: "en_US"))
-        #expect(text == "Added $16.99 to Personal")
+        let us = Locale(identifier: "en_US")
+        let amount = Decimal(string: "16.99")!
+        #expect(QuickLog.confirmation(amount: amount, currencyCode: "USD", accountName: "Personal", locale: us) == "Added $16.99 to Personal.")
+        #expect(QuickLog.confirmation(amount: amount, currencyCode: "USD", accountName: "Personal", title: " Coffee ", locale: us) == "Added $16.99 for Coffee to Personal.")
+        #expect(QuickLog.confirmation(amount: amount, currencyCode: "USD", accountName: "Personal", title: QuickLog.defaultTitle, locale: us) == "Added $16.99 to Personal.")
+    }
+
+    @Test func theSpokenQuestionNamesEveryDetail() {
+        let us = Locale(identifier: "en_US")
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/New_York")!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 27, hour: 9))!
+        let account = Account(name: "Personal")
+        let shopping = account.categories.first { $0.name == "Shopping" }!
+        let card = account.paymentMethods.first { $0.name == "Credit Card" }!
+        let full = Expense(title: "Uniqlo", amount: Decimal(string: "19.90")!, categoryID: shopping.id, paymentMethodID: card.id, date: now)
+        #expect(QuickLog.confirmationQuestion(for: full, in: account, currencyCode: "USD", now: now, calendar: cal, locale: us)
+            == "Add $19.90 for Uniqlo to Personal, under Shopping, paid with Credit Card?")
+        let bare = Expense(title: QuickLog.defaultTitle, amount: 5, date: cal.date(from: DateComponents(year: 2026, month: 9, day: 20, hour: 0))!)
+        #expect(QuickLog.confirmationQuestion(for: bare, in: account, currencyCode: "USD", now: now, calendar: cal, locale: us)
+            == "Add $5.00 to Personal, dated September 20, 2026?")
     }
 
     @Test func findsTheMostRecentExpenseIgnoringCase() {
