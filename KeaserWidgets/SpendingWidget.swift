@@ -4,7 +4,8 @@ import StoreKit
 import SwiftUI
 import WidgetKit
 
-/// Total spending for a period, on the home screen and the lock screen.
+/// Total spending for a period on the home screen: one medium widget, the
+/// period's caption over the total.
 struct SpendingWidget: Widget {
     static let kind = "Spending"
 
@@ -14,28 +15,7 @@ struct SpendingWidget: Widget {
         }
         .configurationDisplayName("Spending")
         .description("See what you've spent today, this week, this month or this year.")
-        .supportedFamilies(Self.families)
-        // It shows personal finances, which do not belong on a car's shared
-        // screen, and nothing a driver needs.
-        .disfavoredLocations(Self.disfavoredLocations, for: [.systemSmall])
-    }
-
-    /// The large widgets carry the category breakdown; the extra large
-    /// portrait one exists from iOS 27.
-    static var families: [WidgetFamily] {
-        var families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline]
-        if #available(iOS 27.0, *) {
-            families.append(.systemExtraLargePortrait)
-        }
-        return families
-    }
-
-    /// CarPlay (iOS 26) offers every small widget unless it is disfavoured.
-    static var disfavoredLocations: [WidgetLocation] {
-        if #available(iOS 26.0, *) {
-            return [.carPlay]
-        }
-        return []
+        .supportedFamilies([.systemMedium])
     }
 }
 
@@ -168,11 +148,7 @@ struct SpendingWidgetEntryView: View {
             // upgrade); otherwise a tap just opens the app.
             .widgetURL(entry.snapshot.state == .locked ? URL(string: "keaser://settings") : nil)
             .containerBackground(for: .widget) {
-                if family.isAccessory {
-                    Color.clear
-                } else {
-                    WidgetPalette.background
-                }
+                WidgetPalette.background
             }
     }
 }

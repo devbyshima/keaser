@@ -8,30 +8,21 @@ import WidgetKit
 //
 // Text uses the text style whose default size is the measured one, so it
 // follows Dynamic Type; `SpendingWidgetView` caps how far, since a widget's
-// frame never grows. The totals and the tiny circular labels keep fixed
-// sizes: they are fitted to that fixed frame and shrink to fit instead.
+// frame never grows. The total keeps a fixed size: it is fitted to that fixed
+// frame and shrinks to fit instead.
 
 /// Widget colours. The app's Theme is not part of the extension, so the few
-/// shades a widget needs live here. Home screen widgets follow the system
-/// appearance like the system's own: near-black with white type in dark mode,
-/// white with black type in light mode (both measured from the reference).
-/// Lock screen widgets use none of these; the system renders them vibrant.
+/// shades a widget needs live here. The widget follows the system appearance
+/// like the system's own: near-black with white type in dark mode, white with
+/// black type in light mode (both measured from the reference).
 enum WidgetPalette {
     static let background = adaptive(light: .white, dark: Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255))
     /// The total, titles and glyphs.
     static let primaryText = adaptive(light: .black, dark: .white)
     /// The period caption ("Spent This Month", "This Month").
     static let secondaryText = adaptive(light: Color(white: 0.46), dark: Color(white: 0.58))
-    /// The account name. It is smaller than the caption, so it sits further
-    /// from the surface to stay readable (7.3:1 on the near-black, 5.7:1 on
-    /// white).
-    static let smallText = adaptive(light: Color(white: 0.4), dark: Color(white: 0.64))
-    /// The tile behind the lock on the locked widget and behind category
-    /// symbols on the large widgets.
+    /// The tile behind the lock on the locked widget.
     static let tile = adaptive(light: .black.opacity(0.06), dark: .white.opacity(0.12))
-    /// The empty part of a breakdown bar: the ink at the chart's inactive
-    /// strength, a little firmer than the tile so a 4pt line still shows.
-    static let track = adaptive(light: .black.opacity(0.09), dark: .white.opacity(0.16))
     /// The home screen widget corner, for drawing widgets inside the app.
     static let cornerRadius: CGFloat = 24
 
@@ -44,12 +35,12 @@ enum WidgetPalette {
     }
 }
 
-/// The home screen widgets' colours for the way the system is drawing them.
-/// In full colour they are `WidgetPalette`'s measured shades. On a tinted or
-/// clear home screen (accented) and in StandBy (vibrant) the system turns
-/// every opaque colour into one white, so hierarchical styles keep the
-/// caption and labels quieter than the total there, and the total and the
-/// bars go in the accent group, which takes the home screen's tint.
+/// The widget's colours for the way the system is drawing it. In full colour
+/// they are `WidgetPalette`'s measured shades. On a tinted or clear home
+/// screen (accented), and wherever the system draws the widget vibrant, it
+/// turns every opaque colour into one white, so hierarchical styles keep the
+/// caption quieter than the total there, and the total goes in the accent
+/// group, which takes the home screen's tint.
 struct WidgetInks {
     var mode: WidgetRenderingMode
     /// Stands in for that tint in the app's widget gallery, where
@@ -58,17 +49,13 @@ struct WidgetInks {
 
     var isFullColor: Bool { mode == .fullColor }
 
-    /// Titles, names and amounts.
+    /// Titles and glyphs.
     var primary: AnyShapeStyle { isFullColor ? AnyShapeStyle(WidgetPalette.primaryText) : AnyShapeStyle(.primary) }
-    /// Captions ("Spent This Month") and dates.
+    /// Captions ("Spent This Month").
     var secondary: AnyShapeStyle { isFullColor ? AnyShapeStyle(WidgetPalette.secondaryText) : AnyShapeStyle(.secondary) }
-    /// The account name on the small widget.
-    var small: AnyShapeStyle { isFullColor ? AnyShapeStyle(WidgetPalette.smallText) : AnyShapeStyle(.secondary) }
-    /// Symbol tiles.
+    /// The lock's tile.
     var tile: AnyShapeStyle { isFullColor ? AnyShapeStyle(WidgetPalette.tile) : AnyShapeStyle(.primary.opacity(0.14)) }
-    /// The empty part of a breakdown bar.
-    var track: AnyShapeStyle { isFullColor ? AnyShapeStyle(WidgetPalette.track) : AnyShapeStyle(.primary.opacity(0.2)) }
-    /// The total and the filled part of a bar; mark them `widgetAccentable()`.
+    /// The total; mark it `widgetAccentable()`.
     var accent: AnyShapeStyle {
         if isFullColor { return AnyShapeStyle(WidgetPalette.primaryText) }
         return previewAccent.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
@@ -81,27 +68,11 @@ extension EnvironmentValues {
     @Entry var widgetPreviewAccent: Color?
 }
 
-extension WidgetFamily {
-    /// The lock screen families, which the system draws vibrant on the
-    /// wallpaper with no container background.
-    var isAccessory: Bool {
-        self == .accessoryRectangular || self == .accessoryCircular || self == .accessoryInline
-    }
-
-    /// iOS 27's page-tall widget. Always false before iOS 27, where the case
-    /// does not exist.
-    var isExtraLargePortrait: Bool {
-        if #available(iOS 27.0, *) { return self == .systemExtraLargePortrait }
-        return false
-    }
-
-    /// The families with the category breakdown: large, and iOS 27's extra
-    /// large portrait.
-    var hasBreakdown: Bool { self == .systemLarge || isExtraLargePortrait }
-}
-
-/// The Spending widget for one family. `inApp` swaps the system-provided
-/// lock screen background, which only exists inside WidgetKit, for a drawn one.
+/// The Spending widget: the medium widget's caption over the total, or its
+/// locked and no-account states. The widget offers only the medium size;
+/// `.systemSmall` draws the small widget of the onboarding illustration.
+/// `inApp` marks a widget the app draws (onboarding, the debug gallery, the
+/// spending answer) rather than WidgetKit; both draw the same.
 struct SpendingWidgetView: View {
     let snapshot: SpendingSnapshot
     let family: WidgetFamily
@@ -116,8 +87,8 @@ struct SpendingWidgetView: View {
         Group {
             switch snapshot.state {
             case .ready: ready
-            case .locked: LockedWidgetView(family: family, inApp: inApp)
-            case .noAccount: NoAccountWidgetView(family: family, inApp: inApp)
+            case .locked: LockedWidgetView(inks: inks)
+            case .noAccount: NoAccountWidgetView(inks: inks)
             }
         }
         // Beyond this the text no longer fits the widget's fixed frame.
@@ -127,101 +98,13 @@ struct SpendingWidgetView: View {
     @ViewBuilder
     private var ready: some View {
         switch family {
-        case .systemMedium: medium
-        case .systemLarge: SpendingBreakdownView(snapshot: snapshot, inks: inks, isExtraLarge: false)
-        case .accessoryRectangular: rectangular
-        case .accessoryCircular: circular
-        case .accessoryInline: inline
-        default:
-            if family.isExtraLargePortrait {
-                SpendingBreakdownView(snapshot: snapshot, inks: inks, isExtraLarge: true)
-            } else {
-                small
-            }
+        case .systemSmall: small
+        default: medium
         }
-    }
-
-    private var small: some View {
-        VStack(spacing: 6) {
-            Text(snapshot.caption)
-                .font(.subheadline)
-                .foregroundStyle(inks.secondary)
-                .lineLimit(1)
-            total(size: 31)
-            if let name = snapshot.accountName {
-                Text(name)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(inks.small)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.horizontal, 6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// The caption and the total, centred, and nothing else.
     private var medium: some View {
-        SpendingHeadline(snapshot: snapshot, inks: inks)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var rectangular: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(snapshot.caption)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Text(snapshot.formattedTotal)
-                .font(.system(size: 24, weight: .bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .widgetAccentable()
-            Text(snapshot.accountName ?? "Keaser")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var circular: some View {
-        ZStack {
-            AccessoryBackground(inApp: inApp)
-            VStack(spacing: 0) {
-                Text(snapshot.shortCaption)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text(snapshot.compactTotal())
-                    .font(.system(size: 17, weight: .bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .widgetAccentable()
-            }
-            .padding(6)
-        }
-    }
-
-    private var inline: some View {
-        Label(snapshot.inlineText, systemImage: "creditcard")
-    }
-
-    private func total(size: CGFloat) -> some View {
-        Text(snapshot.formattedTotal)
-            .font(.system(size: size, weight: .bold))
-            .foregroundStyle(inks.accent)
-            .lineLimit(1)
-            .minimumScaleFactor(0.45)
-            .widgetAccentable()
-    }
-}
-
-/// The medium widget's caption over its total, which the large widgets
-/// also lead with.
-private struct SpendingHeadline: View {
-    let snapshot: SpendingSnapshot
-    let inks: WidgetInks
-
-    var body: some View {
         VStack(spacing: 7) {
             Text(snapshot.spentCaption)
                 .font(.footnote)
@@ -234,319 +117,52 @@ private struct SpendingHeadline: View {
                 .minimumScaleFactor(0.45)
                 .widgetAccentable()
         }
-    }
-}
-
-/// The large widgets: the medium widget's caption and total, then what each
-/// category took in the period with a thin bar for its share of the total,
-/// the largest first and the rest grouped as Other. The period's latest
-/// expenses follow: always on the extra large portrait widget, and on the
-/// large one when the breakdown leaves room (`breakdownPlans(extraLarge:)`).
-private struct SpendingBreakdownView: View {
-    let snapshot: SpendingSnapshot
-    let inks: WidgetInks
-    let isExtraLarge: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            SpendingHeadline(snapshot: snapshot, inks: inks)
-            if snapshot.categories.isEmpty {
-                Text(snapshot.emptyText)
-                    .font(.footnote)
-                    .foregroundStyle(inks.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // The first plan that fits under the headline is shown.
-                let plans = snapshot.breakdownPlans(extraLarge: isExtraLarge)
-                ViewThatFits(in: .vertical) {
-                    ForEach(plans.indices, id: \.self) { index in
-                        rows(categories: plans[index].categories, latest: plans[index].latest)
-                    }
-                }
-                .padding(.top, 20)
-                Spacer(minLength: 0)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func rows(categories: Int, latest: Int) -> some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 12) {
-                ForEach(snapshot.categoryRows(maxRows: categories)) { row in
-                    CategoryShareRow(
-                        row: row,
-                        amount: snapshot.formatted(row.amount),
-                        share: snapshot.share(of: row.amount),
-                        inks: inks
-                    )
-                }
-            }
-            if latest > 0, !snapshot.latest.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Latest")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(inks.secondary)
-                        .accessibilityAddTraits(.isHeader)
-                    ForEach(snapshot.latest.prefix(latest)) { expense in
-                        LatestExpenseRow(expense: expense, amount: snapshot.formatted(expense.amount), inks: inks)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 22)
-            }
-        }
-    }
-}
-
-/// A category's symbol on its tile, its name and amount, and under them a
-/// bar filled to its share of the period's total.
-private struct CategoryShareRow: View {
-    let row: SpendingSnapshot.CategoryTotal
-    let amount: String
-    let share: Double
-    let inks: WidgetInks
-
-    var body: some View {
-        HStack(spacing: 10) {
-            WidgetSymbolTile(symbol: row.symbol, inks: inks)
-            VStack(spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(row.name)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(inks.primary)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    Text(amount)
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(inks.primary)
-                        .lineLimit(1)
-                        .layoutPriority(1)
-                }
-                ShareBar(share: share, inks: inks)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(row.name)
-        .accessibilityValue("\(amount), \(share.formatted(.percent.precision(.fractionLength(0))))")
-    }
-}
-
-/// A thin capsule in the track tone, filled from the leading edge to
-/// `share` of its width in the accent. Any spending shows at least a dot.
-private struct ShareBar: View {
-    let share: Double
-    let inks: WidgetInks
-
-    private static let height: CGFloat = 4
-
-    var body: some View {
-        Capsule()
-            .fill(inks.track)
-            .frame(height: Self.height)
-            .overlay(alignment: .leading) {
-                GeometryReader { geometry in
-                    Capsule()
-                        .fill(inks.accent)
-                        .frame(width: share > 0 ? max(Self.height, geometry.size.width * share) : 0)
-                        .widgetAccentable()
-                }
-            }
-            .accessibilityHidden(true)
-    }
-}
-
-/// One of the latest expenses: category symbol, title over its date, and
-/// the amount.
-private struct LatestExpenseRow: View {
-    let expense: SpendingSnapshot.LatestExpense
-    let amount: String
-    let inks: WidgetInks
-
-    var body: some View {
-        HStack(spacing: 10) {
-            WidgetSymbolTile(symbol: expense.symbol, inks: inks)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(expense.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(inks.primary)
-                    .lineLimit(1)
-                Text(expense.date, format: .dateTime.month(.abbreviated).day())
-                    .font(.caption)
-                    .foregroundStyle(inks.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            Text(amount)
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(inks.primary)
+    /// The onboarding illustration's small widget: the period over the total.
+    private var small: some View {
+        VStack(spacing: 6) {
+            Text(snapshot.caption)
+                .font(.subheadline)
+                .foregroundStyle(inks.secondary)
                 .lineLimit(1)
-                .layoutPriority(1)
+            Text(snapshot.formattedTotal)
+                .font(.system(size: 31, weight: .bold))
+                .foregroundStyle(inks.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.45)
+                .widgetAccentable()
         }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// An SF Symbol on the widget's faint rounded tile, like the symbol tiles
-/// of the app's expense rows.
-private struct WidgetSymbolTile: View {
-    let symbol: String
-    let inks: WidgetInks
-
-    @ScaledMetric(relativeTo: .subheadline) private var size: CGFloat = 28
-
-    var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: size * 0.45, weight: .semibold))
-            .foregroundStyle(inks.primary)
-            .frame(width: size, height: size)
-            .background(inks.tile, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
-            .accessibilityHidden(true)
-    }
-}
-
-/// The large widgets once the Pro pass is over: the lock and the message,
-/// over the outline of a breakdown in the faintest tones, so it is clear
-/// what upgrading brings back.
-private struct LockedBreakdownView: View {
-    let inks: WidgetInks
-    let rows: Int
-
-    /// The bars' fill in each outline row, largest first.
-    private static let shares: [CGFloat] = [0.82, 0.6, 0.44, 0.32, 0.24, 0.17, 0.12, 0.08, 0.05]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 14) {
-                WidgetLockTile(inks: inks)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Widgets are part of Keaser Pro")
-                        .font(.headline)
-                        .foregroundStyle(inks.primary)
-                    Text("Tap to open Settings and upgrade to see where your money goes.")
-                        .font(.footnote)
-                        .foregroundStyle(inks.secondary)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            VStack(spacing: 12) {
-                ForEach(0..<rows, id: \.self) { index in
-                    outlineRow(share: Self.shares[index % Self.shares.count])
-                }
-            }
-            .padding(.top, 26)
-            .accessibilityHidden(true)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private func outlineRow(share: CGFloat) -> some View {
-        HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(inks.tile)
-                .frame(width: 28, height: 28)
-            VStack(alignment: .leading, spacing: 7) {
-                Capsule()
-                    .fill(inks.tile)
-                    .frame(width: 70 + 60 * share, height: 8)
-                Capsule()
-                    .fill(inks.track)
-                    .frame(height: 4)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { geometry in
-                            Capsule()
-                                .fill(inks.track)
-                                .frame(width: geometry.size.width * share)
-                        }
-                    }
-            }
-        }
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
 /// Shown once the Pro pass has run out. Tapping opens Settings, where Pro
 /// can be bought.
-struct LockedWidgetView: View {
-    let family: WidgetFamily
-    var inApp = false
-
-    @Environment(\.widgetRenderingMode) private var renderingMode
-
-    private var inks: WidgetInks { WidgetInks(mode: renderingMode) }
+private struct LockedWidgetView: View {
+    let inks: WidgetInks
 
     var body: some View {
-        if family.hasBreakdown {
-            LockedBreakdownView(inks: inks, rows: family.isExtraLargePortrait ? 9 : 5)
-        } else {
-            compact
-        }
-    }
-
-    @ViewBuilder
-    private var compact: some View {
-        switch family {
-        case .accessoryRectangular:
-            VStack(alignment: .leading, spacing: 1) {
-                Label("Keaser Pro", systemImage: "lock.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Text("Widgets are part of Keaser Pro.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        case .accessoryCircular:
-            ZStack {
-                AccessoryBackground(inApp: inApp)
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 20, weight: .semibold))
-            }
-        case .accessoryInline:
-            Label("Keaser Pro needed", systemImage: "lock.fill")
-        case .systemMedium:
-            HStack(spacing: 14) {
-                lockTile
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Widgets are part of Keaser Pro")
-                        .font(.headline)
-                        .foregroundStyle(inks.primary)
-                    Text("Tap to open Settings and upgrade to keep your spending on the home screen.")
-                        .font(.footnote)
-                        .foregroundStyle(inks.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        default:
+        HStack(spacing: 14) {
+            WidgetLockTile(inks: inks)
             VStack(alignment: .leading, spacing: 4) {
-                lockTile
-                Spacer(minLength: 0)
-                Text("Keaser Pro")
+                Text("Widgets are part of Keaser Pro")
                     .font(.headline)
                     .foregroundStyle(inks.primary)
-                    .lineLimit(1)
-                Text("Widgets are part of Keaser Pro. Tap to upgrade.")
+                Text("Tap to open Settings and upgrade to keep your spending on the home screen.")
                     .font(.footnote)
                     .foregroundStyle(inks.secondary)
-                    .lineLimit(3)
             }
-            .padding(2)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
         }
-    }
-
-    private var lockTile: some View {
-        WidgetLockTile(inks: inks)
+        .padding(4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-/// The lock on its tile, on every locked home screen widget.
+/// The lock on its tile.
 private struct WidgetLockTile: View {
     let inks: WidgetInks
 
@@ -561,66 +177,26 @@ private struct WidgetLockTile: View {
 }
 
 /// Shown before the first account exists. Tapping opens the app.
-struct NoAccountWidgetView: View {
-    let family: WidgetFamily
-    var inApp = false
-
-    @Environment(\.widgetRenderingMode) private var renderingMode
-
-    private var inks: WidgetInks { WidgetInks(mode: renderingMode) }
+private struct NoAccountWidgetView: View {
+    let inks: WidgetInks
 
     var body: some View {
-        switch family {
-        case .accessoryRectangular:
-            VStack(alignment: .leading, spacing: 1) {
-                Text("No Account")
-                    .font(.subheadline.weight(.semibold))
-                Text("Add one in Keaser.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        case .accessoryCircular:
-            ZStack {
-                AccessoryBackground(inApp: inApp)
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 22, weight: .regular))
-            }
-        case .accessoryInline:
-            Text("Add an account in Keaser")
-        default:
-            VStack(spacing: 4) {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: family.hasBreakdown ? 32 : 24))
-                    .foregroundStyle(inks.primary)
-                    .padding(.bottom, family.hasBreakdown ? 8 : 4)
-                    .accessibilityHidden(true)
-                Text("No Account")
-                    .font(family.hasBreakdown ? .headline : .subheadline.weight(.semibold))
-                    .foregroundStyle(inks.primary)
-                Text("Add an account in Keaser to see your spending.")
-                    .font(family.hasBreakdown ? .footnote : .caption)
-                    .foregroundStyle(inks.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 4) {
+            Image(systemName: "person.crop.circle")
+                .font(.system(size: 24))
+                .foregroundStyle(inks.primary)
+                .padding(.bottom, 4)
+                .accessibilityHidden(true)
+            Text("No Account")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(inks.primary)
+            Text("Add an account in Keaser to see your spending.")
+                .font(.caption)
+                .foregroundStyle(inks.secondary)
+                .multilineTextAlignment(.center)
         }
-    }
-}
-
-/// The circular lock screen backdrop: the system's inside WidgetKit, a drawn
-/// stand-in inside the app. The lock screen draws it as a light veil over the
-/// wallpaper whatever the appearance, so the stand-in is fixed too.
-private struct AccessoryBackground: View {
-    let inApp: Bool
-
-    var body: some View {
-        if inApp {
-            Circle().fill(Color.white.opacity(0.16))
-        } else {
-            AccessoryWidgetBackground()
-        }
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
