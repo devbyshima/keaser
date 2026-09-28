@@ -8,7 +8,7 @@ struct TutorialsView: View {
             ForEach(Tutorials.all) { tutorial in
                 Section {
                     NavigationLink(value: SettingsPage.tutorial(tutorial.id)) {
-                        CompactRow(symbol: tutorial.symbol, title: tutorial.title)
+                        CompactRow(symbol: tutorial.symbol, title: tutorial.title, symbolSize: 22)
                     }
                     .cardRow(.single, insets: .settingsTextRow)
                 } footer: {
@@ -16,7 +16,9 @@ struct TutorialsView: View {
                 }
             }
         }
-        .settingsListStyle(sectionSpacing: 22)
+        // Each footnote sits as far above the next card as on the Shortcut
+        // page, as in the reference.
+        .settingsListStyle(sectionSpacing: 17.5)
         .settingsPage("Tutorials")
     }
 }

@@ -181,6 +181,18 @@ struct SettingsContentTests {
         ])
         #expect(MarkdownBlocks.parse("").isEmpty)
     }
+
+    @Test func smartSuggestionsFootnoteIsTheReferenceTextThenAppleIntelligence() {
+        let plain = SmartSuggestionsCopy.footnote(mentionsAppleIntelligence: false)
+        #expect(plain.hasPrefix("When enabled, Keaser suggests matching past expenses as you type the expense title"))
+        #expect(plain.hasSuffix("making suggestions more accurate and helpful."))
+        #expect(!plain.contains("Apple Intelligence"))
+        #expect(!plain.contains("SyncSpend"))
+
+        let eligible = SmartSuggestionsCopy.footnote(mentionsAppleIntelligence: true)
+        #expect(eligible == plain + " " + SmartSuggestionsCopy.appleIntelligence)
+        #expect(eligible.hasSuffix("right on this iPhone."))
+    }
 }
 
 struct SettingsSupportTests {

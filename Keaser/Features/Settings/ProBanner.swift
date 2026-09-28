@@ -21,21 +21,25 @@ struct ProBanner: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
             : AnyLayout(HStackLayout(spacing: 12))
         layout {
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Keaser Pro")
-                    .keaserFont(22, weight: .semibold, relativeTo: .title2)
+                    .keaserFont(20, weight: .semibold, relativeTo: .title3)
                     .foregroundStyle(.white)
+                // Medium, at half white, as in the reference.
                 Text(subtitle)
-                    .keaserFont(16, relativeTo: .callout)
-                    .foregroundStyle(Color.white.opacity(0.55))
+                    .keaserFont(15, weight: .medium, relativeTo: .subheadline)
+                    .foregroundStyle(Color.white.opacity(0.5))
             }
             .lineLimit(isLarge ? 3 : 1)
             .minimumScaleFactor(0.8)
             .accessibilityElement(children: .combine)
             if !stacks { Spacer(minLength: 8) }
             if showsUpgrade {
-                Button("Upgrade", action: upgrade)
-                    .buttonStyle(.keaserCapsule(height: 34, horizontalPadding: 13))
+                Button(action: upgrade) {
+                    Text("Upgrade")
+                        .keaserFont(16, weight: .semibold, relativeTo: .callout)
+                }
+                .buttonStyle(.keaserCapsule(height: 35, horizontalPadding: 12))
             } else {
                 // A badge in a fixed spot on the card, not text.
                 Image(systemName: "checkmark.seal.fill")
@@ -54,7 +58,7 @@ struct ProBanner: View {
     }
 }
 
-/// A near-black sky whose glow drifts between midnight blue and violet, with
+/// A near-black sky whose glow drifts between deep teal and violet, with
 /// a fixed, seeded star field that slides and twinkles. Stands still when
 /// Reduce Motion is on, and holds still where it is while iOS 27 asks apps
 /// to use fewer resources.
@@ -102,15 +106,16 @@ private struct StarfieldSky: View {
 
     private static func drawSky(in context: inout GraphicsContext, size: CGSize, time: Double) {
         let rect = CGRect(origin: .zero, size: size)
-        context.fill(Path(rect), with: .color(Color(red: 0.012, green: 0.02, blue: 0.045)))
+        context.fill(Path(rect), with: .color(Color(red: 0.004, green: 0.004, blue: 0.016)))
 
-        // Hue swings from midnight blue to violet and back every ~24s; the
-        // glow's centre wanders across the card on a slower loop.
+        // Hue swings from a deep teal (green above red) to violet and back
+        // every ~24s, as in the reference; the glow's centre wanders across
+        // the card on a slower loop.
         let swing = (sin(time * 2 * .pi / 24) + 1) / 2
         let glow = Color(
-            red: 0.06 + 0.10 * swing,
-            green: 0.08 - 0.03 * swing,
-            blue: 0.19 + 0.02 * swing
+            red: 0.015 + 0.10 * swing,
+            green: 0.075 - 0.03 * swing,
+            blue: 0.125 + 0.015 * swing
         )
         let wander = time * 2 * .pi / 37
         let center = CGPoint(

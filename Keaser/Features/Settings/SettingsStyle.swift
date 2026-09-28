@@ -60,6 +60,20 @@ struct CardRowBackground: View {
     }
 }
 
+enum SettingsListInset {
+    /// iOS 27 puts 4pt more between an inline navigation bar and a list's
+    /// first row than iOS 26, where the reference was recorded, so every
+    /// settings card sat 4pt low. Taking it back out of the margin puts the
+    /// cards where the reference has them; earlier systems use the margin
+    /// as it is.
+    static func top(_ margin: CGFloat) -> CGFloat {
+        if #available(iOS 27.0, *) {
+            return max(margin - 4, 0)
+        }
+        return margin
+    }
+}
+
 extension EdgeInsets {
     /// Rows with a leading symbol tile.
     static let settingsRow = EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 16)
@@ -71,13 +85,15 @@ extension View {
     /// The list look shared by every settings page. `sectionSpacing` is the
     /// gap between cards; pages whose sections carry a `SettingsSectionTitle`
     /// use a tighter one, since the title row adds its own height.
+    /// `topMargin` is the space under the navigation bar as iOS 26 lays it
+    /// out (see `SettingsListInset`).
     func settingsListStyle(sectionSpacing: CGFloat = 35, topMargin: CGFloat = 39) -> some View {
         self
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Color.settingsCanvas.ignoresSafeArea())
             .keaserReadableScrollContent(base: KeaserMetrics.screenPadding)
-            .contentMargins(.top, topMargin, for: .scrollContent)
+            .contentMargins(.top, SettingsListInset.top(topMargin), for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
             // Card rows set their own heights (52, 68 or 74pt); this floor
             // is for title rows and for sections other features embed.
@@ -89,14 +105,22 @@ extension View {
         self
             .listRowInsets(insets)
             .listRowBackground(CardRowBackground(position: position))
-            .listRowSeparatorTint(Color.keaserSeparator)
+            .listRowSeparatorTint(Color.keaserListSeparator)
     }
 
     /// Ends a row's separator 16pt short of the card's edge, as iOS 26 does
     /// (iOS 18 runs it to the edge). Apply to the row's full-width content;
     /// `overChevron` carries it past the chevron a `NavigationLink` adds.
+    /// From iOS 26 the system already ends a chevron row's separator there,
+    /// and the chevron's spacing differs between releases, so those rows
+    /// keep the system's own end.
+    @ViewBuilder
     func cardSeparatorTrailing(overChevron: Bool = false) -> some View {
-        alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + (overChevron ? 20 : 0) }
+        if #available(iOS 26.0, *), overChevron {
+            self
+        } else {
+            alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + (overChevron ? 20 : 0) }
+        }
     }
 
     /// A list row that is not a card: banners, footers, free text.
@@ -158,7 +182,7 @@ struct SettingsRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 13) {
+        HStack(spacing: 12) {
             SettingsSymbol(symbol: symbol)
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 2) {
@@ -190,9 +214,10 @@ struct SettingsRow: View {
         .contentShape(Rectangle())
     }
 
+    /// Medium, as in the reference; the value stays regular.
     private var titleText: some View {
         Text(title)
-            .font(.body)
+            .font(.body.weight(.medium))
             .foregroundStyle(Color.keaserPrimaryText)
     }
 
@@ -216,7 +241,7 @@ struct SettingsSectionTitle: View {
     var body: some View {
         Text(title)
             .keaserFont(17, weight: .semibold, relativeTo: .headline)
-            .foregroundStyle(Color.keaserSecondaryText)
+            .foregroundStyle(Color.keaserCaptionText)
             .padding(.leading, 16)
             .padding(.top, 13)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
@@ -234,11 +259,13 @@ struct SettingsFootnote: View {
     }
 
     var body: some View {
-        // An exact 13pt font keeps the tight leading of the reference; the
-        // footnote text style adds several points between lines.
+        // An exact 13pt font on a 16pt line keeps the tight leading of the
+        // reference; the footnote text style adds several points between
+        // lines.
         Text(text)
             .keaserFont(13, relativeTo: .footnote)
-            .foregroundStyle(Color.keaserSecondaryText)
+            .lineSpacing(0.5)
+            .foregroundStyle(Color.keaserCaptionText)
             .textCase(nil)
             .fixedSize(horizontal: false, vertical: true)
     }

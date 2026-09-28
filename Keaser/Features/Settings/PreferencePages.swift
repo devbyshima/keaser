@@ -25,7 +25,9 @@ struct CurrencyPickerView: View {
                 }
             }
         }
-        .settingsListStyle(topMargin: 12)
+        // The reference leaves the same gap under the search field as other
+        // pages leave under the navigation bar.
+        .settingsListStyle()
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
         .autocorrectionDisabled()
         .overlay {
@@ -79,25 +81,13 @@ struct SmartSuggestionsView: View {
             Section {
                 SettingsToggle("Smart Suggestions", isOn: store.preferenceBinding(\.smartSuggestionsEnabled))
             } footer: {
-                SettingsFootnote("""
-                As you type a title in New Expense or Edit Expense, Keaser offers expenses you have logged before \
-                that match it. Pick one to fill in the title, amount, category and payment method in a single tap, \
-                then change anything you like before saving. For a title you haven't used yet, Keaser picks a likely \
-                category and payment method when you move on from the title, and never replaces one you chose. \
-                Suggestions are worked out on this iPhone from your own history, so they get more useful the more \
-                you log.\(appleIntelligenceNote) Turn this off to always start from an empty form.
-                """)
+                // The Apple Intelligence sentence only on iPhones that can
+                // run it.
+                SettingsFootnote(SmartSuggestionsCopy.footnote(mentionsAppleIntelligence: CategoryModels.isDeviceEligible))
             }
         }
         .settingsListStyle()
         .settingsPage("Smart Suggestions")
-    }
-
-    /// Only on iPhones that can run Apple Intelligence.
-    private var appleIntelligenceNote: String {
-        guard CategoryModels.isDeviceEligible else { return "" }
-        return " With Apple Intelligence turned on, Keaser also recognizes titles it has never seen, such as shop and "
-            + "brand names, right on this iPhone."
     }
 }
 
@@ -190,7 +180,9 @@ struct CheckRow: View {
                     .accessibilityHidden(true)
             }
         }
-        .padding(.vertical, 12)
+        // A one-line row is the 52pt minimum; a name that wraps gets the
+        // reference's 15pt above and below.
+        .padding(.vertical, 15)
         .frame(minHeight: 52)
         .cardSeparatorTrailing()
         .contentShape(Rectangle())
@@ -233,21 +225,25 @@ struct CompactRow: View {
     let title: String
     var value: String?
     var accessory: String?
+    /// The symbol's point size: 22 on Tutorials, as in the reference, and
+    /// 19 elsewhere. The title starts in the same place either way.
+    var symbolSize: CGFloat
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var symbolWidth: CGFloat = 24
 
-    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil) {
+    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil, symbolSize: CGFloat = 19) {
         self.symbol = symbol
         self.title = title
         self.value = value
         self.accessory = accessory
+        self.symbolSize = symbolSize
     }
 
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: symbol)
-                .keaserFont(19, weight: .medium, relativeTo: .body)
+                .keaserFont(symbolSize, weight: .medium, relativeTo: .body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: symbolWidth)
                 .accessibilityHidden(true)
