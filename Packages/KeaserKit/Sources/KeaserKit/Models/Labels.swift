@@ -8,11 +8,24 @@ public struct ExpenseCategory: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var name: String
     public var symbol: String
+    /// When the name or symbol last changed, on whichever device changed
+    /// it. `KeaserStore` stamps it; iCloud sync keeps the later of two
+    /// edits. `.distantPast` for categories saved before it existed.
+    public var updatedAt: Date
 
-    public init(id: UUID = UUID(), name: String, symbol: String) {
+    public init(id: UUID = UUID(), name: String, symbol: String, updatedAt: Date = .now) {
         self.id = id
         self.name = name
         self.symbol = symbol
+        self.updatedAt = updatedAt
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        symbol = try c.decodeIfPresent(String.self, forKey: .symbol) ?? Self.fallbackSymbol
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
     }
 }
 
@@ -21,11 +34,22 @@ public struct PaymentMethod: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var name: String
     public var symbol: String
+    /// When the name or symbol last changed (see `ExpenseCategory.updatedAt`).
+    public var updatedAt: Date
 
-    public init(id: UUID = UUID(), name: String, symbol: String) {
+    public init(id: UUID = UUID(), name: String, symbol: String, updatedAt: Date = .now) {
         self.id = id
         self.name = name
         self.symbol = symbol
+        self.updatedAt = updatedAt
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        symbol = try c.decodeIfPresent(String.self, forKey: .symbol) ?? ExpenseCategory.fallbackSymbol
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
     }
 }
 
@@ -80,7 +104,10 @@ extension PaymentMethod {
     }
 }
 
-private func labelKey(_ name: String) -> String {
+/// A name as the app compares names: trimmed, ignoring case and accents.
+/// Also how iCloud sync recognises the same label or account made on two
+/// devices.
+func labelKey(_ name: String) -> String {
     name.trimmingCharacters(in: .whitespacesAndNewlines)
         .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
 }
