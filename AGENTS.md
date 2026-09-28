@@ -20,10 +20,9 @@ The Xcode project is generated. After editing `project.yml`, run
     ./scripts/build.sh           # xcodegen + simulator build; prints errors only
     ./scripts/test.sh            # KeaserKit tests on the Mac
     ./scripts/screenshots.sh     # headless screenshots from scripts/shots/*.txt
-    ./scripts/intents-test.sh    # App Intents tests (AppIntentsTesting) on their own iOS 27 simulator
     ./scripts/screenshots.sh home   # one area only
     SIM="Keaser home" ./scripts/screenshots.sh home   # use your own simulator
-    ./scripts/intents-test.sh    # App Intents through the system (AppIntentsTesting, iOS 27 sim, ~15 min)
+    ./scripts/intents-test.sh    # App Intents through the system (AppIntentsTesting, iOS 27 sim, ~7 min)
     KEASER_MODEL_EVALS=1 ./scripts/eval.sh   # opt-in on-device model evals (Mac with Apple Intelligence)
 
 Screenshots land in `screenshots/<area>-<name>.png` at 1206x2622, the same
