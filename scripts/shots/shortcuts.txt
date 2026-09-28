@@ -20,3 +20,8 @@ confirm-payment | -KeaserSeed single -KeaserSnippet confirmPayment
 confirm-category-more | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many
 confirm-category-more-2 | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many -KeaserSnippetPage 2
 confirm-account-long | -KeaserSeed demo -KeaserSnippet confirmAccount -KeaserSnippetLong 1
+# At larger text sizes the open list takes fewer lines, so the card stays
+# under 340 points: five at the largest standard size, three at the
+# accessibility sizes, paged with More.
+confirm-category-more-xxxl | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many -UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL
+confirm-category-ax | -KeaserSeed single -KeaserSnippet confirmCategory -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
