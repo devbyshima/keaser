@@ -81,6 +81,24 @@ final class AddExpenseTests: IntentTestCase {
         XCTAssertEqual(try found.first?.categoryName, Optional("Transportation"))
     }
 
+    func testWalletAmountIsReadWhateverItsNumberStyle() async throws {
+        // The simulator writes numbers the English (US) way; Wallet may not.
+        let payments = [
+            ("Tabac du Coin", "4,50 $", "4.50"),
+            ("Corner Kiosk", "USD 4.50", "4.50"),
+            ("Grand Magasin", "1.234,56 $", "1234.56"),
+            ("Swiss Bakery", "CHF 1'234.50", "1234.50"),
+        ]
+        for (merchant, amount, _) in payments {
+            try await logWallet(merchant, amount: amount)
+        }
+        for (merchant, _, saved) in payments {
+            let found = try await expenses.entities(matching: merchant)
+            XCTAssertEqual(found.count, 1, merchant)
+            XCTAssertEqual(try found.first?.amount.as(IntentCurrencyAmount.self).amount, money(saved), merchant)
+        }
+    }
+
     private func resetTestData(suggestions: Bool, shortcutSuggestions: Bool) async throws {
         try await definitions.intents["ResetTestDataIntent"].makeIntent(
             pro: true, confirmsDetails: false, accounts: true,

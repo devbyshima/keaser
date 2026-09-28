@@ -27,11 +27,14 @@ public enum QuickLog {
         return rounded > 0 ? rounded : nil
     }
 
-    /// Wallet passes the amount as text ("$4.50", "4,50 €"). Nil unless it is a
+    /// Wallet passes the amount as text, in its own number style, which need
+    /// not be the phone's ("$4.50", "4,50 €", "RWF 5,000"). Read by
+    /// `WalletAmount` (a number with no currency named is taken to be in
+    /// `currencyCode`), then rounded to `currencyCode`. Nil unless it is a
     /// positive number.
     public static func amount(from text: String, currencyCode: String, locale: Locale = .current) -> Decimal? {
-        guard let parsed = MoneyFormat.parse(text, locale: locale) else { return nil }
-        return amount(fromDecimal: parsed, currencyCode: currencyCode)
+        guard let paid = WalletAmount.read(text, currencyCode: currencyCode, locale: locale) else { return nil }
+        return amount(fromDecimal: paid.value, currencyCode: currencyCode)
     }
 
     /// Said after the Add Expense shortcut adds an expense when nothing is
