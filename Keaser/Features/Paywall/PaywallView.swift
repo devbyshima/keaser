@@ -28,9 +28,9 @@ struct PaywallView: View {
                 VStack(spacing: 0) {
                     header
                     features
-                        .padding(.top, 30)
+                        .padding(.top, 32)
                 }
-                .padding(.top, 30)
+                .padding(.top, Self.topPadding)
                 .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -61,6 +61,14 @@ struct PaywallView: View {
     }
 
     // MARK: Header and features
+
+    /// The gap above the logo, measured from the reference (iOS 26). iOS 27
+    /// starts scroll content 4pt lower under an inline navigation bar, so it
+    /// takes those 4pt back there.
+    private static var topPadding: CGFloat {
+        if #available(iOS 27.0, *) { return 22 }
+        return 26
+    }
 
     private var header: some View {
         VStack(spacing: 0) {
@@ -105,7 +113,7 @@ struct PaywallView: View {
     }
 
     private var features: some View {
-        VStack(alignment: .leading, spacing: 19) {
+        VStack(alignment: .leading, spacing: 21) {
             ForEach(ProFeature.ordered(highlighting: highlighted)) { feature in
                 FeatureRow(symbol: feature.symbol, title: feature.title, detail: feature.detail, isHighlighted: feature == highlighted)
             }
@@ -123,6 +131,8 @@ struct PaywallView: View {
     private static let panelGap: CGFloat = 17
     /// The band above the panel where content fades out (before iOS 26).
     private static let panelFade: CGFloat = 24
+    /// The reference's Continue, a little taller than onboarding's.
+    private static let continueHeight: CGFloat = 62
 
     private var bottomBar: some View {
         panel
@@ -175,7 +185,7 @@ struct PaywallView: View {
 
     @ViewBuilder
     private var plans: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             ForEach(visiblePlans) { kind in
                 PlanRow(
                     kind: kind,
@@ -201,9 +211,9 @@ struct PaywallView: View {
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: showsAllPlans ? "chevron.down" : "chevron.up")
-                    .keaserFont(14, weight: .semibold, relativeTo: .callout)
+                    .keaserFont(13, weight: .semibold, relativeTo: .subheadline)
                 Text(showsAllPlans ? "Show fewer plans" : "Show more plans")
-                    .font(.callout)
+                    .font(.subheadline)
             }
             .foregroundStyle(Color.keaserSecondaryText)
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -220,12 +230,12 @@ struct PaywallView: View {
                 Text("Continue")
             }
         }
-        .buttonStyle(.keaserPrimary)
+        .buttonStyle(PrimaryButtonStyle(height: Self.continueHeight))
         .disabled(pro.plan(selectedPlan) == nil || pro.purchasingPlan != nil || pro.isRestoring)
-        .padding(.top, 8)
+        .padding(.top, 5)
 
         legalLinks
-            .padding(.top, 11)
+            .padding(.top, 6)
     }
 
     /// A purchase or restore problem, or a way to retry loading prices.
@@ -275,7 +285,7 @@ struct PaywallView: View {
             .padding(.horizontal, 12)
             .accessibilityElement(children: .combine)
             Button("Done") { dismiss() }
-                .buttonStyle(.keaserPrimary)
+                .buttonStyle(PrimaryButtonStyle(height: Self.continueHeight))
         }
     }
 
@@ -291,7 +301,7 @@ struct PaywallView: View {
                 privacyLink
             }
         }
-        .font(.subheadline)
+        .font(.footnote)
         .foregroundStyle(Color.keaserSecondaryText.opacity(0.8))
         .buttonStyle(.plain)
     }
@@ -369,16 +379,21 @@ private struct FeatureRow: View {
                 .foregroundStyle(tint)
                 .frame(width: iconWidth)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Color.keaserPrimaryText)
+                // Subheadline, as measured in the reference (15pt on 20pt
+                // lines), so "Quick access from your home screen." fits on
+                // one line.
                 Text(detail)
-                    .font(.body)
+                    .font(.subheadline)
                     .foregroundStyle(Color.keaserSecondaryText)
             }
             .fixedSize(horizontal: false, vertical: true)
         }
+        // The highlight card spans the column, whatever the text's width.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if isHighlighted {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -408,21 +423,21 @@ private struct PlanRow: View {
 
     var body: some View {
         Button(action: select) {
-            HStack(spacing: 12) {
+            HStack(spacing: 9) {
                 radio
                 let layout = dynamicTypeSize.isAccessibilitySize
                     ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
                     : AnyLayout(HStackLayout(spacing: 8))
                 layout {
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(kind.title)
-                            .keaserFont(16, weight: .semibold, relativeTo: .headline)
+                            .keaserFont(17, weight: .semibold, relativeTo: .headline)
                             .foregroundStyle(Color.keaserPrimaryText)
                         if let subtitle {
-                            // Caption-sized and on one line, as in the
+                            // Footnote-sized and on one line, as in the
                             // reference, so the prices keep their room.
                             Text(subtitle)
-                                .font(.caption)
+                                .font(.footnote)
                                 .foregroundStyle(Color.keaserSecondaryText)
                                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                                 .minimumScaleFactor(0.85)
@@ -434,12 +449,12 @@ private struct PlanRow: View {
             }
             .padding(.leading, 16)
             .padding(.trailing, 17)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+            .padding(.vertical, 19)
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
             .background(isSelected ? Color.paywallSelectedPlan : Color.paywallPlan, in: Self.shape)
             .overlay {
                 Self.shape
-                    .strokeBorder(Color.keaserInk, lineWidth: 1.5)
+                    .strokeBorder(Color.keaserInk, lineWidth: 2)
                     .opacity(isSelected ? 1 : 0)
             }
             .contentShape(Self.shape)
@@ -460,7 +475,7 @@ private struct PlanRow: View {
                     .foregroundStyle(Color.keaserMutedIcon)
             }
         }
-        .keaserFont(21, relativeTo: .headline)
+        .keaserFont(20, relativeTo: .headline)
     }
 
     @ViewBuilder
@@ -469,7 +484,7 @@ private struct PlanRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let regularPrice {
                     Text(regularPrice)
-                        .font(.caption)
+                        .font(.footnote)
                         .strikethrough()
                         .foregroundStyle(Color.keaserSecondaryText)
                 }
@@ -490,9 +505,10 @@ private struct PlanRow: View {
             ProgressView()
                 .controlSize(.small)
         } else {
+            // As readable as the plan's subtitle on the selected card.
             Text("Unavailable")
                 .font(.subheadline)
-                .foregroundStyle(Color.keaserTertiaryText)
+                .foregroundStyle(Color.keaserSecondaryText)
         }
     }
 

@@ -43,6 +43,8 @@ follow-us | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage followU
 privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy
 terms | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage terms
 paywall | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample
+# As Upgrade in Settings opens it, on a second sheet: compare with the reference.
+paywall-over-settings | -KeaserSeed single -KeaserSheet settingsPaywall -KeaserProPrices sample
 paywall-plans | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample -KeaserPaywallPlans all
 paywall-purchased | -KeaserSeed single -KeaserSheet paywall -KeaserPro purchased
 paywall-live | -KeaserSeed single -KeaserSheet paywall
