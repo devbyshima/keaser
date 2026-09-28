@@ -1,16 +1,16 @@
 # Privacy Policy
 
-Last updated: 28 September 2026
+Last updated: 29 September 2026
 
 Keaser is an expense tracker that works without an account. This page explains, in plain terms, what the app stores, where it is kept, and what it never does.
 
 ## What Keaser stores
 
-Only what you enter: your accounts, expenses, categories and payment methods, and your preferences (currency, first day of the week, Smart Suggestions and the weekly summary).
+Only what you enter: your accounts, expenses, categories and payment methods, the photos of receipts you choose to keep with an expense, and your preferences (currency, first day of the week, Smart Suggestions and the weekly summary).
 
 ## Where it is kept
 
-On your iPhone, in a single file inside Keaser's app group container. The app group lets Keaser's widgets read your totals; nothing else can. The file is protected by iOS data protection and, like other app data, is included in your device backups if you have them turned on.
+On your iPhone, inside Keaser's app group container: your data in a single file, and any receipt photos you keep in a Receipts folder beside it. The app group lets Keaser's widgets read your totals; nothing else can. Both are protected by iOS data protection and, like other app data, are included in your device backups if you have them turned on.
 
 Keaser also keeps the date your 7-day Pro pass began in the iOS Keychain on this device, so reinstalling the app does not restart the pass.
 
@@ -32,7 +32,9 @@ On iPhones with Apple Intelligence turned on, Smart Suggestions can ask Apple's 
 
 ## Receipts
 
-When you scan a receipt or choose a photo of one in New Expense, Keaser reads it on your iPhone (with Apple's on-device model where Apple Intelligence is on) to fill in the expense for you to check, then lets the image go: it is never saved or sent anywhere, and choosing a photo gives Keaser only that photo, never your library.
+When you scan a receipt or choose a photo of one in New Expense, Keaser reads it on your iPhone (with Apple's on-device model where Apple Intelligence is on) to fill in the expense for you to check. Choosing a photo gives Keaser only that photo, never your library.
+
+A scanned receipt is attached to the expense, and you can attach a photo of one to any expense yourself. If you save the expense with it attached, Keaser keeps a copy of the photo with the expense on this iPhone (and so in its backup): scaled down, with its location and other details removed. You can remove it at any time in Edit Expense. When you delete the expense, its photo is deleted too: Keaser clears it the next time it opens at least a day later, so Undo can still bring the expense back whole. A photo you do not save with an expense is not kept. Receipt photos are never uploaded or sent anywhere.
 
 ## Notifications
 
@@ -47,7 +49,7 @@ The optional weekly summary is scheduled on your iPhone. No notification server 
 
 ## Deleting your data
 
-Delete an account from Account Settings, or delete the app to remove everything it stored on your iPhone.
+Delete an expense to remove it and its receipt photo, delete an account from Account Settings, or delete the app to remove everything it stored on your iPhone.
 
 ## Children
 

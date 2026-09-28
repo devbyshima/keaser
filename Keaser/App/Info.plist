@@ -49,7 +49,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Keaser uses the camera to scan a receipt into a new expense. The photo is read on your iPhone and is not kept.</string>
+	<string>Keaser uses the camera to photograph receipts. The photo is read on your iPhone and, if you attach it, kept with the expense on this iPhone. Nothing is uploaded.</string>
 	<key>NSSupportsLiveActivities</key>
 	<false/>
 	<key>UILaunchScreen</key>
