@@ -20,10 +20,10 @@ extension AccountEntity: IndexedEntity {
 @available(iOS 27.0, *)
 extension AccountEntityQuery: IndexedEntityQuery {
     func reindexEntities(for identifiers: [UUID], indexDescription: CSSearchableIndexDescription) async throws {
-        try await SpotlightIndexer.reindexAccounts(identifiers, protectionClass: indexDescription.protectionClass)
+        try await SpotlightIndexer.reindex(.accounts(identifiers), protectionClass: indexDescription.protectionClass)
     }
 
     func reindexAllEntities(indexDescription: CSSearchableIndexDescription) async throws {
-        try await SpotlightIndexer.reindexAccounts(nil, protectionClass: indexDescription.protectionClass)
+        try await SpotlightIndexer.reindex(.accounts(nil), protectionClass: indexDescription.protectionClass)
     }
 }

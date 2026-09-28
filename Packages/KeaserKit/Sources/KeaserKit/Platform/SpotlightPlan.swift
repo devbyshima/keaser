@@ -101,7 +101,7 @@ public enum SpotlightPlan {
 
     /// FNV-1a over the fields, separated by a unit separator. Unlike
     /// `Hasher`, it gives the same value in every launch, so the manifest
-    /// can be kept on disk.
+    /// can be kept on disk. Never `unknownFingerprint`.
     static func stableHash(_ fields: [String]) -> UInt64 {
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
         for (index, field) in fields.enumerated() {
@@ -114,7 +114,37 @@ public enum SpotlightPlan {
                 hash = hash &* 0x0000_0100_0000_01B3
             }
         }
-        return hash
+        return hash == unknownFingerprint ? 1 : hash
+    }
+
+    // MARK: Spotlight asking for items again (iOS 27)
+
+    /// Stands for an item Spotlight asked for again: no expense or account
+    /// ever has it.
+    public static let unknownFingerprint: UInt64 = 0
+
+    /// `manifest` with the items `request` names marked unknown, so
+    /// `changes(from:to:)` writes each of them again when it still exists
+    /// and deletes it from the index when it does not. The rest of the
+    /// manifest, and so the rest of the index, is left as it is.
+    public static func forgetting(_ request: SpotlightReindex, in manifest: SpotlightManifest) -> SpotlightManifest {
+        var manifest = manifest
+        switch request {
+        case .expenses(let ids):
+            forget(ids, in: &manifest.expenses)
+        case .accounts(let ids):
+            forget(ids, in: &manifest.accounts)
+        }
+        return manifest
+    }
+
+    /// All of them for nil. An ID the manifest does not list is written
+    /// again only if the database has it (then it is new to the diff
+    /// anyway), so it is marked unknown too, to be deleted if it is gone.
+    private static func forget(_ ids: [UUID]?, in items: inout [UUID: UInt64]) {
+        for id in ids ?? Array(items.keys) {
+            items[id] = unknownFingerprint
+        }
     }
 
     private static func changed(from indexed: [UUID: UInt64], to wanted: [UUID: UInt64]) -> [UUID] {
@@ -128,6 +158,13 @@ public enum SpotlightPlan {
     private static func uuidOrder(_ a: UUID, _ b: UUID) -> Bool {
         a.uuidString < b.uuidString
     }
+}
+
+/// Items Spotlight asks Keaser to write again (iOS 27, when its copy of the
+/// index needs rebuilding): some expenses or accounts, or all of them (nil).
+public enum SpotlightReindex: Hashable, Sendable {
+    case expenses([UUID]?)
+    case accounts([UUID]?)
 }
 
 /// What Keaser last wrote to its Spotlight index.

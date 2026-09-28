@@ -95,10 +95,10 @@ struct ExpenseEntityQuery: EntityStringQuery {
 @available(iOS 27.0, *)
 extension ExpenseEntityQuery: IndexedEntityQuery {
     func reindexEntities(for identifiers: [UUID], indexDescription: CSSearchableIndexDescription) async throws {
-        try await SpotlightIndexer.reindexExpenses(identifiers, protectionClass: indexDescription.protectionClass)
+        try await SpotlightIndexer.reindex(.expenses(identifiers), protectionClass: indexDescription.protectionClass)
     }
 
     func reindexAllEntities(indexDescription: CSSearchableIndexDescription) async throws {
-        try await SpotlightIndexer.reindexExpenses(nil, protectionClass: indexDescription.protectionClass)
+        try await SpotlightIndexer.reindex(.expenses(nil), protectionClass: indexDescription.protectionClass)
     }
 }
