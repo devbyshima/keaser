@@ -26,7 +26,8 @@ struct AccountsSheet: View {
                 Button(isEditing ? "Done" : "Edit") {
                     withAnimation(.smooth(duration: 0.3)) { editMode = isEditing ? .inactive : .active }
                 }
-                .keaserGlassButtonStyle()
+                // Semibold, as the reference draws Edit.
+                .homeSheetHeaderButton(confirms: true)
                 .disabled(store.accounts.isEmpty)
                 .accessibilityShowsLargeContentViewer()
             }

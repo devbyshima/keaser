@@ -40,10 +40,11 @@ extension View {
             .padding(.top, top)
     }
 
-    /// Cancel and Save in the expense editor's header. On iOS 26 and later
-    /// they are glass capsules at the reference's size, with Save, the
-    /// confirming action, in semibold; before iOS 26 the translucent
-    /// capsules stay as they are.
+    /// The text buttons in a Home sheet's header: Cancel and Save in the
+    /// expense editor, Edit and Done on Accounts. On iOS 26 and later they
+    /// are glass capsules at the reference's size, as tall as the round
+    /// close button beside them, with Save, Edit and Done in semibold;
+    /// before iOS 26 the translucent capsules stay as they are.
     @ViewBuilder
     func homeSheetHeaderButton(confirms: Bool = false) -> some View {
         if #available(iOS 26.0, *) {
@@ -56,7 +57,8 @@ extension View {
 
 /// A glass capsule 44pt tall with 16pt either side of its label, as
 /// measured from the reference's Edit Expense header (in the sheet's own
-/// points; with the keyboard up, iOS draws the sheet at 96%). The system
+/// points; with the keyboard up, iOS draws the sheet at 96%) and its
+/// Accounts header (Edit: 181 x 127 pixels, like the close button). The system
 /// glass button style draws its own size, which iOS 27 made smaller (and
 /// its large size larger) than the reference.
 private struct HomeSheetHeaderButtonStyle: ButtonStyle {
