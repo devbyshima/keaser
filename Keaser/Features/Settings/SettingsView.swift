@@ -14,7 +14,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            SettingsRootList(showsPaywall: $showsPaywall)
+            SettingsRootList(path: $path, showsPaywall: $showsPaywall)
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -34,6 +34,7 @@ struct SettingsView: View {
 private struct SettingsRootList: View {
     @Environment(KeaserStore.self) private var store
     @Environment(ProStore.self) private var pro
+    @Binding var path: [SettingsPage]
     @Binding var showsPaywall: Bool
 
     private static let footerID = "settings-footer"
@@ -97,14 +98,16 @@ private struct SettingsRootList: View {
                     }
                 }
 
+                // The reference shows these two rows without a chevron, so
+                // they are buttons that push the page rather than links.
                 Section {
                     SettingsSectionTitle("Others")
-                    NavigationLink(value: SettingsPage.privacy) {
-                        SettingsRow(symbol: "lock.fill", title: "Privacy Policy")
+                    Button { path.append(.privacy) } label: {
+                        SettingsRow(symbol: "lock.fill", title: "Privacy Policy", hasDisclosure: false)
                     }
                     .cardRow(.first)
-                    NavigationLink(value: SettingsPage.terms) {
-                        SettingsRow(symbol: "doc.text.fill", title: "Terms of Service")
+                    Button { path.append(.terms) } label: {
+                        SettingsRow(symbol: "doc.text.fill", title: "Terms of Service", hasDisclosure: false)
                     }
                     .cardRow(.last)
                 }
