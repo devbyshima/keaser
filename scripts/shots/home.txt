@@ -40,3 +40,13 @@ receipt-reading | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt cof
 receipt-currency | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt cafe-paris -KeaserCategoryModel off
 receipt-image | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
 receipt-not-found | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt not-a-receipt -KeaserCategoryModel off
+# A receipt kept with an expense: its details with the photo, the photo full
+# screen, New Expense with a sample attached, Edit Expense with and without
+# one (keyboard down, to see under the card), and the Scan Receipt control's
+# route reading a sample printed onto an image, which it then attaches.
+expense-receipt | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 1
+receipt-viewer | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 1 -KeaserReceiptViewer 1
+new-expense-receipt | -KeaserSeed single -KeaserSheet newExpense -KeaserReceiptAttached 1 -KeaserExpenseFocus none
+edit-expense-receipt | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 1 -KeaserExpenseFocus none
+edit-expense-no-receipt | -KeaserSeed single -KeaserSheet editExpense -KeaserExpenseFocus none
+scan-receipt | -KeaserSeed account -KeaserOpenURL keaser://scan-receipt -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
