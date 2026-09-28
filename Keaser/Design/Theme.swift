@@ -42,8 +42,15 @@ extension Color {
     /// Large empty-state symbols ("No Expenses") and other muted icons.
     static let keaserMutedIcon = Color(light: .init(white: 0.55), dark: .init(white: 0.62))
     /// The close (xmark) glyph: grey and lighter in weight than the other
-    /// header glyphs (back, add, confirm), as in the reference.
-    static let keaserCloseGlyph = Color(light: .init(white: 0.45), dark: .init(white: 0.56))
+    /// header glyphs (back, add, confirm), as in the reference. It lets the
+    /// glass behind it through, as the reference's does on every sheet
+    /// (Accounts, Settings, the paywall, the welcome letter): a grey of 143
+    /// measures 100 on a 51 circle and 106 on a 64 one in dark mode, 168 on
+    /// 230 and 176 on 249 in light mode.
+    static let keaserCloseGlyph = Color(
+        light: Color(white: 0.56).opacity(0.7),
+        dark: Color(white: 0.56).opacity(0.53)
+    )
     /// Behind a row's non-destructive swipe action (Edit), whose label the
     /// system draws white: a grey dark enough for that in both appearances.
     static let keaserSwipeAction = Color(light: .init(white: 0.45), dark: .init(white: 0.32))
