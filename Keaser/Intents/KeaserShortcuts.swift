@@ -31,6 +31,13 @@ struct KeaserShortcuts: AppShortcutsProvider {
                 "How much have I spent \(\.$period) in \(.applicationName)",
                 "What did I spend \(\.$period) in \(.applicationName)",
                 "\(.applicationName) spending \(\.$period)",
+                // Starting with the app's name, so Siri does not take it for
+                // a shop in the person's card transactions.
+                "Ask \(.applicationName) how much I spent \(\.$period)",
+                "Ask \(.applicationName) how much I spent",
+                "\(.applicationName) how much did I spend \(\.$period)",
+                "Check my \(.applicationName) spending \(\.$period)",
+                "Show my spending \(\.$period) in \(.applicationName)",
             ],
             shortTitle: "Spending",
             systemImageName: "chart.bar.fill"

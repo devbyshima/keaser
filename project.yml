@@ -82,6 +82,12 @@ targets:
       path: Keaser/App/Info.plist
       properties:
         CFBundleDisplayName: Keaser
+        # Other ways Siri hears "Keaser", so "How much did I spend this week
+        # in Keaser" reaches the app's shortcuts instead of Siri's own search.
+        INAlternativeAppNames:
+          - INAlternativeAppName: Kaiser
+          - INAlternativeAppName: Keza
+          - INAlternativeAppName: Keeser
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Resembles the first screen: black in dark mode, pale grey in light.
