@@ -254,17 +254,34 @@ struct HomeChartCalloutTests {
         #expect(!total.overlaps(SpendingChart.Area(x: january.leading, y: january.bottom - 66, width: 106, height: 66)))
     }
 
-    @Test func calloutGoesBesideATallBarUnderTheTotal() {
-        // The tallest bar at the leading edge: no room above it, so beside
-        // it on the trailing side, its top 4pt under the total.
+    @Test func calloutSinksIntoATallBarRatherThanLeaveIt() {
+        // The tallest bar at the leading edge, right under the total: 6pt
+        // above it would cover the total, so it sinks into the bar's top
+        // just far enough to clear it (30pt, within half its height).
         let tallest = placement(barCenter: 12, barTop: 6, keepClear: total)
-        #expect(tallest == SpendingChart.CalloutPlacement(leading: 12 + 8.75 + 4, bottom: -40 + 4 + 66))
+        #expect(tallest == SpendingChart.CalloutPlacement(leading: 0, bottom: -40 + 4 + 66))
         #expect(!total.overlaps(SpendingChart.Area(x: tallest.leading, y: tallest.bottom - 66, width: 106, height: 66)))
-        // A total as wide as the chart and a bar at the trailing edge:
-        // beside it on the leading side.
+        // A total as wide as the chart ("RWF 100,000") over the one All Time
+        // bar at the trailing edge: on top of that bar, not beside it.
         let wide = SpendingChart.Area(x: 0, y: -88, width: 338, height: 48)
+        let allTime = placement(barCenter: 320, barTop: 6, keepClear: wide)
+        #expect(allTime == SpendingChart.CalloutPlacement(leading: 338 - 106, bottom: -40 + 4 + 66))
+        #expect(!wide.overlaps(SpendingChart.Area(x: allTime.leading, y: allTime.bottom - 66, width: 106, height: 66)))
+    }
+
+    @Test func calloutGoesBesideOnlyWhenSinkingIsNotEnough() {
+        // A total reaching 20pt from the plot: clearing it would sink the
+        // callout more than half its height into the bar, so it goes beside
+        // the bar on the trailing side, its top just under the total.
+        let tall = SpendingChart.Area(x: 0, y: -88, width: 190, height: 68)
+        let tallest = placement(barCenter: 12, barTop: 6, keepClear: tall)
+        #expect(tallest == SpendingChart.CalloutPlacement(leading: 12 + 8.75 + 4, bottom: -20 + 4 + 66))
+        #expect(!tall.overlaps(SpendingChart.Area(x: tallest.leading, y: tallest.bottom - 66, width: 106, height: 66)))
+        // As wide as the chart, with a bar at the trailing edge: beside it
+        // on the leading side.
+        let wide = SpendingChart.Area(x: 0, y: -88, width: 338, height: 68)
         #expect(placement(barCenter: 320, barTop: 6, keepClear: wide)
-            == SpendingChart.CalloutPlacement(leading: 320 - 8.75 - 4 - 106, bottom: -40 + 4 + 66))
+            == SpendingChart.CalloutPlacement(leading: 320 - 8.75 - 4 - 106, bottom: -20 + 4 + 66))
     }
 
     @Test func calloutNeverCoversTheTotal() {

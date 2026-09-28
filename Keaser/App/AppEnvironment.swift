@@ -17,6 +17,17 @@ enum AppEnvironment {
             if let index = DebugLaunch.int("KeaserSelectAccount"), database.accounts.indices.contains(index) {
                 database.preferences.selectedAccountID = database.accounts[index].id
             }
+            // `-KeaserCurrency RWF -KeaserAmountScale 5000` shows the seed in
+            // a currency with long totals ("RWF 100,000"), for layouts that
+            // must make room for them.
+            if let code = DebugLaunch.string("KeaserCurrency") { database.preferences.currencyCode = code }
+            if let scale = DebugLaunch.int("KeaserAmountScale"), scale > 0 {
+                for index in database.accounts.indices {
+                    for item in database.accounts[index].expenses.indices {
+                        database.accounts[index].expenses[item].amount *= Decimal(scale)
+                    }
+                }
+            }
             return KeaserStore(database: database, file: nil)
         }
         #endif

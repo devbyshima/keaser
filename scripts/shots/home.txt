@@ -26,6 +26,7 @@ guess | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Outing -
 chart-callout | -KeaserSeed single -KeaserChartSelection last
 chart-callout-edge | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 0
 chart-callout-tall | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 5
+chart-callout-wide-total | -KeaserSeed single -KeaserCurrency RWF -KeaserAmountScale 5000 -KeaserChartSelection last
 # A first expense in a fresh account: Food & Drinks, then Cash.
 guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount
 # Receipt scanning in New Expense (owner: intelligence). -KeaserCategoryModel

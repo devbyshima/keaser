@@ -167,7 +167,9 @@ struct HomeSpendingChart: View {
                     // Drawn here rather than as a chart annotation so its
                     // entrance, exit and glide are ours to animate.
                     .overlay(alignment: .topLeading) {
-                        callout(proxy: proxy, plot: plot, chartWidth: geometry.size.width)
+                        // Kept to the bars' side of the axis labels, so a
+                        // wide amount over the last bar leaves "100K" alone.
+                        callout(proxy: proxy, plot: plot, chartWidth: plot.maxX > 0 ? plot.maxX : geometry.size.width)
                     }
             }
         }
@@ -194,9 +196,10 @@ struct HomeSpendingChart: View {
     }
 
     /// The pressed bar's callout, sitting on top of the bar and kept inside
-    /// the chart, or beside it where it would cover the total
-    /// (`SpendingChart.calloutPlacement`). It rises out of the bar's top as
-    /// it appears and sinks back into it as it goes.
+    /// the chart; under a wide total it sinks a little into the bar's top
+    /// instead of covering the total (`SpendingChart.calloutPlacement`). It
+    /// rises out of the bar's top as it appears and sinks back into it as
+    /// it goes.
     ///
     /// The placement lives on a container that stays put while the callout
     /// inside it comes and goes, so the exit plays where the callout was and

@@ -250,9 +250,12 @@ public enum SpendingChart {
     ///
     /// 1. Centred over its bar, sitting `gap` above the bar's top, so it
     ///    reads as rising out of the bar.
-    /// 2. Where that would cover the total (a tall bar near the leading
-    ///    edge): beside the bar, on the trailing side if the chart has room
-    ///    there, else the leading one, with its top just under the total.
+    /// 2. Where that would cover the total (a tall bar under a wide total):
+    ///    still over its bar, but sunk into the bar's top just far enough
+    ///    to clear the total, by at most half its own height.
+    /// 3. Where even that would cover it: beside the bar, on the trailing
+    ///    side if the chart has room there, else the leading one, with its
+    ///    top just under the total.
     ///
     /// It always stays inside the chart, `chartWidth` wide. `barTop` and
     /// `plotTop` are y positions; `barWidth` is the drawn bar's width.
@@ -277,6 +280,10 @@ public enum SpendingChart {
         }
         if isClear(onBar) { return onBar }
         let bottom = avoided.maxY + calloutHeight
+        if bottom <= max(barTop, plotTop) + calloutHeight / 2 {
+            let sunk = CalloutPlacement(leading: centred, bottom: bottom)
+            if isClear(sunk) { return sunk }
+        }
         let trailing = barCenter + barWidth / 2 + margin
         if trailing + calloutWidth <= chartWidth {
             return CalloutPlacement(leading: trailing, bottom: bottom)
