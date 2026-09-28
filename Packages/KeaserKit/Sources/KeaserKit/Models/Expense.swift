@@ -12,6 +12,9 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
     public var date: Date
     public var createdAt: Date
     public var updatedAt: Date
+    /// The photo of the receipt kept with the expense, if one was attached.
+    /// The image is a file in the Receipts folder, never in the database.
+    public var receipt: ReceiptPhoto?
 
     public init(
         id: UUID = UUID(),
@@ -21,7 +24,8 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         paymentMethodID: UUID? = nil,
         date: Date = .now,
         createdAt: Date = .now,
-        updatedAt: Date = .now
+        updatedAt: Date = .now,
+        receipt: ReceiptPhoto? = nil
     ) {
         self.id = id
         self.title = title
@@ -31,6 +35,7 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         self.date = date
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.receipt = receipt
     }
 
     // Tolerant decoding: a field added in a later version must not make an
@@ -45,5 +50,8 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? .now
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? date
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
+        // A reference that does not read loses only the photo, never the
+        // expense.
+        receipt = (try? c.decodeIfPresent(ReceiptPhoto.self, forKey: .receipt)) ?? nil
     }
 }
