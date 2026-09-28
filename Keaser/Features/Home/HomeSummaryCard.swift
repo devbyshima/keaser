@@ -17,18 +17,23 @@ struct HomeSummaryCard: View {
     /// Where the total and the chart are in the card, so the chart's
     /// callout can keep clear of the total.
     @State private var totalFrame = CGRect.zero
+    /// The total's baseline: its digits end there, while its frame runs on
+    /// for the font's descent, which is empty space above the chart.
+    @State private var totalBaseline: CGFloat?
     @State private var chartFrame = CGRect.zero
 
     private nonisolated static let space = "HomeSummaryCard"
 
-    /// The total's frame in the chart's coordinates, once both are laid out.
+    /// The total's ink in the chart's coordinates (its frame down to the
+    /// baseline), once both are laid out.
     private var totalInChart: SpendingChart.Area? {
         guard !chartFrame.isEmpty, !totalFrame.isEmpty else { return nil }
+        let bottom = totalBaseline.map { min(max($0, totalFrame.minY), totalFrame.maxY) } ?? totalFrame.maxY
         return SpendingChart.Area(
             x: totalFrame.minX - chartFrame.minX,
             y: totalFrame.minY - chartFrame.minY,
             width: totalFrame.width,
-            height: totalFrame.height
+            height: bottom - totalFrame.minY
         )
     }
 
@@ -47,6 +52,12 @@ struct HomeSummaryCard: View {
                     // adding an expense), or fade with Reduce Motion.
                     .contentTransition(reduceMotion ? .opacity : .numericText(value: total.doubleValue))
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { totalFrame = $0 }
+                    .overlay(alignment: Alignment(horizontal: .leading, vertical: .lastTextBaseline)) {
+                        Color.clear
+                            .frame(width: 1, height: 1)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.space)).maxY } action: { totalBaseline = $0 }
+                            .accessibilityHidden(true)
+                    }
                     .padding(.top, 8.5)
             }
             .accessibilityElement(children: .combine)
@@ -167,9 +178,9 @@ struct HomeSpendingChart: View {
                     // Drawn here rather than as a chart annotation so its
                     // entrance, exit and glide are ours to animate.
                     .overlay(alignment: .topLeading) {
-                        // Kept to the bars' side of the axis labels, so a
-                        // wide amount over the last bar leaves "100K" alone.
-                        callout(proxy: proxy, plot: plot, chartWidth: plot.maxX > 0 ? plot.maxX : geometry.size.width)
+                        // Free to pass over the axis labels, so a wide amount
+                        // over the last bar still sits centred on it.
+                        callout(proxy: proxy, plot: plot, chartWidth: geometry.size.width)
                     }
             }
         }
@@ -219,7 +230,11 @@ struct HomeSpendingChart: View {
                 calloutHeight: height,
                 chartWidth: chartWidth,
                 plotTop: plot.minY,
-                keepClear: keepClear
+                keepClear: keepClear,
+                // `keepClear` ends at the digits' baseline, so a little room
+                // is enough; under a wide total this lets the callout sit
+                // on its bar instead of sinking into it.
+                margin: 2
             )
         }
         let rise = SpendingChart.calloutRise(barTop: barTop, calloutBottom: placement(calloutSize.width, calloutSize.height).bottom)
