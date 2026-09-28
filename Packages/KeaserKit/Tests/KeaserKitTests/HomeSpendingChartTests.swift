@@ -84,6 +84,19 @@ struct HomeSpendingChartTests {
         #expect(result[29].total == 6)
     }
 
+    /// What the axis prints under each bar: a month's days only every
+    /// seventh day (the view draws nothing for the others, however many
+    /// marks Charts asks it for), a year's months in either width.
+    @Test func theAxisPrintsOnlyTheLabelledBars() {
+        let month = buckets(.thisMonth, [])
+        #expect(month.compactMap { SpendingChart.axisLabel(of: $0, narrow: false) } == ["1", "8", "15", "22", "29"])
+        #expect(month.compactMap { SpendingChart.axisLabel(of: $0, narrow: true) } == ["1", "8", "15", "22", "29"])
+        #expect(SpendingChart.axisLabel(of: month[1], narrow: false) == nil)
+        let year = buckets(.thisYear, [])
+        #expect(year.compactMap { SpendingChart.axisLabel(of: $0, narrow: false) }.first == "Jan")
+        #expect(year.compactMap { SpendingChart.axisLabel(of: $0, narrow: true) }.joined() == "JFMAMJJASOND")
+    }
+
     @Test func thisWeekStartsOnTheChosenWeekday() {
         let expenses = [Expense(title: "Brunch", amount: 10, date: date(2026, 9, 21))] // Monday
         let sunday = buckets(.thisWeek, expenses, firstWeekday: 1)

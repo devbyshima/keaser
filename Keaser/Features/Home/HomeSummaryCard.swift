@@ -92,8 +92,11 @@ struct HomeSpendingChart: View {
         .chartXAxis {
             AxisMarks(values: buckets.filter(\.showsLabel).map { key($0.index) }) { value in
                 AxisValueLabel(centered: true, verticalSpacing: 4) {
-                    if let key = value.as(String.self), let bucket = bucket(for: key) {
-                        Text(narrow ? bucket.narrowLabel : bucket.label)
+                    // On iOS 27 Charts asks for a label under every category,
+                    // whatever `values` lists, so each label checks itself.
+                    if let key = value.as(String.self), let bucket = bucket(for: key),
+                       let label = SpendingChart.axisLabel(of: bucket, narrow: narrow) {
+                        Text(label)
                             .font(.caption2)
                             .foregroundStyle(Color.keaserSecondaryText)
                             .fixedSize()

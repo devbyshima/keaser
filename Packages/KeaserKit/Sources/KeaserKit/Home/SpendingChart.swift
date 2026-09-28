@@ -97,6 +97,16 @@ public enum SpendingChart {
         }
     }
 
+    /// The text under `bucket` on the chart's axis: its label, or its
+    /// `narrowLabel` when `narrow`, and nil for a bar that goes unlabelled
+    /// (the days between a month's weekly labels). The chart asks this for
+    /// every mark it draws, so the axis keeps to these labels even where
+    /// Charts marks every category.
+    public static func axisLabel(of bucket: Bucket, narrow: Bool) -> String? {
+        guard bucket.showsLabel else { return nil }
+        return narrow ? bucket.narrowLabel : bucket.label
+    }
+
     /// What VoiceOver says for a bar, fuller than its axis label: "4 AM to
     /// 8 AM", "Monday, September 21", "September 15", "September 2026",
     /// "2026".
