@@ -1,10 +1,20 @@
 import SwiftUI
 
-/// Measured from the reference: the header's centre line sits 36pt below the
-/// top of the sheet and the first card starts 64pt below that line.
+/// Where the header and the first card sit in Home's sheets. On iOS 26 and
+/// later they are the reference's, measured in the sheet's own points: a
+/// floating sheet is drawn at 96% (its 402pt layout in the 386pt between
+/// the screen's side margins), so lengths read straight off the recording's
+/// pixels come out 4% short. There the header's centre line sits 38pt below
+/// the top of the sheet and the first card starts 67pt below that line, as
+/// in the expense editor. Before iOS 26 the attached sheets keep their
+/// earlier layout.
 enum HomeSheetMetrics {
-    static let headerTop: CGFloat = 14
-    static let contentTop: CGFloat = 42
+    private static var isFloatingSheet: Bool {
+        if #available(iOS 26.0, *) { true } else { false }
+    }
+
+    static var headerTop: CGFloat { isFloatingSheet ? 16 : 14 }
+    static var contentTop: CGFloat { isFloatingSheet ? 45 : 42 }
 }
 
 // Home's floating sheets (Accounts, Add Account, the expense editor) sit
@@ -56,9 +66,9 @@ extension View {
 }
 
 /// A glass capsule 44pt tall with 16pt either side of its label, as
-/// measured from the reference's Edit Expense header (in the sheet's own
-/// points; with the keyboard up, iOS draws the sheet at 96%) and its
-/// Accounts header (Edit: 181 x 127 pixels, like the close button). The system
+/// measured from the reference's Edit Expense and Accounts headers (in the
+/// sheet's own points: iOS draws a floating sheet at 96%, so Edit's
+/// capsule is 181 x 127 pixels on screen, like the close button). The system
 /// glass button style draws its own size, which iOS 27 made smaller (and
 /// its large size larger) than the reference.
 private struct HomeSheetHeaderButtonStyle: ButtonStyle {
