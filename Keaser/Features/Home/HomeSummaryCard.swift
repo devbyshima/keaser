@@ -14,6 +14,23 @@ struct HomeSummaryCard: View {
     let buckets: [SpendingChart.Bucket]
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Where the total and the chart are in the card, so the chart's
+    /// callout can keep clear of the total.
+    @State private var totalFrame = CGRect.zero
+    @State private var chartFrame = CGRect.zero
+
+    private nonisolated static let space = "HomeSummaryCard"
+
+    /// The total's frame in the chart's coordinates, once both are laid out.
+    private var totalInChart: SpendingChart.Area? {
+        guard !chartFrame.isEmpty, !totalFrame.isEmpty else { return nil }
+        return SpendingChart.Area(
+            x: totalFrame.minX - chartFrame.minX,
+            y: totalFrame.minY - chartFrame.minY,
+            width: totalFrame.width,
+            height: totalFrame.height
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -29,13 +46,22 @@ struct HomeSummaryCard: View {
                     // The digits roll to a new total (switching accounts,
                     // adding an expense), or fade with Reduce Motion.
                     .contentTransition(reduceMotion ? .opacity : .numericText(value: total.doubleValue))
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { totalFrame = $0 }
                     .padding(.top, 8.5)
             }
             .accessibilityElement(children: .combine)
-            HomeSpendingChart(buckets: buckets, period: period, calendar: calendar, currencyCode: currencyCode)
-                .frame(height: 200)
-                .padding(.top, 40)
+            HomeSpendingChart(
+                buckets: buckets,
+                period: period,
+                calendar: calendar,
+                currencyCode: currencyCode,
+                keepClear: totalInChart
+            )
+            .frame(height: 200)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { chartFrame = $0 }
+            .padding(.top, 40)
         }
+        .coordinateSpace(.named(Self.space))
         .padding(.top, 22.5)
         .padding(.bottom, 27)
         .padding(.horizontal, 16)
@@ -50,12 +76,15 @@ struct HomeSummaryCard: View {
 ///
 /// Pressing and holding a bar raises a small glass callout out of it with
 /// its period and amount; sliding the finger carries the callout from bar
-/// to bar until the finger lifts and it sinks back.
+/// to bar until the finger lifts and it sinks back. The callout never
+/// covers `keepClear`, the total printed above the chart.
 struct HomeSpendingChart: View {
     let buckets: [SpendingChart.Bucket]
     let period: Period
     let calendar: Calendar
     let currencyCode: String
+    /// The total's frame in the chart's coordinates, or nil.
+    var keepClear: SpendingChart.Area?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -66,12 +95,16 @@ struct HomeSpendingChart: View {
     /// The last bar that had the callout, so it sinks back into that bar
     /// after the finger lifts.
     @State private var lastCalloutIndex: Int?
+    /// The callout's size when it last showed (at first, the reference's),
+    /// for how far it rises as it appears; its placement uses the size it
+    /// has.
+    @State private var calloutSize = CGSize(width: 106, height: 66)
 
     /// The chart's text stops growing here: it has a fixed height and
     /// unwrapped axis labels, and VoiceOver reads the bar values.
     private static let largestTextSize = DynamicTypeSize.xxxLarge
-    /// Between the callout's bottom edge and the top grid line.
-    private static let calloutGap: CGFloat = 10
+    /// The share of its slot a bar is drawn across.
+    private static let barWidthRatio = 0.7
 
     var body: some View {
         let narrow = usesNarrowLabels
@@ -80,7 +113,7 @@ struct HomeSpendingChart: View {
                 BarMark(
                     x: .value("Period", key(bucket.index)),
                     y: .value("Spent", bucket.total.doubleValue),
-                    width: .ratio(0.7)
+                    width: .ratio(Self.barWidthRatio)
                 )
                 // The pressed bar keeps full ink; the rest step back.
                 .foregroundStyle(Color.keaserInk.opacity(selectedIndex == nil || selectedIndex == bucket.index ? 1 : 0.35))
@@ -159,8 +192,9 @@ struct HomeSpendingChart: View {
     }
 
     /// The pressed bar's callout, centred over the bar just above the plot
-    /// and kept inside the chart. It rises out of the bar's top as it
-    /// appears and sinks back into it as it goes.
+    /// and kept inside the chart, or lower down where it would cover the
+    /// total (`SpendingChart.calloutPlacement`). It rises out of the bar's
+    /// top as it appears and sinks back into it as it goes.
     ///
     /// The placement lives on a container that stays put while the callout
     /// inside it comes and goes, so the exit plays where the callout was and
@@ -168,9 +202,22 @@ struct HomeSpendingChart: View {
     private func callout(proxy: ChartProxy, plot: CGRect, chartWidth: CGFloat) -> some View {
         let anchored = (selectedIndex ?? lastCalloutIndex).flatMap { index in buckets.first { $0.index == index } }
         let barCenter = anchored.flatMap { proxy.position(forX: key($0.index)) }.map { plot.minX + $0 } ?? plot.midX
-        let bottom = plot.minY - Self.calloutGap
         let barTop = anchored.flatMap { proxy.position(forY: $0.total.doubleValue) }.map { plot.minY + $0 } ?? plot.maxY
-        let rise = SpendingChart.calloutRise(barTop: barTop, calloutBottom: bottom)
+        let barWidth = buckets.isEmpty ? 0 : plot.width / CGFloat(buckets.count) * Self.barWidthRatio
+        let keepClear = keepClear
+        let placement: @Sendable (_ width: CGFloat, _ height: CGFloat) -> SpendingChart.CalloutPlacement = { width, height in
+            SpendingChart.calloutPlacement(
+                barCenter: barCenter,
+                barWidth: barWidth,
+                barTop: barTop,
+                calloutWidth: width,
+                calloutHeight: height,
+                chartWidth: chartWidth,
+                plotTop: plot.minY,
+                keepClear: keepClear
+            )
+        }
+        let rise = SpendingChart.calloutRise(barTop: barTop, calloutBottom: placement(calloutSize.width, calloutSize.height).bottom)
         return ZStack(alignment: .bottomLeading) {
             if let selected = selectedBucket {
                 ChartCallout(
@@ -178,6 +225,7 @@ struct HomeSpendingChart: View {
                     amount: MoneyFormat.string(selected.total, currencyCode: currencyCode),
                     rollsDigits: !reduceMotion
                 )
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { calloutSize = $0 }
                 // One callout that glides between bars; with Reduce Motion, a
                 // new one per bar, so it only cross-fades in place.
                 .id(reduceMotion ? selected.index : -1)
@@ -187,10 +235,8 @@ struct HomeSpendingChart: View {
                 ))
             }
         }
-        .alignmentGuide(.leading) { size in
-            -SpendingChart.calloutLeading(barCenter: barCenter, calloutWidth: size.width, chartWidth: chartWidth)
-        }
-        .alignmentGuide(.top) { size in size.height - bottom }
+        .alignmentGuide(.leading) { size in -placement(size.width, size.height).leading }
+        .alignmentGuide(.top) { size in size.height - placement(size.width, size.height).bottom }
         .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: barCenter)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -250,8 +296,9 @@ struct HomeSpendingChart: View {
     }
 }
 
-/// The small glass tag a long press raises over a bar: the period in grey
-/// over the amount, on Liquid Glass tinted with a breath of ink.
+/// The glass tag a long press raises over a bar: the period in grey over
+/// the amount. Sized, set and coloured as in the reference (dark glass in
+/// dark mode, white in light).
 private struct ChartCallout: View {
     let title: String
     let amount: String
@@ -259,23 +306,23 @@ private struct ChartCallout: View {
     /// Motion is on.
     let rollsDigits: Bool
 
-    private static let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+    private static let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(title)
-                .keaserFont(11, relativeTo: .caption2)
+                .keaserFont(12, relativeTo: .caption)
                 .foregroundStyle(Color.keaserSecondaryText)
             Text(amount)
-                .keaserFont(15, weight: .semibold, relativeTo: .subheadline)
+                .keaserFont(20, weight: .semibold, relativeTo: .title3)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .contentTransition(rollsDigits ? .numericText() : .opacity)
         }
         .lineLimit(1)
         .fixedSize()
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .keaserGlass(in: Self.shape, tint: Color.keaserInk.opacity(0.1))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .keaserGlass(in: Self.shape, tint: Color.keaserCallout)
     }
 }
 

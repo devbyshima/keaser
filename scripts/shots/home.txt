@@ -19,10 +19,13 @@ search-empty | -KeaserSeed demo -KeaserSheet search -KeaserSearch zzz
 accounts-editing | -KeaserSeed demo -KeaserSheet accounts -KeaserAccountsEditing 1
 suggestions | -KeaserSeed demo -KeaserSheet newExpense -KeaserExpenseTitle G
 guess | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Outing -KeaserExpenseFocus amount
-# The long-press glass callout over the All Time bar, as in the recording,
-# and over a bar near the leading edge (kept inside the chart).
+# The long-press glass callout over the All Time bar, as in the recording;
+# over a bar near the leading edge, where it drops to just above its bar
+# rather than cover the total; and over the tallest bar under the total,
+# where it sits beside the bar.
 chart-callout | -KeaserSeed single -KeaserChartSelection last
 chart-callout-edge | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 0
+chart-callout-tall | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 5
 # A first expense in a fresh account: Food & Drinks, then Cash.
 guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount
 # Receipt scanning in New Expense (owner: intelligence). -KeaserCategoryModel
