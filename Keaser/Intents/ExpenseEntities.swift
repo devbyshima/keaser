@@ -2,10 +2,8 @@ import AppIntents
 import Foundation
 import KeaserKit
 
-// Compiled into the widget extension as well as the app, because the Add
-// Expense control names `AddExpenseIntent`, whose parameters these are. The
-// queries read the shared database file, which the app saves on every
-// change, so they work in either process.
+// The queries read the shared database file, which the app saves on every
+// change.
 
 /// A category, for the "Add Expense" shortcut. The Shortcuts editor shows its
 /// symbol; the lists the shortcut asks from show names only, as in the

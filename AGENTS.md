@@ -159,7 +159,7 @@ Seeded launches keep the database in memory and never touch the real file.
   parameter titles: Title, Amount, Category, Payment Method, Account and
   Date (never asked for; empty means the moment it is added, and a Wallet
   automation sets it to Current Date). In the app Add Expense returns the
-  `ExpenseEntity` it saved; the widget extension's fallback returns nothing.
+  `ExpenseEntity` it saved.
   With nothing on screen (`IntentSystemContext.isVoiceOnly`, iOS 27) it asks
   the confirmation out loud (`QuickLog.confirmationQuestion`) and ends on a
   spoken sentence (`QuickLog.confirmation`) instead of the card.
@@ -189,14 +189,13 @@ Seeded launches keep the database in memory and never touch the real file.
   Keaser calls `KeaserStore.restore(_:)`. Needs an unlocked iPhone.
 - App Shortcuts: 7 of the 10 allowed (Add Expense, Log Transaction,
   Spending, Search, Open Account, Open Expense, Delete Expense).
-- `AddExpenseIntent` and its entities are declared in `KeaserWidgets/Shared/`
-  and compiled into both targets, because the Add Expense control names the
-  intent. The app implements `perform()` in `Keaser/Intents/AddExpenseFlow.swift`;
-  the extension's copy only has a fallback `perform()` (in
-  `AddExpenseControl.swift`). `supportedModes` (iOS 26), `allowedExecutionTargets`
-  `.main` (iOS 27) and an app-only `ForegroundContinuableIntent` conformance
-  (earlier systems) keep it in the app's process so it can prompt over the
-  lock screen. The flow's rules (step order, skips, Go Back targets) live in
+- `AddExpenseIntent` and its Category and Payment Method entities are app-only
+  (`Keaser/Intents/`); the app implements `perform()` in
+  `Keaser/Intents/AddExpenseFlow.swift`. The Add Expense control
+  (`KeaserWidgets/AddExpenseControl.swift`) does NOT run it: iOS gives a
+  control's action no way to ask questions, so a control running Add Expense
+  silently did nothing on the device. It opens `keaser://new-expense`
+  (`OpenURLIntent`) instead. The flow's rules (step order, skips, Go Back targets) live in
   `ShortcutFlow` (KeaserKit/Platform); the confirmation card's draft lives in
   `AddExpenseDrafts`, keyed by session.
 - Writing intents (Add Expense, Log Wallet Transaction, Delete Expense) wait at
@@ -228,8 +227,9 @@ Seeded launches keep the database in memory and never touch the real file.
 - Siri, Spotlight and Shortcuts entities: `ExpenseEntity` (app only,
   `Keaser/Intents/ExpenseEntity.swift`; an `IndexedEntity` whose
   `ExpenseEntityQuery` resolves IDs in every account, matches titles and
-  suggests recent expenses), plus `AccountEntity`, `CategoryEntity` and
-  `PaymentMethodEntity` in `KeaserWidgets/Shared` (each with a Name property
+  suggests recent expenses), plus `AccountEntity` (`KeaserWidgets/Shared`,
+  also used by the widget's configuration), `CategoryEntity` and
+  `PaymentMethodEntity` (`Keaser/Intents/ExpenseEntities.swift`) (each with a Name property
   and a string query; the Go Back sentinels are untouched). Only the app's
   copy of `AccountEntity` is indexed (`Keaser/Intents/AccountIndexing.swift`).
   Their lookups live in `EntityCatalog` (KeaserKit/Platform).
@@ -295,10 +295,10 @@ Seeded launches keep the database in memory and never touch the real file.
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, `Keaser/Resources/AppIcon.icon` and `scripts/make_icon.swift` (app icon) |
 | platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, `scripts/shots/platform.txt` |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
-| shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList,WalletAmount}.swift` (`WalletAmount` reads Log Wallet Transaction's text amount in any number style), the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
+| shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList,WalletAmount}.swift` (`WalletAmount` reads Log Wallet Transaction's text amount in any number style), the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph, document camera, photo picker), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
-| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/{AccountEntity,ExpenseEntities}.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
+| intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/AccountEntity.swift` and `Keaser/Intents/ExpenseEntities.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
 (`Home`, `Settings`, `Platform`) with tests in
