@@ -98,7 +98,7 @@ struct AccountsSheet: View {
             }
 
             Color.clear
-                .frame(height: 34)
+                .frame(height: AccountsMetrics.cardSpacing)
                 .accessibilityHidden(true)
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -108,9 +108,9 @@ struct AccountsSheet: View {
 
             Button(action: addAccount) {
                 Text("Add Account")
-                    .font(.body)
+                    .font(.body.weight(.medium))
                     .foregroundStyle(Color.keaserPrimaryText)
-                    .frame(maxWidth: .infinity, minHeight: 49, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: AccountsMetrics.addRowHeight, alignment: .leading)
                     .padding(.horizontal, 16)
                     .contentShape(Rectangle())
             }
@@ -174,22 +174,27 @@ private struct AccountRow: View {
         // margins, where the list adds its own controls. A name then keeps
         // enough width to wrap between words.
         let isLarge = dynamicTypeSize.isAccessibilitySize
-        let leading: CGFloat = isLarge ? (isEditing ? 0 : 16) : 14
-        let trailing: CGFloat = isLarge && isEditing ? 0 : 24
+        let leading: CGFloat = isLarge ? (isEditing ? 0 : 16) : AccountsMetrics.tileLeading
+        let trailing: CGFloat = isLarge && isEditing ? 0 : AccountsMetrics.trailing
         // The separator starts under the name.
-        let separatorLeading: CGFloat = isLarge ? leading : 62
+        let separatorLeading: CGFloat = isLarge ? leading : AccountsMetrics.nameLeading
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: AccountsMetrics.tileSpacing) {
                 if !isLarge {
+                    // A point larger than the name, as the reference draws it.
                     Image(systemName: "person.fill")
-                        .font(.body)
+                        .keaserFont(18, weight: .medium, relativeTo: .body)
                         .foregroundStyle(Color.keaserPrimaryText)
-                        .frame(width: 36, height: 36)
-                        .background(Color.homeSheetTile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(width: AccountsMetrics.tileSize, height: AccountsMetrics.tileSize)
+                        .background(
+                            Color.homeSheetTile,
+                            in: RoundedRectangle(cornerRadius: AccountsMetrics.tileRadius, style: .continuous)
+                        )
                         .accessibilityHidden(true)
                 }
+                // Medium, as the reference draws account names.
                 Text(account.name)
-                    .font(.body)
+                    .font(.body.weight(.medium))
                     .foregroundStyle(Color.keaserPrimaryText)
                     .lineLimit(isLarge ? 3 : 1)
                 Spacer(minLength: 8)
@@ -204,15 +209,49 @@ private struct AccountRow: View {
             }
             .padding(.leading, leading)
             .padding(.trailing, trailing)
-            .frame(minHeight: 72)
+            .frame(minHeight: AccountsMetrics.rowHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .overlay(alignment: .bottom) {
             if showsSeparator {
-                KeaserRowSeparator(leading: separatorLeading)
+                KeaserRowSeparator(leading: separatorLeading, thickness: AccountsMetrics.separatorThickness)
             }
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
+}
+
+/// The Accounts sheet's cards. On iOS 26 and later they are the
+/// reference's, measured in the sheet's own points: a floating sheet is
+/// drawn at 96%, so the recording's 218 and 150 pixel cards, 101 pixels
+/// apart, are 76 and 52pt with 35pt between them (read at 3 pixels a point
+/// they had come out 72, 49 and 34, and the rows 4% short). Before iOS 26
+/// the attached sheet is drawn at full size, so it keeps the recording's
+/// pixels at 3 a point.
+private enum AccountsMetrics {
+    private static var isFloatingSheet: Bool {
+        if #available(iOS 26.0, *) { true } else { false }
+    }
+
+    /// An account's row.
+    static var rowHeight: CGFloat { isFloatingSheet ? 76 : 73 }
+    /// The Add Account row.
+    static var addRowHeight: CGFloat { isFloatingSheet ? 52 : 50 }
+    /// Between the accounts card and the Add Account card.
+    static var cardSpacing: CGFloat { isFloatingSheet ? 35 : 34 }
+    /// The symbol's tile (white in light mode, none in dark mode), its
+    /// corners, its inset from the card's edge and the gap to the name.
+    static var tileSize: CGFloat { isFloatingSheet ? 38 : 36 }
+    static var tileRadius: CGFloat { isFloatingSheet ? 12 : 11.5 }
+    static var tileLeading: CGFloat { isFloatingSheet ? 16 : 15 }
+    static let tileSpacing: CGFloat = 12
+    /// Where the name starts, and the separator under it.
+    static var nameLeading: CGFloat { tileLeading + tileSize + tileSpacing }
+    /// From the checkmark to the card's edge.
+    static var trailing: CGFloat { isFloatingSheet ? 16 : 15 }
+    /// The reference's separator between accounts: two pixels in both
+    /// appearances, where the shared hairline is one on black and three on
+    /// white.
+    static let separatorThickness: CGFloat = 2 / 3
 }
