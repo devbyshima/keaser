@@ -65,6 +65,11 @@ struct ExpenseCardView: View {
 
 /// Symbol and label in grey on the leading side, the value trailing, in
 /// medium.
+///
+/// `yieldsLabel` (the open list's header): when the label and the whole
+/// value do not both fit on the line, as at the accessibility text sizes,
+/// the value takes the label's place beside the symbol, shrinking a little
+/// before it is cut. The row stays one line, so the card keeps its height.
 private struct ExpenseCardRow: View {
     let symbol: String
     let label: String
@@ -73,37 +78,64 @@ private struct ExpenseCardRow: View {
     /// chevrons.
     let changes: Bool
     var hint: String = ""
+    var yieldsLabel = false
 
     @ScaledMetric(relativeTo: .callout) private var symbolWidth: CGFloat = 23
 
     var body: some View {
+        Group {
+            if yieldsLabel {
+                ViewThatFits(in: .horizontal) {
+                    labelled
+                    HStack(spacing: 8) {
+                        icon
+                        valueText
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 0)
+                    }
+                }
+            } else {
+                labelled
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(label))
+        .accessibilityValue(Text(value))
+        .accessibilityHint(Text(hint))
+    }
+
+    private var labelled: some View {
         HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .keaserFont(15, relativeTo: .callout)
-                .foregroundStyle(Color.keaserSnippetLabel)
-                .frame(width: symbolWidth)
-                .accessibilityHidden(true)
+            icon
             Text(label)
                 .font(.callout)
                 .foregroundStyle(Color.keaserSnippetLabel)
                 .fixedSize()
             Spacer(minLength: 12)
-            HStack(spacing: 5) {
-                Text(value)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(Color.keaserPrimaryText)
-                    .lineLimit(1)
-                if changes {
-                    Image(systemName: "chevron.up.chevron.down")
-                        .keaserFont(10, weight: .semibold, relativeTo: .caption2)
-                        .foregroundStyle(Color.keaserSnippetLabel)
-                        .accessibilityHidden(true)
-                }
+            valueText
+        }
+    }
+
+    private var icon: some View {
+        Image(systemName: symbol)
+            .keaserFont(15, relativeTo: .callout)
+            .foregroundStyle(Color.keaserSnippetLabel)
+            .frame(width: symbolWidth)
+    }
+
+    private var valueText: some View {
+        HStack(spacing: 5) {
+            Text(value)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(Color.keaserPrimaryText)
+                .lineLimit(1)
+            if changes {
+                Image(systemName: "chevron.up.chevron.down")
+                    .keaserFont(10, weight: .semibold, relativeTo: .caption2)
+                    .foregroundStyle(Color.keaserSnippetLabel)
             }
         }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(Text(hint))
     }
 }
 
@@ -122,8 +154,10 @@ private struct ExpenseCardOptions: View {
     /// A line of callout text: 21 points at the default text size.
     @ScaledMetric(relativeTo: .callout) private var lineHeight: CGFloat = 21
 
+    /// Fitted to the text size: fewer lines as it grows, and one column at
+    /// the accessibility sizes.
     private var list: ShortcutCardList {
-        source.list(lines: ShortcutCardList.lines(forLineHeight: Double(lineHeight)))
+        source.list(forLineHeight: Double(lineHeight))
     }
 
     /// Half the card's 17.5-point row spacing above and below each row, so
@@ -135,7 +169,7 @@ private struct ExpenseCardOptions: View {
     var body: some View {
         VStack(spacing: 0) {
             Button(intent: CloseExpenseCardOptionsIntent(session: session)) {
-                ExpenseCardRow(symbol: detail.symbol, label: detail.label, value: detail.value(on: card), changes: true, hint: "Closes the list")
+                ExpenseCardRow(symbol: detail.symbol, label: detail.label, value: detail.value(on: card), changes: true, hint: "Closes the list", yieldsLabel: true)
             }
             .buttonStyle(.plain)
             .padding(.bottom, 14)
@@ -151,19 +185,7 @@ private struct ExpenseCardOptions: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, Self.rowPadding)
                     } else {
-                        HStack(alignment: .top, spacing: 16) {
-                            ForEach(Array(list.columns.enumerated()), id: \.offset) { _, column in
-                                VStack(spacing: 0) {
-                                    ForEach(column) { option in
-                                        Button(intent: PickExpenseCardOptionIntent(session: session, detail: detail, option: option.id.uuidString)) {
-                                            OptionRow(option: option, compact: list.columnCount == 2)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .top)
-                            }
-                        }
+                        optionRows(list)
                     }
                 }
                 if list.offersMore {
@@ -188,6 +210,35 @@ private struct ExpenseCardOptions: View {
         .padding(.bottom, 12 - Self.rowPadding)
     }
 
+    /// The options line by line (`ShortcutCardList.rows`). In two columns
+    /// each line holds both columns' options on one baseline, in halves of
+    /// the width; VoiceOver still reads down the first column, then the
+    /// second.
+    private func optionRows(_ list: ShortcutCardList) -> some View {
+        let order = Dictionary(list.options.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        let twoColumns = list.columnCount == 2
+        return VStack(spacing: 0) {
+            ForEach(Array(list.rows.enumerated()), id: \.offset) { _, row in
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    ForEach(row) { option in
+                        Button(intent: PickExpenseCardOptionIntent(session: session, detail: detail, option: option.id.uuidString)) {
+                            OptionRow(option: option, compact: twoColumns)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilitySortPriority(Double(list.options.count - (order[option.id] ?? 0)))
+                    }
+                    if twoColumns && row.count == 1 {
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: 0)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
     /// Lines the options up with the labels above them.
     private func indented(@ViewBuilder _ content: () -> some View) -> some View {
         HStack(alignment: .top, spacing: 8) {
@@ -201,19 +252,23 @@ private struct ExpenseCardOptions: View {
 
 /// An option's name, with a checkmark when it is the chosen one: at the
 /// trailing edge in one column, as the card's values sit, and right after
-/// the name in two, where the edge belongs to the next column.
+/// the name in two, where the edge belongs to the next column. A name too
+/// long for its line shrinks a little before it is cut; it stays on the
+/// line's baseline.
 private struct OptionRow: View {
     let option: ShortcutCardList.Option
-    /// In two columns: a long name shrinks a little before it is cut.
+    /// In two columns.
     let compact: Bool
 
     var body: some View {
-        HStack(spacing: compact ? 6 : 8) {
+        // On the name's baseline, so the checkmark cannot move the name off
+        // the line's baseline in two columns.
+        HStack(alignment: .firstTextBaseline, spacing: compact ? 6 : 8) {
             Text(option.name)
                 .font(.callout)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .lineLimit(1)
-                .minimumScaleFactor(compact ? 0.8 : 1)
+                .minimumScaleFactor(0.8)
             if compact { checkmark }
             Spacer(minLength: 0)
             if !compact { checkmark }

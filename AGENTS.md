@@ -20,10 +20,9 @@ The Xcode project is generated. After editing `project.yml`, run
     ./scripts/build.sh           # xcodegen + simulator build; prints errors only
     ./scripts/test.sh            # KeaserKit tests on the Mac
     ./scripts/screenshots.sh     # headless screenshots from scripts/shots/*.txt
-    ./scripts/intents-test.sh    # App Intents tests (AppIntentsTesting) on their own iOS 27 simulator
     ./scripts/screenshots.sh home   # one area only
     SIM="Keaser home" ./scripts/screenshots.sh home   # use your own simulator
-    ./scripts/intents-test.sh    # App Intents through the system (AppIntentsTesting, iOS 27 sim, ~15 min)
+    ./scripts/intents-test.sh    # App Intents through the system (AppIntentsTesting, iOS 27 sim, ~7 min)
     KEASER_MODEL_EVALS=1 ./scripts/eval.sh   # opt-in on-device model evals (Mac with Apple Intelligence)
 
 Screenshots land in `screenshots/<area>-<name>.png` at 1206x2622, the same
@@ -79,8 +78,10 @@ format it with `MoneyFormat.string(_:currencyCode:)` using
 `smartSuggestionsEnabled`, which drives New Expense); Add Expense and Log Wallet
 Transaction both follow the shortcut switch. Smart Suggestions rank a category
 as history > word rule on a built-in category > on-device model > word rule on
-a custom category (measured on the Mac with `scripts/eval.sh`); the model never
-picks a payment method. Week maths must use
+a custom category (measured on the Mac with `scripts/eval.sh`). A payment
+method never comes from the model, but in an account with no payment history
+any recognised category, the model's included, brings the Cash fallback
+(`SmartSuggester.guessLabels`). Week maths must use
 `store.preferences.calendar` (it honours Start Week On).
 
 ## Launch arguments (DEBUG only)
@@ -141,10 +142,11 @@ Seeded launches keep the database in memory and never touch the real file.
   spoken sentence (`QuickLog.confirmation`) instead of the card.
 - The confirmation card (iOS 26+): tapping Account, Category or Payment
   opens that detail's options inside the card (`ShortcutCardList`: names
-  only, the chosen one checked, two columns or pages with More when long,
-  Go Back when it is on); picking one sets it and closes the list. The taps
-  are the non-discoverable `ShowExpenseCardOptionsIntent`,
-  `PickExpenseCardOptionIntent`, `PageExpenseCardOptionsIntent` and
+  only, the chosen one checked, two columns (standard text sizes only) or
+  pages with More when long, Go Back when it is on); picking one sets it and
+  closes the list. The taps are the non-discoverable
+  `ShowExpenseCardOptionsIntent`, `PickExpenseCardOptionIntent`,
+  `PageExpenseCardOptionsIntent` and
   `CloseExpenseCardOptionsIntent`, which only change the draft in
   `AddExpenseDrafts`; `ExpenseCardSnippetIntent` then draws the card again.
   The closed card must stay as the reference has it.
@@ -185,8 +187,13 @@ Seeded launches keep the database in memory and never touch the real file.
   confirmation (with `ShortcutCard.otherCurrencyNote`); nothing is converted.
   `ShortcutFlow` keeps a category or payment method the person picked when
   moving forward again, until the title or account changes. The in-card option
-  list is fitted to the text size (`ShortcutCardList.lines(forLineHeight:)`,
-  7 lines up to Large, down to 3) to stay under the 340pt snippet limit.
+  list is fitted to the text size (`ShortcutCardList.Source.list(forLineHeight:)`):
+  `lines(forLineHeight:)` gives 7 lines up to Large, down to 3, to stay under
+  the 340pt snippet limit, and `allowsTwoColumns(forLineHeight:)` keeps every
+  list in one column at the accessibility sizes. Two columns share rows
+  (`ShortcutCardList.rows`) so their names sit on one baseline. The open
+  detail's header stays one line: when its label and value do not both fit,
+  the value takes the label's place.
 - App Intents tests (`KeaserIntentTests`, 31 tests): every test resets data with
   the DEBUG `ResetTestDataIntent` (`IntentTestFixture`, fixed IDs). AppIntentsTesting
   accepts confirmations on its own, so confirmation paths are device-only checks.

@@ -21,7 +21,11 @@ confirm-category-more | -KeaserSeed single -KeaserSnippet confirmCategory -Kease
 confirm-category-more-2 | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many -KeaserSnippetPage 2
 confirm-account-long | -KeaserSeed demo -KeaserSnippet confirmAccount -KeaserSnippetLong 1
 # At larger text sizes the open list takes fewer lines, so the card stays
-# under 340 points: five at the largest standard size, three at the
-# accessibility sizes, paged with More.
+# under 340 points (ShortcutCardList.lines): seven up to Large, five at the
+# largest standard size (XXXL) and at AX1, four at AX2 and three from AX3 up,
+# paged with More. At the accessibility sizes every list runs down one
+# column, and the header shows the value in place of its label when both do
+# not fit.
 confirm-category-more-xxxl | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many -UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL
 confirm-category-ax | -KeaserSeed single -KeaserSnippet confirmCategory -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+confirm-category-axxxl | -KeaserSeed single -KeaserSnippet confirmCategory -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL

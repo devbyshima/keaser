@@ -31,10 +31,14 @@ ONLY=()
 for a in "$@"; do ONLY+=("-only-testing:$a"); done
 
 echo "==> Testing (log: $LOG)"
+# -collect-test-diagnostics never: otherwise xcodebuild collects the
+# simulator's diagnostics after the run and can wait 600 s for them, even when
+# every test passed. The tally below reads only the log.
 xcodebuild -project Keaser.xcodeproj -scheme KeaserIntentTests -configuration Debug \
   -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath "$ROOT/.build" \
   -parallel-testing-enabled NO -test-timeouts-enabled YES \
   -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+  -collect-test-diagnostics never \
   ${ONLY[@]+"${ONLY[@]}"} test >"$LOG" 2>&1
 STATUS=$?
 

@@ -10,7 +10,8 @@ import Foundation
 /// lines under the detail's own row than fit at the person's text size
 /// (`lines(forLineHeight:)`: `maxLines` at the default size, fewer at larger
 /// ones). Up to that many options run down one column; up to twice as many
-/// go in two columns when every name is short; longer lists are split into
+/// go in two columns when every name is short and the text is at a standard
+/// size (`allowsTwoColumns(forLineHeight:)`); longer lists are split into
 /// pages that More steps through.
 public struct ShortcutCardList: Hashable, Sendable {
     public struct Option: Hashable, Sendable, Identifiable {
@@ -55,8 +56,21 @@ public struct ShortcutCardList: Hashable, Sendable {
     /// A longer name keeps the list in one column, so none is squeezed.
     public static let twoColumnNameLimit = 16
 
+    /// A line of callout at the largest standard text size (XXXL) is 28.9
+    /// points and at the smallest accessibility size (AX1) 34.1; a taller
+    /// line than this is at an accessibility size.
+    public static let accessibilityLineHeight = 31.5
+
+    /// Whether the list may take two columns when a line of the card's text
+    /// is `lineHeight` points tall: at the standard text sizes, not at the
+    /// accessibility ones, where even a short name fills half the card and
+    /// every list runs down one column.
+    public static func allowsTwoColumns(forLineHeight lineHeight: Double) -> Bool {
+        lineHeight <= accessibilityLineHeight
+    }
+
     public let field: ShortcutFlow.Field
-    /// One, or two for a long list of short names.
+    /// One, or two for a long list of short names at a standard text size.
     public let columnCount: Int
     /// This page's options in reading order: down the first column, then
     /// down the second.
@@ -72,20 +86,22 @@ public struct ShortcutCardList: Hashable, Sendable {
     /// `page` nil opens the list on the page with the current option; any
     /// other page wraps around, so More after the last page shows the first.
     /// `lines` is how many lines it may take, More and Go Back included
-    /// (at least `minLines`).
+    /// (at least `minLines`); `allowsTwoColumns` false keeps every option in
+    /// one column, as at the accessibility text sizes.
     public init(
         field: ShortcutFlow.Field,
         options all: [ShortcutFlow.Label],
         current: UUID?,
         offersGoBack: Bool,
         page: Int? = nil,
-        lines budget: Int = maxLines
+        lines budget: Int = maxLines,
+        allowsTwoColumns: Bool = true
     ) {
         self.field = field
         self.offersGoBack = offersGoBack
         lineBudget = max(Self.minLines, budget)
         let lines = lineBudget - (offersGoBack ? 1 : 0)
-        let short = all.allSatisfy { $0.name.count <= Self.twoColumnNameLimit }
+        let short = allowsTwoColumns && all.allSatisfy { $0.name.count <= Self.twoColumnNameLimit }
         let perPage: Int
         if all.count <= lines {
             columnCount = 1
@@ -136,8 +152,22 @@ public struct ShortcutCardList: Hashable, Sendable {
             self.init(field: field, options: choice.options, current: choice.current, offersGoBack: flow.goBackEnabled, page: page)
         }
 
-        public func list(lines: Int = ShortcutCardList.maxLines) -> ShortcutCardList {
-            ShortcutCardList(field: field, options: options, current: current, offersGoBack: offersGoBack, page: page, lines: lines)
+        public func list(lines: Int = ShortcutCardList.maxLines, allowsTwoColumns: Bool = true) -> ShortcutCardList {
+            ShortcutCardList(
+                field: field, options: options, current: current, offersGoBack: offersGoBack,
+                page: page, lines: lines, allowsTwoColumns: allowsTwoColumns
+            )
+        }
+
+        /// The list fitted to a text size whose line of callout is
+        /// `lineHeight` points tall: as many lines as fit
+        /// (`lines(forLineHeight:)`), in one column at the accessibility
+        /// sizes (`allowsTwoColumns(forLineHeight:)`).
+        public func list(forLineHeight lineHeight: Double) -> ShortcutCardList {
+            list(
+                lines: ShortcutCardList.lines(forLineHeight: lineHeight),
+                allowsTwoColumns: ShortcutCardList.allowsTwoColumns(forLineHeight: lineHeight)
+            )
         }
     }
 
@@ -149,6 +179,16 @@ public struct ShortcutCardList: Hashable, Sendable {
         guard columnCount == 2 else { return [options] }
         let first = (options.count + 1) / 2
         return [Array(options.prefix(first)), Array(options.dropFirst(first))]
+    }
+
+    /// The options line by line, as the card draws them: one option a line
+    /// in one column; in two, the first column's option and the second's
+    /// beside it (the last line of an odd count has only the first).
+    public var rows: [[Option]] {
+        let columns = columns
+        return columns[0].indices.map { index in
+            [columns[0][index]] + (columns.count > 1 && index < columns[1].count ? [columns[1][index]] : [])
+        }
     }
 
     /// Lines the list takes: the option rows, More and Go Back.
