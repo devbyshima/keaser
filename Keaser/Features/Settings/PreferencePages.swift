@@ -81,25 +81,13 @@ struct SmartSuggestionsView: View {
             Section {
                 SettingsToggle("Smart Suggestions", isOn: store.preferenceBinding(\.smartSuggestionsEnabled))
             } footer: {
-                SettingsFootnote("""
-                As you type a title in New Expense or Edit Expense, Keaser offers expenses you have logged before \
-                that match it. Pick one to fill in the title, amount, category and payment method in a single tap, \
-                then change anything you like before saving. For a title you haven't used yet, Keaser picks a likely \
-                category and payment method when you move on from the title, and never replaces one you chose. \
-                Suggestions are worked out on this iPhone from your own history, so they get more useful the more \
-                you log.\(appleIntelligenceNote) Turn this off to always start from an empty form.
-                """)
+                // The Apple Intelligence sentence only on iPhones that can
+                // run it.
+                SettingsFootnote(SmartSuggestionsCopy.footnote(mentionsAppleIntelligence: CategoryModels.isDeviceEligible))
             }
         }
         .settingsListStyle()
         .settingsPage("Smart Suggestions")
-    }
-
-    /// Only on iPhones that can run Apple Intelligence.
-    private var appleIntelligenceNote: String {
-        guard CategoryModels.isDeviceEligible else { return "" }
-        return " With Apple Intelligence turned on, Keaser also recognizes titles it has never seen, such as shop and "
-            + "brand names, right on this iPhone."
     }
 }
 
