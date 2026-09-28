@@ -302,4 +302,32 @@ struct HomeChartAxisTests {
         #expect(ticks.count <= 6)
     }
 
+    @Test(arguments: cases)
+    func theValueScaleMapsTheTicksOntoAFixedDomain(_ example: (highest: Double, ticks: [Double])) {
+        let scale = SpendingChart.ValueScale(highest: example.highest)
+        #expect(scale.ticks == SpendingChart.axisTicks(for: example.highest))
+        #expect(scale.tickPositions.first == 0)
+        #expect(scale.tickPositions.last == 1)
+        #expect(scale.tickPositions.allSatisfy { SpendingChart.ValueScale.domain.contains($0) })
+        #expect(SpendingChart.ValueScale.domain.contains(scale.position(of: example.highest)))
+        // Every label reads back its own tick exactly.
+        for (tick, position) in zip(scale.ticks, scale.tickPositions) {
+            #expect(scale.tick(at: position) == tick)
+        }
+    }
+
+    @Test func theValueScaleStaysInsideItsDomain() {
+        let scale = SpendingChart.ValueScale(highest: 9_000)
+        #expect(scale.position(of: 5_000) == 0.5)
+        #expect(scale.position(of: 0) == 0)
+        #expect(scale.position(of: -3) == 0)
+        #expect(scale.position(of: .nan) == 0)
+        #expect(scale.position(of: .infinity) == 0)
+        // A period with a lower tallest bar keeps the same domain; only the
+        // amounts on the grid lines change.
+        let other = SpendingChart.ValueScale(highest: 1_700)
+        #expect(other.top == 2_000)
+        #expect(other.tickPositions == [0, 0.25, 0.5, 0.75, 1])
+    }
+
 }
