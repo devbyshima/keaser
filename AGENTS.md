@@ -1,7 +1,7 @@
 # Keaser
 
 iOS SwiftUI expense tracker: accounts, expenses, categories, payment methods,
-charts, filters, widgets, Shortcuts, weekly summary notifications, and a
+charts, filters, a spending widget, Shortcuts, weekly summary notifications, and a
 Keaser Pro upgrade with a 7-day pass. Light and dark, monochrome,
 Liquid Glass on iOS 26+.
 
@@ -10,7 +10,8 @@ Liquid Glass on iOS 26+.
   `./scripts/test.sh` (Swift Testing), no simulator needed. Anything testable
   belongs here, with `public` access.
 - `Keaser/` - the app: SwiftUI views, App Intents, notifications, StoreKit.
-- `KeaserWidgets/` - WidgetKit extension (home screen, lock screen, control).
+- `KeaserWidgets/` - WidgetKit extension (the medium Spending widget and the
+  Add Expense control).
 
 The Xcode project is generated. After editing `project.yml`, run
 `xcodegen generate`. Never hand-edit `Keaser.xcodeproj` (it is gitignored).
@@ -45,11 +46,15 @@ simulator GUI; add launch arguments instead.
   or black; add a token with `Color(light:dark:)` instead. Screenshot both:
   `APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh`.
 
-- Widgets draw from `WidgetPalette` (KeaserWidgets/Shared/SpendingWidgetView.swift),
-  not Theme: the home screen surface is white / 20,20,20 and the caption grey
-  0.46 / 0.58, measured from the reference widgets. The medium widget is only
-  `SpendingSnapshot.spentCaption` ("Spent This Month") over the total, centred.
-  The onboarding illustration keeps its own measured charcoal
+- The Spending widget is the only widget, and medium only (no small, large or
+  lock screen families): `SpendingSnapshot.spentCaption` ("Spent This Month")
+  over the total, centred, for Today, This Week, This Month or This Year, plus
+  its Pro-locked and no-account states. It draws from `WidgetPalette`
+  (KeaserWidgets/Shared/SpendingWidgetView.swift), not Theme: the surface is
+  white / 20,20,20 and the caption grey 0.46 / 0.58, measured from the
+  reference widgets. Onboarding page 2's illustration still animates a small
+  "This Month" widget from the recording (`SpendingWidgetView` with
+  `.systemSmall`, kept for it alone) on its own measured charcoal
   (`OnboardingPalette.widgetSurface`).
 
 - The app icon is an Icon Composer document, `Keaser/Resources/AppIcon.icon`
@@ -107,9 +112,8 @@ any recognised category, the model's included, brings the Cash fallback
 |---|---|---|
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
 | `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing); `settingsPaywall` opens Settings with the paywall on a second sheet over it, as Upgrade does | foundation |
-| `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (the Today, This Week and This Month medium widgets first, then small and lock screen), `widgetGalleryLocked` (every widget family); both need seed `fresh` | onboarding |
-| `-KeaserGalleryScroll` | `bottom` starts the widget gallery at the small and lock screen widgets; `large`, `extraLarge` start either gallery at the large widgets or at iOS 27's extra large portrait one (the sections before the start are left out, so shots begin at its heading) | onboarding, platform |
-| `-KeaserGalleryRendering` | `accented`: the gallery's home screen widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total and bars) | platform |
+| `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (the Spending widget for Today, This Week and This Month), `widgetGalleryLocked` (the widget once the pass is over, and without an account); both need seed `fresh` | onboarding |
+| `-KeaserGalleryRendering` | `accented`: the gallery's widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total) | platform |
 | `-KeaserNotifState` | `granted`, `denied`: page 4 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
 | `-KeaserLetterPage` | `tldr`, `follow` (sample links, DEBUG only) | onboarding |
@@ -288,7 +292,7 @@ Seeded launches keep the database in memory and never touch the real file.
 |---|---|
 | foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, `Keaser/Resources/AppIcon.icon` and `scripts/make_icon.swift` (app icon) |
-| platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), the large and extra large portrait families and `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, the breakdown in `Packages/KeaserKit/Sources/KeaserKit/Platform/SpendingSnapshot.swift`, `scripts/shots/platform.txt` |
+| platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, `scripts/shots/platform.txt` |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList,WalletAmount}.swift` (`WalletAmount` reads Log Wallet Transaction's text amount in any number style), the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
