@@ -22,6 +22,13 @@ extension Color {
     static let keaserPrimaryText = Color(light: .black, dark: .white)
     static let keaserSecondaryText = Color(light: .init(white: 0.45), dark: .init(white: 0.56))
     static let keaserTertiaryText = Color(light: .init(white: 0.68), dark: .init(white: 0.36))
+    /// Section titles and the small print under settings cards: the cool
+    /// grey the reference uses there, a little lighter than
+    /// `keaserSecondaryText` in light mode. Row values stay secondary.
+    static let keaserCaptionText = Color(
+        light: .init(red: 122 / 255, green: 121 / 255, blue: 128 / 255),
+        dark: .init(red: 142 / 255, green: 141 / 255, blue: 148 / 255)
+    )
     static let keaserDestructive = Color(red: 1, green: 0.27, blue: 0.23)
 
     /// The accent: chart bars, the add button, primary and capsule buttons,

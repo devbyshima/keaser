@@ -241,7 +241,7 @@ struct SettingsSectionTitle: View {
     var body: some View {
         Text(title)
             .keaserFont(17, weight: .semibold, relativeTo: .headline)
-            .foregroundStyle(Color.keaserSecondaryText)
+            .foregroundStyle(Color.keaserCaptionText)
             .padding(.leading, 16)
             .padding(.top, 13)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
@@ -259,11 +259,13 @@ struct SettingsFootnote: View {
     }
 
     var body: some View {
-        // An exact 13pt font keeps the tight leading of the reference; the
-        // footnote text style adds several points between lines.
+        // An exact 13pt font on a 16pt line keeps the tight leading of the
+        // reference; the footnote text style adds several points between
+        // lines.
         Text(text)
             .keaserFont(13, relativeTo: .footnote)
-            .foregroundStyle(Color.keaserSecondaryText)
+            .lineSpacing(0.5)
+            .foregroundStyle(Color.keaserCaptionText)
             .textCase(nil)
             .fixedSize(horizontal: false, vertical: true)
     }
