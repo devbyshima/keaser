@@ -95,10 +95,9 @@ struct HomeSpendingChart: View {
     /// The last bar that had the callout, so it sinks back into that bar
     /// after the finger lifts.
     @State private var lastCalloutIndex: Int?
-    /// The callout's size when it last showed (at first, the reference's),
-    /// for how far it rises as it appears; its placement uses the size it
-    /// has.
-    @State private var calloutSize = CGSize(width: 106, height: 66)
+    /// The callout's size when it last showed (at first, a typical one), for
+    /// how far it rises as it appears; its placement uses the size it has.
+    @State private var calloutSize = CGSize(width: 86, height: 46)
 
     /// The chart's text stops growing here: it has a fixed height and
     /// unwrapped axis labels, and VoiceOver reads the bar values.
@@ -299,9 +298,8 @@ struct HomeSpendingChart: View {
     }
 }
 
-/// The glass tag a long press raises over a bar: the period in grey over
-/// the amount. Sized, set and coloured as in the reference (dark glass in
-/// dark mode, white in light).
+/// The small glass tag a long press raises over a bar: the period in grey
+/// over the amount, on Liquid Glass tinted with a breath of ink.
 private struct ChartCallout: View {
     let title: String
     let amount: String
@@ -309,23 +307,23 @@ private struct ChartCallout: View {
     /// Motion is on.
     let rollsDigits: Bool
 
-    private static let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+    private static let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(title)
-                .keaserFont(12, relativeTo: .caption)
+                .keaserFont(11, relativeTo: .caption2)
                 .foregroundStyle(Color.keaserSecondaryText)
             Text(amount)
-                .keaserFont(20, weight: .semibold, relativeTo: .title3)
+                .keaserFont(15, weight: .semibold, relativeTo: .subheadline)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .contentTransition(rollsDigits ? .numericText() : .opacity)
         }
         .lineLimit(1)
         .fixedSize()
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .keaserGlass(in: Self.shape, tint: Color.keaserCallout)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .keaserGlass(in: Self.shape, tint: Color.keaserInk.opacity(0.1))
     }
 }
 

@@ -37,8 +37,6 @@ extension Color {
     /// Text and glyphs drawn on `keaserInk`.
     static let keaserOnInk = Color(light: .white, dark: .black)
 
-    /// The chart's long-press callout.
-    static let keaserCallout = Color(light: .white, dark: .init(white: 0.045))
     /// Large empty-state symbols ("No Expenses") and other muted icons.
     static let keaserMutedIcon = Color(light: .init(white: 0.55), dark: .init(white: 0.62))
     /// The close (xmark) glyph: grey and lighter in weight than the other
