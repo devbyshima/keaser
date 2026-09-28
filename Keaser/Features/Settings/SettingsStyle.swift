@@ -105,14 +105,22 @@ extension View {
         self
             .listRowInsets(insets)
             .listRowBackground(CardRowBackground(position: position))
-            .listRowSeparatorTint(Color.keaserSeparator)
+            .listRowSeparatorTint(Color.keaserListSeparator)
     }
 
     /// Ends a row's separator 16pt short of the card's edge, as iOS 26 does
     /// (iOS 18 runs it to the edge). Apply to the row's full-width content;
     /// `overChevron` carries it past the chevron a `NavigationLink` adds.
+    /// From iOS 26 the system already ends a chevron row's separator there,
+    /// and the chevron's spacing differs between releases, so those rows
+    /// keep the system's own end.
+    @ViewBuilder
     func cardSeparatorTrailing(overChevron: Bool = false) -> some View {
-        alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + (overChevron ? 20 : 0) }
+        if #available(iOS 26.0, *), overChevron {
+            self
+        } else {
+            alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + (overChevron ? 20 : 0) }
+        }
     }
 
     /// A list row that is not a card: banners, footers, free text.
