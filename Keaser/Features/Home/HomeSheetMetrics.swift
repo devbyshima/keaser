@@ -37,6 +37,17 @@ extension Color {
     /// measured from the reference: darker than `keaserTertiaryText` on the
     /// grey card in light mode, lighter in dark mode.
     static let homeSheetPlaceholder = Color(light: .init(white: 0.37), dark: .init(white: 0.44))
+    /// The label over a field (New Account's "Account name") on iOS 26 and
+    /// later: semibold and lighter than `keaserSecondaryText` in dark mode,
+    /// measured from the reference (163 where the shared grey gives 143).
+    /// The recordings show no light form, so light mode keeps the shared
+    /// grey.
+    static let homeSheetFieldLabel = Color(light: .init(white: 0.45), dark: .init(white: 0.64))
+    /// Over the glass behind the New Account form on iOS 26 and later: the
+    /// reference draws that page lighter than its other sheets in dark mode
+    /// (55 over a black screen, where the Accounts sheet is 29). The
+    /// recordings show no light form, so light mode adds nothing.
+    static let homeSheetFormVeil = Color(light: .clear, dark: .white.opacity(0.1))
 }
 
 extension View {
