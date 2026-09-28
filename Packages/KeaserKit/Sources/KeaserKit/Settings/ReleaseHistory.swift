@@ -51,7 +51,7 @@ public enum ReleaseHistory {
                 .init(symbol: "command", title: "Shortcuts and Apple Wallet",
                       detail: "Log expenses from Siri, the Action button or Control Center, and record Apple Pay purchases automatically with a Wallet automation."),
                 .init(symbol: "plus.square.fill", title: "Widgets",
-                      detail: "Your spending on the Home Screen and the Lock Screen, always in your currency and week settings."),
+                      detail: "Your spending on the Home Screen, always in your currency and week settings."),
                 .init(symbol: "bell.badge.fill", title: "Weekly summary",
                       detail: "An optional notification each week with what you spent."),
                 .init(symbol: "lock.fill", title: "Private by design",
