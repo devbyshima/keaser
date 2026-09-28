@@ -537,9 +537,16 @@ struct ExpenseEditorView: View {
 }
 
 /// The note under the card once a receipt filled it in, set like a list
-/// section's footer.
+/// section's footer. On iOS 26 and later Home's + button shows blurred
+/// through the glass sheet at the trailing edge, level with the note, as
+/// in the reference; the note's lines wrap before they reach it.
 private struct ReceiptNote: View {
     let text: String
+
+    /// The + button and its blur, measured from the note's trailing edge.
+    private static var trailingClearance: CGFloat {
+        if #available(iOS 26.0, *) { 72 } else { 0 }
+    }
 
     var body: some View {
         Text(text)
@@ -547,6 +554,7 @@ private struct ReceiptNote: View {
             .foregroundStyle(Color.keaserSecondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
+            .padding(.trailing, Self.trailingClearance)
             .transition(.opacity)
     }
 }
