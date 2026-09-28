@@ -63,7 +63,6 @@ enum SettingsPage: Hashable {
         case "weeklySummary": return [.weeklySummary]
         case "shortcut": return [.shortcut]
         case "tutorials": return [.tutorials]
-        case "tutorialShortcut": return [.tutorials, .tutorial(.addExpenseShortcut)]
         case "tutorialWallet": return [.tutorials, .tutorial(.walletAutomation)]
         case "whatsNew": return [.whatsNew]
         case "release": return [.whatsNew, .release(ReleaseHistory.releases[0].version)]

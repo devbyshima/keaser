@@ -1,7 +1,7 @@
 import KeaserKit
 import SwiftUI
 
-/// The two guides, each with a line on what it sets up.
+/// Every guide, each on its own card with a line on what it sets up.
 struct TutorialsView: View {
     var body: some View {
         List {

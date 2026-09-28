@@ -85,6 +85,10 @@ simulator GUI; add launch arguments instead.
   Edit and Delete), not Edit Expense as the recording does: the founder's
   choice. Edit turns the sheet into Edit Expense (`onClose` brings the
   details back); long press and swipe still edit or delete directly.
+- Settings > Tutorials lists Apple Wallet Automation alone. The Add Expense
+  Shortcut tutorial (a home-made shortcut on Back Tap or a Run Shortcut
+  control) was removed by the founder's choice: Keaser's own Add Expense
+  control does the same with nothing to build.
 
 ## Data
 
@@ -126,7 +130,7 @@ any recognised category, the model's included, brings the Cash fallback
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
 | `-KeaserCurrency` | an ISO code (`RWF`, `JPY`...): the seed's currency | home |
 | `-KeaserAmountScale` | a whole number every seeded amount is multiplied by; with `-KeaserCurrency RWF` and `5000`, seed `single` shows RWF 100,000 | home |
-| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialShortcut`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
+| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
 | `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default); or a word: with `-KeaserSettingsPage privacy` or `terms`, starts at the first heading containing it | settings, intelligence |
 | `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one; `confirmAccount`, `confirmCategory`, `confirmPayment`: the interactive card with that detail tapped, its options listed inside the card | shortcuts |
 | `-KeaserSnippet` | `spending`: the answer of "How Much Did I Spend" (`SpendingSnippetView`) for the selected account, This Week unless `-KeaserPeriod` says otherwise | intents |
@@ -154,8 +158,9 @@ Seeded launches keep the database in memory and never touch the real file.
 ## Shared names
 
 - App Intents: `AddExpenseIntent` (title "Add Expense") and
-  `LogWalletTransactionIntent` (title "Log Wallet Transaction"). Tutorials
-  refer to them by these titles, and to Add Expense's fields by its
+  `LogWalletTransactionIntent` (title "Log Wallet Transaction"). The one
+  tutorial, Apple Wallet Automation, teaches Add Expense by that title
+  (never Log Wallet Transaction) and refers to Add Expense's fields by its
   parameter titles: Title, Amount, Category, Payment Method, Account and
   Date (never asked for; empty means the moment it is added, and a Wallet
   automation sets it to Current Date). In the app Add Expense returns the

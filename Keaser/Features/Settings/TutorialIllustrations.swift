@@ -32,11 +32,6 @@ struct TutorialIllustrationView: View {
     @ViewBuilder
     private var drawing: some View {
         switch illustration {
-        case .actionSearch: ActionSearchDrawing()
-        case .prefilledAction: PrefilledActionDrawing()
-        case .backTapSettings: BackTapDrawing()
-        case .addControl: AddControlDrawing()
-        case .controlSizes: ControlSizesDrawing()
         case .walletTrigger: WalletTriggerDrawing()
         case .walletOptions: WalletOptionsDrawing()
         case .walletVariables: WalletVariablesDrawing()
@@ -47,286 +42,6 @@ struct TutorialIllustrationView: View {
 }
 
 // MARK: - Drawings
-
-/// Shortcuts' search finds Keaser's action; added, it shows Title and Amount.
-private struct ActionSearchDrawing: View {
-    var body: some View {
-        Screen {
-            VStack(spacing: 8) {
-                SearchField(text: "Keaser")
-                RowGroup {
-                    MockRow(title: Tutorials.addExpenseActionTitle, icon: .keaser) { EmptyView() }
-                        .ringed()
-                        .tapped(at: UnitPoint(x: 0.62, y: 0.55))
-                    Hairline(inset: 38)
-                    MockRow(title: nil, icon: .placeholder) { EmptyView() }
-                }
-                FlowArrow(direction: .down)
-                    .padding(.vertical, 2)
-                ActionBlock(expanded: false) {
-                    FieldRow(title: Tutorials.titleFieldTitle) { EmptySlot() }
-                    FieldRow(title: Tutorials.amountFieldTitle) { EmptySlot() }
-                }
-            }
-        }
-    }
-}
-
-/// The action opened up, with a payment method and the current date set.
-private struct PrefilledActionDrawing: View {
-    var body: some View {
-        Screen {
-            ActionBlock(expanded: true) {
-                fields
-            }
-        }
-    }
-
-    private var fields: some View {
-        ForEach(Tutorials.addExpenseFieldTitles, id: \.self) { field in
-            FieldRow(title: field) {
-                switch field {
-                case Tutorials.paymentMethodFieldTitle:
-                    ValueChip(symbol: "creditcard.and.123", title: "Debit Card")
-                case Tutorials.dateFieldTitle:
-                    VariableToken(symbol: "calendar", title: "Current Date")
-                default:
-                    EmptySlot()
-                }
-            }
-            .ringed(field == Tutorials.paymentMethodFieldTitle || field == Tutorials.dateFieldTitle)
-        }
-    }
-}
-
-/// Back Tap's two gestures, then a shortcut picked for Double Tap.
-private struct BackTapDrawing: View {
-    var body: some View {
-        TwoScreens {
-            Screen(padding: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    PageTitle(back: "Touch", title: "Back Tap")
-                    RowGroup {
-                        MockRow(title: "Double Tap") { Disclosure() }
-                            .ringed()
-                            .tapped(at: UnitPoint(x: 0.6, y: 0.55))
-                        Hairline(inset: 9)
-                        MockRow(title: "Triple Tap") { Disclosure() }
-                    }
-                }
-            }
-        } second: {
-            Screen(padding: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    PageTitle(back: "Back Tap", title: "Double Tap")
-                    SectionLabel(text: "SHORTCUTS")
-                    RowGroup {
-                        MockRow(title: Tutorials.addExpenseActionTitle) { CheckGlyph() }
-                            .ringed()
-                        Hairline(inset: 9)
-                        MockRow(title: nil) { EmptyView() }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Control Center in edit mode, then the Run Shortcut control in the gallery.
-private struct AddControlDrawing: View {
-    var body: some View {
-        TwoScreens {
-            Screen(padding: 10) {
-                VStack(spacing: 10) {
-                    HStack {
-                        Circle()
-                            .fill(Color.tutorialCell)
-                            .frame(width: 26, height: 26)
-                            .overlay(Glyph(symbol: "plus", size: 12))
-                            .overlay(Circle().strokeBorder(Color.keaserInk, lineWidth: 1.5))
-                            .tapped(at: UnitPoint(x: 0.6, y: 0.6))
-                        Spacer()
-                        Circle()
-                            .fill(Color.tutorialPlaceholder)
-                            .frame(width: 18, height: 18)
-                    }
-                    Grid(horizontalSpacing: 8, verticalSpacing: 8) {
-                        ForEach(0..<2, id: \.self) { _ in
-                            GridRow {
-                                ForEach(0..<4, id: \.self) { _ in
-                                    Circle()
-                                        .fill(Color.tutorialPlaceholder)
-                                        .frame(width: 24, height: 24)
-                                }
-                            }
-                        }
-                    }
-                    Text("Add a Control")
-                        .keaserFont(11, weight: .semibold)
-                        .foregroundStyle(Color.keaserOnInk)
-                        .lineLimit(1)
-                        .padding(.horizontal, 10)
-                        .frame(height: 24)
-                        .background(Color.keaserInk, in: Capsule())
-                        .tapped(at: UnitPoint(x: 0.72, y: 0.6))
-                }
-            }
-        } second: {
-            Screen(padding: 10) {
-                VStack(alignment: .leading, spacing: 10) {
-                    SearchField(text: "Shortcut", compact: true)
-                    SectionLabel(text: "SHORTCUTS")
-                    HStack(alignment: .top, spacing: 10) {
-                        ControlPreview(title: "Run Shortcut", isChosen: true)
-                        ControlPreview(title: nil, isChosen: false)
-                    }
-                    .padding(.leading, 2)
-                }
-            }
-        }
-    }
-
-    private struct ControlPreview: View {
-        let title: String?
-        let isChosen: Bool
-
-        var body: some View {
-            VStack(spacing: 5) {
-                Circle()
-                    .fill(Color.tutorialCell)
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        if isChosen {
-                            Glyph(symbol: "square.stack.3d.up.fill", size: 15)
-                        } else {
-                            RoundedRectangle(cornerRadius: 4).fill(Color.tutorialPlaceholder).frame(width: 14, height: 14)
-                        }
-                    }
-                    .overlay {
-                        if isChosen { Circle().strokeBorder(Color.keaserInk, lineWidth: 1.5) }
-                    }
-                    .tapped(at: UnitPoint(x: 0.62, y: 0.62), isTapped: isChosen)
-                if let title {
-                    Text(title)
-                        .keaserFont(10, weight: .medium)
-                        .foregroundStyle(Color.keaserPrimaryText)
-                        .lineLimit(1)
-                        .fixedSize()
-                } else {
-                    Capsule().fill(Color.tutorialPlaceholder).frame(width: 34, height: 6).padding(.vertical, 3)
-                }
-            }
-        }
-    }
-}
-
-/// The Run Shortcut control at each of its sizes.
-private struct ControlSizesDrawing: View {
-    var body: some View {
-        Screen(padding: 14) {
-            // Smaller slots on narrower screens, so the three sizes always
-            // stand side by side.
-            ViewThatFits(in: .horizontal) {
-                ForEach([52, 44, 36] as [CGFloat], id: \.self) { unit in
-                    sizes(unit: unit)
-                }
-            }
-        }
-    }
-
-    private func sizes(unit: CGFloat) -> some View {
-        let gap = unit / 5
-        let wide = unit * 2 + gap
-        let radius = unit / 2
-        return HStack(alignment: .bottom, spacing: 14) {
-            sized("1 slot") {
-                Circle()
-                    .fill(Color.tutorialCell)
-                    .frame(width: unit, height: unit)
-                    .overlay(Glyph(symbol: "plus", size: unit * 0.35))
-            }
-            sized("2 slots") {
-                HStack(spacing: unit * 0.13) {
-                    InkBadge(size: unit * 0.54)
-                    Text(Tutorials.addExpenseActionTitle)
-                        .keaserFont(max(unit * 0.2, 9), weight: .semibold)
-                        .foregroundStyle(Color.keaserPrimaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, unit * 0.21)
-                .padding(.trailing, unit * 0.12)
-                .frame(width: wide, height: unit)
-                .background(Color.tutorialCell, in: Capsule())
-            }
-            sized("4 slots") {
-                VStack(alignment: .leading) {
-                    InkBadge(size: unit * 0.62)
-                    Spacer(minLength: 0)
-                    Text(Tutorials.addExpenseActionTitle)
-                        .keaserFont(max(unit * 0.23, 9.5), weight: .semibold)
-                        .foregroundStyle(Color.keaserPrimaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .padding(unit * 0.23)
-                .frame(width: wide, height: wide, alignment: .leading)
-                .background(Color.tutorialCell, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-                .overlay(
-                    CornerHandle(cornerRadius: radius)
-                        .stroke(Color.keaserInk, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                )
-            }
-        }
-        .fixedSize()
-    }
-
-    private func sized(_ caption: String, @ViewBuilder control: () -> some View) -> some View {
-        VStack(spacing: 8) {
-            control()
-            Text(caption)
-                .keaserFont(11, weight: .medium)
-                .foregroundStyle(Color.keaserSecondaryText)
-                .lineLimit(1)
-                .fixedSize()
-        }
-    }
-
-    /// The glyph a shortcut shows on its control, on an ink disc.
-    private struct InkBadge: View {
-        let size: CGFloat
-
-        var body: some View {
-            Circle()
-                .fill(Color.keaserInk)
-                .frame(width: size, height: size)
-                .overlay(
-                    Image(systemName: "plus")
-                        .keaserFont(size * 0.45, weight: .bold)
-                        .foregroundStyle(Color.keaserOnInk)
-                )
-        }
-    }
-
-    /// The curved grip hugging a control's bottom trailing corner, dragged
-    /// to resize it.
-    private struct CornerHandle: Shape {
-        let cornerRadius: CGFloat
-
-        func path(in rect: CGRect) -> Path {
-            Path { path in
-                path.addArc(
-                    center: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY - cornerRadius),
-                    radius: cornerRadius + 2.5,
-                    startAngle: .degrees(20),
-                    endAngle: .degrees(70),
-                    clockwise: false
-                )
-            }
-        }
-    }
-}
 
 /// The automation triggers, with Wallet picked out of the list.
 private struct WalletTriggerDrawing: View {
@@ -344,7 +59,7 @@ private struct WalletTriggerDrawing: View {
                 ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                     if index > 0 { Hairline(inset: 38) }
                     let isWallet = row.title == "Wallet"
-                    MockRow(title: row.title, icon: .symbol(row.symbol), dim: !isWallet) { EmptyView() }
+                    MockRow(title: row.title, symbol: row.symbol, dim: !isWallet) { EmptyView() }
                         .ringed(isWallet)
                         .tapped(at: UnitPoint(x: 0.55, y: 0.55), isTapped: isWallet)
                 }
@@ -372,9 +87,9 @@ private struct WalletOptionsDrawing: View {
         Screen(padding: 10) {
             VStack(alignment: .leading, spacing: 8) {
                 RowGroup {
-                    MockRow(title: "Debit Card", icon: .symbol("creditcard.fill")) { Check(isOn: true) }
+                    MockRow(title: "Debit Card", symbol: "creditcard.fill") { Check(isOn: true) }
                     Hairline(inset: 38)
-                    MockRow(title: "Credit Card", icon: .symbol("creditcard"), dim: true) { Check(isOn: false) }
+                    MockRow(title: "Credit Card", symbol: "creditcard", dim: true) { Check(isOn: false) }
                 }
                 HStack(spacing: 6) {
                     ForEach(0..<3, id: \.self) { index in
@@ -540,7 +255,7 @@ private struct AskForCategoryDrawing: View {
                 RowGroup {
                     ForEach(Array(categories.enumerated()), id: \.offset) { index, category in
                         if index > 0 { Hairline(inset: 38) }
-                        MockRow(title: category.name, icon: .symbol(category.symbol), dim: index > 0) { EmptyView() }
+                        MockRow(title: category.name, symbol: category.symbol, dim: index > 0) { EmptyView() }
                             .ringed(index == 0)
                             .tapped(at: UnitPoint(x: 0.55, y: 0.55), isTapped: index == 0)
                     }
@@ -551,28 +266,6 @@ private struct AskForCategoryDrawing: View {
 }
 
 // MARK: - Parts
-
-/// Two screens a step moves between, side by side with an arrow, or one above
-/// the other when the column is too narrow for both.
-private struct TwoScreens<First: View, Second: View>: View {
-    @ViewBuilder var first: First
-    @ViewBuilder var second: Second
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) {
-                first
-                FlowArrow(direction: .forward)
-                second
-            }
-            VStack(spacing: 8) {
-                first
-                FlowArrow(direction: .down)
-                second
-            }
-        }
-    }
-}
 
 /// A screen: the grey (or faintly lit) panel the rows sit on.
 private struct Screen<Content: View>: View {
@@ -610,37 +303,22 @@ private struct Hairline: View {
     }
 }
 
-/// A list row: an optional icon, a title (a grey bar when nil) and whatever
-/// sits at its end.
+/// A list row: an optional symbol on a tile, a title (a grey bar when nil)
+/// and whatever sits at its end.
 private struct MockRow<Trailing: View>: View {
-    enum Icon {
-        case keaser
-        case symbol(String)
-        case placeholder
-    }
-
     let title: String?
-    var icon: Icon?
+    var symbol: String?
     var dim = false
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
         HStack(spacing: 8) {
-            switch icon {
-            case .keaser:
-                KeaserAppIcon(size: 21)
-            case .symbol(let symbol):
+            if let symbol {
                 Image(systemName: symbol)
                     .keaserFont(10, weight: .semibold)
                     .foregroundStyle(dim ? Color.keaserSecondaryText : Color.keaserPrimaryText)
                     .frame(width: 21, height: 21)
                     .background(Color.tutorialPlaceholder, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            case .placeholder:
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.tutorialPlaceholder)
-                    .frame(width: 21, height: 21)
-            case nil:
-                EmptyView()
             }
             if let title {
                 Text(title)
@@ -659,31 +337,6 @@ private struct MockRow<Trailing: View>: View {
     }
 }
 
-/// A page's back label and title, as at the top of a Settings page.
-private struct PageTitle: View {
-    let back: String
-    let title: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 2) {
-                Image(systemName: "chevron.left")
-                    .keaserFont(9, weight: .bold)
-                Text(back)
-                    .keaserFont(10.5, weight: .medium)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(Color.keaserSecondaryText)
-            Text(title)
-                .keaserFont(14, weight: .bold)
-                .foregroundStyle(Color.keaserPrimaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .padding(.leading, 3)
-    }
-}
-
 /// A small grey section title above a group.
 private struct SectionLabel: View {
     let text: String
@@ -695,30 +348,6 @@ private struct SectionLabel: View {
             .foregroundStyle(Color.keaserSecondaryText)
             .lineLimit(1)
             .padding(.leading, 3)
-    }
-}
-
-private struct SearchField: View {
-    let text: String
-    var compact = false
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "magnifyingglass")
-                .keaserFont(compact ? 10 : 11.5, weight: .semibold)
-                .foregroundStyle(Color.keaserSecondaryText)
-            Text(text)
-                .keaserFont(compact ? 11.5 : 13, weight: .medium)
-                .foregroundStyle(Color.keaserPrimaryText)
-                .lineLimit(1)
-            Rectangle()
-                .fill(Color.keaserInk)
-                .frame(width: 1.5, height: compact ? 13 : 16)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .frame(height: compact ? 26 : 32)
-        .background(Color.tutorialCell, in: Capsule())
     }
 }
 
@@ -779,26 +408,6 @@ private struct EmptySlot: View {
     }
 }
 
-/// A value typed or picked into a field.
-private struct ValueChip: View {
-    let symbol: String
-    let title: String
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .keaserFont(9.5, weight: .semibold)
-            Text(title)
-                .keaserFont(11.5, weight: .semibold)
-                .lineLimit(1)
-        }
-        .foregroundStyle(Color.keaserPrimaryText)
-        .padding(.horizontal, 7)
-        .frame(height: 22)
-        .background(Color.tutorialPlaceholder, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-    }
-}
-
 /// A variable in a field: an ink token, as Shortcuts draws variables in colour.
 private struct VariableToken: View {
     let symbol: String
@@ -841,26 +450,6 @@ private struct OutlineToken: View {
     }
 }
 
-private struct Disclosure: View {
-    var body: some View {
-        Image(systemName: "chevron.right")
-            .keaserFont(10, weight: .semibold)
-            .foregroundStyle(Color.keaserTertiaryText)
-    }
-}
-
-/// An SF Symbol in ink, for controls.
-private struct Glyph: View {
-    let symbol: String
-    let size: CGFloat
-
-    var body: some View {
-        Image(systemName: symbol)
-            .keaserFont(size, weight: .semibold)
-            .foregroundStyle(Color.keaserInk)
-    }
-}
-
 /// A pointing finger, drawn like a pointer: ink with an outline in the
 /// opposite colour, so it reads on light and dark parts of a drawing alike.
 private struct TapMark: View {
@@ -881,19 +470,6 @@ private struct CheckGlyph: View {
         Image(systemName: "checkmark")
             .keaserFont(11, weight: .bold)
             .foregroundStyle(Color.keaserInk)
-    }
-}
-
-/// The step's way forward between two screens.
-private struct FlowArrow: View {
-    enum Direction { case down, forward }
-
-    let direction: Direction
-
-    var body: some View {
-        Image(systemName: direction == .down ? "arrow.down" : "arrow.right")
-            .keaserFont(12, weight: .bold)
-            .foregroundStyle(Color.keaserTertiaryText)
     }
 }
 
