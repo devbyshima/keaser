@@ -93,6 +93,9 @@ final class AppRouter {
     enum Route: Equatable {
         /// Open the New Expense sheet on the selected account.
         case newExpense
+        /// New Expense with the document camera up (the Scan Receipt
+        /// control).
+        case scanReceipt
         case settings
         /// Select the expense's account and show the expense in Edit
         /// Expense (`OpenExpenseIntent`, a Spotlight result).
@@ -106,13 +109,18 @@ final class AppRouter {
     /// Set by a deep link; the screen that can fulfil it clears it.
     var pendingRoute: Route?
 
-    /// `keaser://new-expense`, `keaser://settings`.
+    /// `keaser://new-expense`, `keaser://scan-receipt`, `keaser://settings`.
     func handle(_ url: URL) {
-        guard url.scheme == "keaser" else { return }
+        if let route = Self.route(for: url) { pendingRoute = route }
+    }
+
+    nonisolated static func route(for url: URL) -> Route? {
+        guard url.scheme == "keaser" else { return nil }
         switch url.host() {
-        case "new-expense": pendingRoute = .newExpense
-        case "settings": pendingRoute = .settings
-        default: break
+        case "new-expense": return .newExpense
+        case "scan-receipt": return .scanReceipt
+        case "settings": return .settings
+        default: return nil
         }
     }
 

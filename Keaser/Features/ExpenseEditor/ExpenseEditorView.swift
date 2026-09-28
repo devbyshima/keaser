@@ -11,6 +11,9 @@ struct ExpenseEditorView: View {
     /// Called instead of dismissing the sheet when Cancel, Save or Delete
     /// ends the edit: the expense details use it to come back into view.
     let onClose: (() -> Void)?
+    /// New Expense opened by the Scan Receipt control: the document camera
+    /// (or the photo picker) comes up at once, and the scan fills the card.
+    let scansReceipt: Bool
 
     @Environment(KeaserStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -76,10 +79,11 @@ struct ExpenseEditorView: View {
     /// matching the reference.
     private static let paymentGuessDelay = Duration.milliseconds(350)
 
-    init(accountID: UUID, expense: Expense? = nil, onClose: (() -> Void)? = nil) {
+    init(accountID: UUID, expense: Expense? = nil, scansReceipt: Bool = false, onClose: (() -> Void)? = nil) {
         self.accountID = accountID
         self.original = expense
         self.onClose = onClose
+        self.scansReceipt = scansReceipt && expense == nil
         _receipt = State(initialValue: expense?.receipt.map { .attached(.saved($0)) } ?? .none)
         _title = State(initialValue: expense?.title ?? "")
         _amountDisplay = State(initialValue: "")
@@ -190,6 +194,10 @@ struct ExpenseEditorView: View {
             // what sits under the card.
             if DebugLaunch.string("KeaserExpenseFocus") == "none" { return }
             #endif
+            if scansReceipt {
+                scanOnOpen()
+                return
+            }
             focus = .title
             #if DEBUG
             // `-KeaserExpenseFocus amount` then moves on to the amount, as
@@ -212,7 +220,11 @@ struct ExpenseEditorView: View {
             receiptTask?.cancel()
             receiptPrepareTask?.cancel()
         }
-        .receiptCapture($capture) { request, source in
+        .receiptCapture($capture) { request in
+            // The camera the Scan Receipt control opened was closed: the
+            // expense can still be typed in.
+            if request.purpose == .scan, scansReceipt, title.isEmpty { focus = .title }
+        } onCapture: { request, source in
             switch request.purpose {
             case .scan: readReceipt(source)
             case .attach: attachReceipt(from: source)
@@ -515,6 +527,17 @@ struct ExpenseEditorView: View {
         focus = nil
         if purpose == .scan { ReceiptScanner.prewarm() }
         capture = ReceiptCaptureRequest(source: source, purpose: purpose)
+    }
+
+    /// The Scan Receipt control: the camera, or the photo picker where
+    /// there is none, once the sheet is up (a cover asked for while the
+    /// sheet is still arriving is not shown).
+    private func scanOnOpen() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard finished == 0 else { return }
+            startCapture(ReceiptCaptureRequest.hasCamera ? .camera : .library, for: .scan)
+        }
     }
 
     /// Reads a scanned receipt, then fills in what it found and attaches

@@ -234,6 +234,10 @@ struct HomeView: View {
             if let account = store.selectedAccount {
                 ExpenseEditorView(accountID: account.id)
             }
+        case .scanReceipt:
+            if let account = store.selectedAccount {
+                ExpenseEditorView(accountID: account.id, scansReceipt: true)
+            }
         case .editExpense(let id):
             if let account = store.selectedAccount, let expense = account.expenses.first(where: { $0.id == id }) {
                 ExpenseEditorView(accountID: account.id, expense: expense)
@@ -359,6 +363,8 @@ struct HomeView: View {
         switch route {
         case .newExpense:
             sheet = store.selectedAccount == nil ? .addAccount : .newExpense
+        case .scanReceipt:
+            sheet = store.selectedAccount == nil ? .addAccount : .scanReceipt
         case .settings:
             sheet = .settings
         case .expense(let id):
@@ -441,6 +447,9 @@ enum HomeSheet: Identifiable, Hashable {
     case accounts
     case addAccount
     case newExpense
+    /// New Expense with the document camera up, from the Scan Receipt
+    /// control.
+    case scanReceipt
     /// An expense's details, read only, with Edit and Delete.
     case expense(UUID)
     case editExpense(UUID)
