@@ -7,7 +7,8 @@ public struct SpendingSnapshot: Equatable, Sendable {
         case ready
         /// Nothing to show until the user creates an account.
         case noAccount
-        /// Widgets are a Pro feature and the pass is over.
+        /// Widgets are a Pro feature and the pass is over, with or without
+        /// an account.
         case locked
     }
 
@@ -163,6 +164,10 @@ public struct SpendingSnapshot: Equatable, Sendable {
     /// The snapshot for `accountID` (or the selected account when it is nil or
     /// no longer exists). Pass `calendar` only in tests; otherwise the user's
     /// calendar, with their first weekday, is used.
+    ///
+    /// Once Pro has run out the widget is locked even without an account,
+    /// since adding one would not bring it back; before the pass has
+    /// started (a first run) it asks for an account instead.
     public static func make(
         database: Database,
         accountID: UUID?,
@@ -173,10 +178,11 @@ public struct SpendingSnapshot: Equatable, Sendable {
         let preferences = database.preferences
         let calendar = calendar ?? preferences.calendar
         let account = accountID.flatMap { id in database.accounts.first { $0.id == id } } ?? database.selectedAccount
-        guard let account else {
-            return SpendingSnapshot(state: .noAccount, period: period, accountName: nil, total: 0, currencyCode: preferences.currencyCode)
-        }
         let isPro = ProEntitlement.isPro(preferences, now: now)
+        guard let account else {
+            let hasLapsed = !isPro && (preferences.trialStartDate != nil || preferences.hasProPurchase)
+            return SpendingSnapshot(state: hasLapsed ? .locked : .noAccount, period: period, accountName: nil, total: 0, currencyCode: preferences.currencyCode)
+        }
         let interval = period.interval(containing: now, calendar: calendar)
         // A locked widget carries no spending at all, only the lock.
         guard isPro else {

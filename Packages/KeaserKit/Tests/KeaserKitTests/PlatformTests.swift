@@ -312,6 +312,25 @@ struct SpendingSnapshotTests {
         #expect(empty.accountName == nil)
     }
 
+    /// Adding an account would not bring a lapsed widget back, so it shows
+    /// the lock, in the widget gallery too, rather than asking for one.
+    @Test func withoutAnAccountTheLockWinsOnceProIsOver() {
+        let now = date(2026, 9, 23, 15, in: cal)
+        func state(_ change: (inout Preferences) -> Void) -> SpendingSnapshot.State {
+            var prefs = Preferences()
+            change(&prefs)
+            return SpendingSnapshot.make(database: Database(preferences: prefs), accountID: nil, period: .thisMonth, now: now, calendar: cal).state
+        }
+        // Before the pass starts (a first run), and while it lasts.
+        #expect(state { _ in } == .noAccount)
+        #expect(state { $0.trialStartDate = now } == .noAccount)
+        // The pass is over.
+        #expect(state { $0.trialStartDate = now.addingTimeInterval(-86_400 * 30) } == .locked)
+        // A subscription that ran out, and a lifetime purchase.
+        #expect(state { $0.hasProPurchase = true; $0.proExpirationDate = now.addingTimeInterval(-60) } == .locked)
+        #expect(state { $0.hasProPurchase = true } == .noAccount)
+    }
+
     @Test func refreshesAtMidnightOrWhenThePassEnds() {
         let now = date(2026, 9, 23, 15, in: cal)
         var prefs = Preferences()

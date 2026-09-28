@@ -92,7 +92,8 @@ struct SpendingProvider: AppIntentTimelineProvider {
         let entry = entry(for: configuration, database: await WidgetDatabase.load(now: now), now: now)
         // The widget gallery should show what the widget does, even before
         // the first account exists. A locked widget stays locked there, so
-        // nobody adds one expecting it to work.
+        // nobody adds one expecting it to work: once Pro is over, the
+        // snapshot is locked with or without an account.
         if context.isPreview, entry.snapshot.state == .noAccount {
             return SpendingEntry(date: entry.date, snapshot: .sample(currencyCode: entry.snapshot.currencyCode))
         }
