@@ -71,6 +71,11 @@ simulator GUI; add launch arguments instead.
   `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL` (or an
   `...Accessibility...` size) sets the text size for one shot.
 
+- The Home chart's long-press callout (`ChartCallout` in HomeSummaryCard.swift)
+  is small Liquid Glass tinted with a breath of `keaserInk`, by the founder's
+  choice over the recording's larger opaque tag: keep its look when matching
+  the reference elsewhere. Its placement (clear of the total) is separate.
+
 ## Data
 
 One JSON file (`DatabaseFile.shared`) in the app group
