@@ -69,10 +69,13 @@ struct SettingsTutorialsTests {
         }
     }
 
-    @Test func listRowsFitOnOneLine() {
+    @Test func listRowTitlesFitOnOneLineAndSummariesStayShort() {
         for tutorial in Tutorials.all {
             #expect(tutorial.title.count <= 24, "\(tutorial.title)")
-            #expect(tutorial.summary.count <= 50, "\(tutorial.summary)")
+            // The summary is the footnote under the row: at most three
+            // lines, as the reference's longest one is.
+            #expect(tutorial.summary.count <= 150, "\(tutorial.summary)")
+            #expect(tutorial.summary.hasSuffix("."), "\(tutorial.summary)")
             #expect(!tutorial.headline.isEmpty)
             #expect(!tutorial.intro.isEmpty)
         }

@@ -15,7 +15,7 @@ public struct Tutorial: Identifiable, Hashable, Sendable {
     public let id: ID
     /// The row in the Tutorials list, and the page's navigation title.
     public let title: String
-    /// One line under the row in the Tutorials list.
+    /// The footnote under the row in the Tutorials list.
     public let summary: String
     public let symbol: String
     /// The large title at the top of the article.
@@ -199,7 +199,7 @@ public enum Tutorials {
     static let addExpenseShortcut = Tutorial(
         id: .addExpenseShortcut,
         title: "Add Expense Shortcut",
-        summary: "Log an expense from Back Tap or Control Center.",
+        summary: "Set up a Shortcut that lets you quickly log an expense from anywhere on your device.",
         symbol: "command",
         headline: "Add Expenses with a Shortcut",
         intro: "Keaser gives the Shortcuts app an **\(action)** action. Put it in a shortcut and you can run it from the Lock Screen, Control Center or the back of your iPhone, and log a purchase without opening any app.",
@@ -263,7 +263,7 @@ public enum Tutorials {
     static let walletAutomation = Tutorial(
         id: .walletAutomation,
         title: "Apple Wallet Automation",
-        summary: "Log each purchase as you pay with Apple Wallet.",
+        summary: "Set up a Shortcuts Automation that detects when you tap to pay with Apple Wallet and automatically passes transaction details to the shortcut.",
         symbol: "wave.3.right.circle.fill",
         headline: "Add Expenses as You Pay with Apple Wallet",
         intro: "A Shortcuts automation can run the moment you tap a card from Apple Wallet to pay. Give it Keaser's **\(action)** action and each purchase lands in Keaser with the merchant and the amount already filled in.",

@@ -225,21 +225,25 @@ struct CompactRow: View {
     let title: String
     var value: String?
     var accessory: String?
+    /// The symbol's point size: 22 on Tutorials, as in the reference, and
+    /// 19 elsewhere. The title starts in the same place either way.
+    var symbolSize: CGFloat
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var symbolWidth: CGFloat = 24
 
-    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil) {
+    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil, symbolSize: CGFloat = 19) {
         self.symbol = symbol
         self.title = title
         self.value = value
         self.accessory = accessory
+        self.symbolSize = symbolSize
     }
 
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: symbol)
-                .keaserFont(19, weight: .medium, relativeTo: .body)
+                .keaserFont(symbolSize, weight: .medium, relativeTo: .body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: symbolWidth)
                 .accessibilityHidden(true)
