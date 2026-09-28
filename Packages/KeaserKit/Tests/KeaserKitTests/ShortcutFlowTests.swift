@@ -203,6 +203,86 @@ struct ShortcutFlowSuggestionTests {
         #expect(f.next(after: .category, answer: .category(shopping.id)) == .paymentMethod)
         #expect(f.expense?.categoryID == shopping.id)
     }
+
+    /// No Cash method, so the payment question is asked and Go Back leads
+    /// from it to the guessed category.
+    private func cardsOnly() -> Account {
+        Account(name: "Personal", paymentMethods: [
+            PaymentMethod(name: "Credit Card", symbol: "creditcard.fill"),
+            PaymentMethod(name: "Voucher", symbol: "ticket"),
+        ])
+    }
+
+    @Test func aPickedCategoryIsNotGuessedOverWhenMovingForwardAgain() {
+        let account = cardsOnly()
+        let shopping = category("Shopping", in: account).id
+        var f = flow([account], suggestions: true)
+        _ = f.start()
+        _ = f.next(after: .title, answer: .title("Lunch"))
+        #expect(f.next(after: .amount, answer: .amount(12)) == .paymentMethod)
+        #expect(f.next(after: .paymentMethod, answer: .goBack) == .category)
+        #expect(f.next(after: .category, answer: .category(shopping)) == .paymentMethod)
+        // Back past the category to the amount, then forward again: the
+        // category question is skipped as before, keeping Shopping rather
+        // than the guess (Food & Drinks).
+        #expect(f.next(after: .paymentMethod, answer: .goBack) == .category)
+        #expect(f.next(after: .category, answer: .goBack) == .amount)
+        #expect(f.next(after: .amount, answer: .amount(13)) == .paymentMethod)
+        #expect(f.expense?.categoryID == shopping)
+        #expect(f.expense?.amount == 13)
+    }
+
+    @Test func aPickedPaymentMethodIsNotGuessedOverEither() {
+        // "Lunch" guesses Cash; the person picks Credit Card instead.
+        let account = Account(name: "Personal")
+        let card = method("Credit Card", in: account).id
+        var f = flow([account], suggestions: true)
+        _ = f.start()
+        _ = f.next(after: .title, answer: .title("Lunch"))
+        #expect(f.next(after: .amount, answer: .amount(12)) == nil)
+        #expect(f.expense?.paymentMethodID == method("Cash", in: account).id)
+        // Put right from the question Go Back leads to.
+        var fixed = flow([account], title: "Lunch", amount: 12, suggestions: true)
+        #expect(fixed.start() == nil)
+        _ = fixed.next(after: .category, answer: .category(category("Food & Drinks", in: account).id))
+        _ = fixed.next(after: .paymentMethod, answer: .paymentMethod(card))
+        #expect(fixed.next(after: .category, answer: .category(category("Shopping", in: account).id)) == nil)
+        #expect(fixed.expense?.paymentMethodID == card)
+    }
+
+    @Test func aNewTitleIsGuessedAfresh() {
+        let account = cardsOnly()
+        var f = flow([account], suggestions: true)
+        _ = f.start()
+        _ = f.next(after: .title, answer: .title("Lunch"))
+        _ = f.next(after: .amount, answer: .amount(12))
+        _ = f.next(after: .paymentMethod, answer: .goBack)
+        _ = f.next(after: .category, answer: .category(category("Shopping", in: account).id))
+        // Back to the title: a picked category belonged to the old one.
+        #expect(f.next(after: .paymentMethod, answer: .goBack) == .category)
+        #expect(f.next(after: .category, answer: .goBack) == .amount)
+        #expect(f.next(after: .amount, answer: .goBack) == .title)
+        #expect(f.next(after: .title, answer: .title("Taxi")) == .amount)
+        #expect(f.next(after: .amount, answer: .amount(20)) == .paymentMethod)
+        #expect(f.expense?.categoryID == category("Transportation", in: account).id)
+    }
+
+    @Test func theSameTitleAgainKeepsThePick() {
+        let account = cardsOnly()
+        let shopping = category("Shopping", in: account).id
+        var f = flow([account], suggestions: true)
+        _ = f.start()
+        _ = f.next(after: .title, answer: .title("Lunch"))
+        _ = f.next(after: .amount, answer: .amount(12))
+        _ = f.next(after: .paymentMethod, answer: .goBack)
+        _ = f.next(after: .category, answer: .category(shopping))
+        _ = f.next(after: .paymentMethod, answer: .goBack)
+        _ = f.next(after: .category, answer: .goBack)
+        _ = f.next(after: .amount, answer: .goBack)
+        _ = f.next(after: .title, answer: .title(" Lunch "))
+        #expect(f.next(after: .amount, answer: .amount(12)) == .paymentMethod)
+        #expect(f.expense?.categoryID == shopping)
+    }
 }
 
 struct ShortcutFlowGoBackTests {
