@@ -503,6 +503,24 @@ struct ShortcutCardTests {
     }
 }
 
+struct ShortcutCurrencyNoteTests {
+    private let us = Locale(identifier: "en_US")
+
+    @Test func anAmountInAnotherCurrencySaysWhatWillBeAdded() {
+        let note = ShortcutCard.otherCurrencyNote(amount: 1500, currencyCode: "JPY", recordedAs: 1500, appCurrencyCode: "USD", locale: us)
+        #expect(note == "The shortcut passed ¥1,500, but Keaser records amounts in USD, so it will be added as $1,500.00.")
+        let dollars = ShortcutCard.otherCurrencyNote(amount: Decimal(string: "4.99")!, currencyCode: "usd", recordedAs: 5, appCurrencyCode: "JPY", locale: us)
+        #expect(dollars == "The shortcut passed $4.99, but Keaser records amounts in JPY, so it will be added as ¥5.")
+    }
+
+    @Test func keasersOwnCurrencyOrNoneSaysNothing() {
+        #expect(ShortcutCard.otherCurrencyNote(amount: 5, currencyCode: "USD", recordedAs: 5, appCurrencyCode: "USD") == nil)
+        #expect(ShortcutCard.otherCurrencyNote(amount: 5, currencyCode: "usd", recordedAs: 5, appCurrencyCode: "USD") == nil)
+        #expect(ShortcutCard.otherCurrencyNote(amount: 5, currencyCode: "", recordedAs: 5, appCurrencyCode: "USD") == nil)
+        #expect(ShortcutCard.otherCurrencyNote(amount: 5, currencyCode: " ", recordedAs: 5, appCurrencyCode: "USD") == nil)
+    }
+}
+
 struct ShortcutAmountTests {
     @Test func currencyAmountsAreRoundedToTheCurrency() {
         #expect(QuickLog.amount(fromDecimal: Decimal(string: "19.899")!, currencyCode: "USD") == Decimal(string: "19.9"))

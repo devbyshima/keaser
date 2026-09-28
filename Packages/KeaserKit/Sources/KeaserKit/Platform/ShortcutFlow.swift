@@ -335,6 +335,24 @@ public struct ShortcutCard: Hashable, Sendable {
         date = Self.dateText(expense.date, locale: locale, timeZone: timeZone)
     }
 
+    /// Said before the confirmation when the shortcut passed an amount in
+    /// another currency than Keaser's, which is then always confirmed: Keaser
+    /// records the number as it is, in its own currency, and never converts
+    /// it. Nil when the amount is in Keaser's currency or names none.
+    public static func otherCurrencyNote(
+        amount: Decimal,
+        currencyCode given: String,
+        recordedAs recorded: Decimal,
+        appCurrencyCode: String,
+        locale: Locale = .current
+    ) -> String? {
+        let code = given.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !code.isEmpty, code != appCurrencyCode.uppercased() else { return nil }
+        let passed = MoneyFormat.string(amount, currencyCode: code, locale: locale)
+        let added = MoneyFormat.string(recorded, currencyCode: appCurrencyCode, locale: locale)
+        return "The shortcut passed \(passed), but Keaser records amounts in \(appCurrencyCode.uppercased()), so it will be added as \(added)."
+    }
+
     /// Two-digit month and day in the locale's order: "04/08/2026" in the
     /// US, "08/04/2026" in the UK.
     public static func dateText(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
