@@ -84,15 +84,6 @@ final class OpenAndSearchTests: IntentTestCase {
         }
     }
 
-    func testAssistantSearchOpensWithTheTerm() async throws {
-        try await definitions.intents["SearchInKeaserIntent"].makeIntent(criteria: StringSearchCriteria(term: "Groceries")).run()
-        try await Self.onScreen { app in
-            let field = app.textFields["Search expenses"]
-            XCTAssertTrue(field.waitForExistence(timeout: 15))
-            XCTAssertEqual(field.value as? String, "Groceries")
-        }
-    }
-
     @MainActor
     private static func quitApp() {
         XCUIApplication().terminate()

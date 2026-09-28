@@ -26,21 +26,3 @@ struct SearchExpensesIntent: ShowInAppSearchResultsIntent {
         return .result()
     }
 }
-
-// Siri's in-app search from iOS 27, through the `.system.searchInApp`
-// schema; assistant-only, so Shortcuts lists the intent above once.
-@available(iOS 27.0, *)
-@AppIntent(schema: .system.searchInApp)
-struct SearchInKeaserIntent: ShowInAppSearchResultsIntent {
-    static let isAssistantOnly = true
-    static let searchScopes: [StringSearchScope] = [.general]
-    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
-
-    var criteria: StringSearchCriteria
-
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        AppIntentRoutes.open(.search(criteria.term))
-        return .result()
-    }
-}

@@ -231,12 +231,13 @@ Seeded launches keep the database in memory and never touch the real file.
   Their lookups live in `EntityCatalog` (KeaserKit/Platform).
 - Open and search intents: `OpenExpenseIntent` ("Open Expense"),
   `OpenAccountIntent` ("Open Account"), `SearchExpensesIntent` ("Search
-  Expenses") and, on iOS 27, the assistant-only `SearchInKeaserIntent`
-  (`.system.searchInApp`). There is no `.system.open` version: the schema is
-  iOS 27 only and a second OpenIntent for the same entity fails the build
-  ("OpenIntent targets should be unique"). All four require
-  `.requiresLocalDeviceAuthentication` (the search schema refuses anything
-  less); Add Expense and Log Wallet Transaction keep working while locked.
+  Expenses"). There is deliberately no `.system.searchInApp` intent: on
+  iOS 27 Siri routed questions such as "how much did I spend this week in
+  Keaser" to it and opened the app instead of answering. There is no
+  `.system.open` version either: a second OpenIntent for the same entity
+  fails the build ("OpenIntent targets should be unique"). All three
+  require `.requiresLocalDeviceAuthentication`; Add Expense and Log Wallet
+  Transaction keep working while locked.
   App Shortcut phrases may only interpolate AppEntity or AppEnum parameters,
   so the search phrases carry no term.
 - Spotlight: `SpotlightIndexer` keeps the named index `SpotlightPlan.indexName`
