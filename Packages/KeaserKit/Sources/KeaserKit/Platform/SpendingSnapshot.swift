@@ -1,7 +1,8 @@
 import Foundation
 
 /// Everything the Spending widget shows, computed from the database the app
-/// wrote. The widget extension only lays it out.
+/// wrote, and the texts each size shows it with. The widget extension only
+/// lays it out.
 public struct SpendingSnapshot: Equatable, Sendable {
     public enum State: Equatable, Sendable {
         case ready
@@ -27,13 +28,49 @@ public struct SpendingSnapshot: Equatable, Sendable {
     }
 
     /// "This Month" above the total on the small widget the onboarding
-    /// illustration draws.
+    /// illustration draws (the recording's; the real small widget shows
+    /// `spentCaption` like every other size).
     public var caption: String { period.title }
 
-    /// "Spent This Month" above the total on the medium widget.
+    /// "Spent This Month" above the total, on every home screen widget and
+    /// the rectangular lock screen one.
     public var spentCaption: String { "Spent \(period.title)" }
 
     public var formattedTotal: String { MoneyFormat.string(total, currencyCode: currencyCode) }
+
+    /// One word above the total on the circular lock screen widget: "Month".
+    public var shortCaption: String {
+        switch period {
+        case .today: "Today"
+        case .thisWeek: "Week"
+        case .thisMonth: "Month"
+        case .thisYear: "Year"
+        case .allTime: "All Time"
+        }
+    }
+
+    /// The total without cents, abbreviated from a thousand ("$148",
+    /// "$1.4K", "RWF 12M"), for the circular lock screen widget.
+    public func compactTotal(locale: Locale = .current) -> String {
+        let style = Decimal.FormatStyle.Currency(code: currencyCode, locale: locale)
+        // Anything that would round up to a thousand is abbreviated too, so
+        // "$1,000" never takes the place of "$1K".
+        if abs(total) < Decimal(string: "999.5")! {
+            return total.formatted(style.precision(.fractionLength(0)))
+        }
+        return total.formatted(style.notation(.compactName).precision(.significantDigits(1...2)))
+    }
+
+    /// "Spent This Month: $271.37", for the inline lock screen widget.
+    public func inlineText(locale: Locale = .current) -> String {
+        "\(spentCaption): \(MoneyFormat.string(total, currencyCode: currencyCode, locale: locale))"
+    }
+
+    /// "Month: $271", for the inline lock screen widget when the full line
+    /// does not fit.
+    public func shortInlineText(locale: Locale = .current) -> String {
+        "\(shortCaption): \(compactTotal(locale: locale))"
+    }
 
     /// The snapshot for `accountID` (or the selected account when it is nil or
     /// no longer exists). Pass `calendar` only in tests; otherwise the user's
