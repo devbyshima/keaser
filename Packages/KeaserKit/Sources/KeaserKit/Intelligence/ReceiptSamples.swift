@@ -9,19 +9,20 @@ public struct ReceiptSample: Sendable {
     public let lines: [String]
     public let expected: ReceiptDraft
 
-    init(_ name: String, merchant: String?, total: String?, day: ReceiptDay?, currency: String? = nil, _ text: String) {
+    init(_ name: String, merchant: String?, total: String?, day: ReceiptDay?, currency: String? = nil, symbol: String? = nil, _ text: String) {
         self.name = name
         self.lines = text.split(separator: "\n").map(String.init)
         let total = total.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
-        self.expected = ReceiptDraft(merchant: merchant, total: total, day: day, currencyCode: currency)
+        self.expected = ReceiptDraft(merchant: merchant, total: total, day: day, currencyCode: currency, currencySymbol: symbol)
     }
 }
 
 /// Receipts from the places Keaser is used: US shops and restaurants,
 /// French, German, Spanish, Italian and Dutch ones with decimal commas,
 /// British pounds, Rwandan francs without decimals, Japanese yen, and a ride
-/// receipt; totals next to subtotals, tax, tips, savings, cash and change;
-/// dates in every common order.
+/// receipt; totals next to subtotals, tax, tips, suggested tips, savings,
+/// cash, change, amounts paid and gross amounts; units that spell a
+/// currency ("6 FT", "5 KGS"); dates in every common order.
 public enum ReceiptSamples {
     /// The day the samples are read on; none of their dates is after it.
     public static let today = day(2026, 9, 27)
@@ -35,7 +36,7 @@ public enum ReceiptSamples {
     }
 
     public static let all: [ReceiptSample] = [
-        ReceiptSample("grocery", merchant: "Trader Joe's", total: "12.50", day: day(2026, 9, 21), """
+        ReceiptSample("grocery", merchant: "Trader Joe's", total: "12.50", day: day(2026, 9, 21), symbol: "$", """
         TRADER JOE'S
         1234 Market St
         San Francisco, CA 94103
@@ -51,7 +52,7 @@ public enum ReceiptSamples {
         09/21/2026 14:32
         THANK YOU FOR SHOPPING
         """),
-        ReceiptSample("coffee", merchant: "Blue Bottle Coffee", total: "11.43", day: day(2026, 9, 26), """
+        ReceiptSample("coffee", merchant: "Blue Bottle Coffee", total: "11.43", day: day(2026, 9, 26), symbol: "$", """
         BLUE BOTTLE COFFEE
         66 Mint St
         San Francisco, CA 94103
@@ -108,7 +109,7 @@ public enum ReceiptSamples {
         TOTAL 7.98
         DEBIT 7.98
         """),
-        ReceiptSample("gas", merchant: "Shell", total: "52.81", day: day(2026, 9, 24), """
+        ReceiptSample("gas", merchant: "Shell", total: "52.81", day: day(2026, 9, 24), symbol: "$", """
         SHELL
         4501 El Camino Real
         Palo Alto, CA 94306
@@ -121,7 +122,7 @@ public enum ReceiptSamples {
         TOTAL $52.81
         DEBIT $52.81
         """),
-        ReceiptSample("starbucks", merchant: "Starbucks", total: "10.22", day: day(2026, 9, 26), """
+        ReceiptSample("starbucks", merchant: "Starbucks", total: "10.22", day: day(2026, 9, 26), symbol: "$", """
         STARBUCKS STORE #05123
         1 Ferry Building
         San Francisco, CA
@@ -155,7 +156,7 @@ public enum ReceiptSamples {
         Card 13.50
         Thanks!
         """),
-        ReceiptSample("ride", merchant: "Uber", total: "23.47", day: day(2026, 9, 22), """
+        ReceiptSample("ride", merchant: "Uber", total: "23.47", day: day(2026, 9, 22), symbol: "$", """
         Uber
         Thanks for riding, Alex
         September 22, 2026
@@ -278,7 +279,7 @@ public enum ReceiptSamples {
         3,000 Frw
         28/08/2026
         """),
-        ReceiptSample("konbini-tokyo", merchant: "FamilyMart", total: "753", day: day(2026, 9, 20), """
+        ReceiptSample("konbini-tokyo", merchant: "FamilyMart", total: "753", day: day(2026, 9, 20), symbol: "¥", """
         FamilyMart
         Shibuya Dogenzaka Store
         Tel 03-1234-5678
@@ -292,7 +293,7 @@ public enum ReceiptSamples {
         Cash ¥1,000
         Change ¥247
         """),
-        ReceiptSample("konbini-japanese", merchant: "ファミリーマート", total: "753", day: day(2026, 9, 20), """
+        ReceiptSample("konbini-japanese", merchant: "ファミリーマート", total: "753", day: day(2026, 9, 20), symbol: "¥", """
         ファミリーマート
         渋谷道玄坂店
         2026年9月20日 07:48
@@ -316,6 +317,69 @@ public enum ReceiptSamples {
         Pesa taslimu 20,000
         Chenji 10,000
         Asante
+        """),
+        // A suggested-tip block under the total: each suggestion prints
+        // its own "Total", larger than the one on the bill.
+        ReceiptSample("tip-suggestions", merchant: "Orchard Bistro", total: "43.20", day: day(2026, 9, 23), symbol: "$", """
+        ORCHARD BISTRO
+        455 Valencia St
+        San Francisco, CA 94103
+        09/23/2026 7:42 PM
+        2 Salmon Bowl 32.00
+        2 Iced Tea 8.00
+        Subtotal 40.00
+        Tax 3.20
+        Total 43.20
+        Suggested gratuity
+        18%: $7.78 (Total: $51.02)
+        20%: $8.64 (Total: $51.84)
+        22%: $9.50 (Total: $52.70)
+        """),
+        // Paid in cash: "Amount Paid" is the note handed over.
+        ReceiptSample("cash-change", merchant: "Corner Deli", total: "17.96", day: day(2026, 9, 22), """
+        CORNER DELI
+        120 Broadway
+        New York, NY 10271
+        09/22/2026 12:15 PM
+        Turkey Club 11.50
+        Chips 2.25
+        Coffee 2.75
+        Subtotal 16.50
+        Tax 1.46
+        Total 17.96
+        Amount Paid 20.00
+        Change 2.04
+        """),
+        // The gross amount is before the discount; the net amount is paid.
+        ReceiptSample("gross-net", merchant: "Fresh Mart", total: "450.00", day: day(2026, 9, 19), """
+        FRESH MART
+        MG Road, Bengaluru 560001
+        Date: 19/09/2026 18:20
+        Basmati Rice 5kg 350.00
+        Sunflower Oil 1L 150.00
+        Gross Amount 500.00
+        Discount -50.00
+        Net Amount 450.00
+        Paid by UPI 450.00
+        Thank you, visit again
+        """),
+        // "6 FT" is six feet of cable, not forints: dollars, month first.
+        ReceiptSample("cable", merchant: "Best Buy", total: "12.99", day: day(2026, 9, 4), symbol: "$", """
+        BEST BUY #123
+        2800 Geary Blvd
+        San Francisco, CA 94118
+        6 FT HDMI CABLE 12.99
+        TOTAL $12.99
+        09/04/2026 14:32
+        """),
+        // "5 KGS" is five kilograms, not Kyrgyz som: pesos, month first.
+        ReceiptSample("grocery-manila", merchant: "Puregold Price Club", total: "346.00", day: day(2026, 9, 5), currency: "PHP", """
+        PUREGOLD PRICE CLUB
+        Quezon Ave, Quezon City
+        09/05/2026 10:05 AM
+        RICE 5 KGS 250.00
+        EGGS 12 PCS 96.00
+        TOTAL PHP 346.00
         """),
         ReceiptSample("not-a-receipt", merchant: "Meeting notes", total: nil, day: nil, """
         Meeting notes

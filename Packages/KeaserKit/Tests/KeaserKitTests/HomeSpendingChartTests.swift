@@ -84,6 +84,19 @@ struct HomeSpendingChartTests {
         #expect(result[29].total == 6)
     }
 
+    /// What the axis prints under each bar: a month's days only every
+    /// seventh day (the view draws nothing for the others, however many
+    /// marks Charts asks it for), a year's months in either width.
+    @Test func theAxisPrintsOnlyTheLabelledBars() {
+        let month = buckets(.thisMonth, [])
+        #expect(month.compactMap { SpendingChart.axisLabel(of: $0, narrow: false) } == ["1", "8", "15", "22", "29"])
+        #expect(month.compactMap { SpendingChart.axisLabel(of: $0, narrow: true) } == ["1", "8", "15", "22", "29"])
+        #expect(SpendingChart.axisLabel(of: month[1], narrow: false) == nil)
+        let year = buckets(.thisYear, [])
+        #expect(year.compactMap { SpendingChart.axisLabel(of: $0, narrow: false) }.first == "Jan")
+        #expect(year.compactMap { SpendingChart.axisLabel(of: $0, narrow: true) }.joined() == "JFMAMJJASOND")
+    }
+
     @Test func thisWeekStartsOnTheChosenWeekday() {
         let expenses = [Expense(title: "Brunch", amount: 10, date: date(2026, 9, 21))] // Monday
         let sunday = buckets(.thisWeek, expenses, firstWeekday: 1)
@@ -191,6 +204,78 @@ struct HomeChartCalloutTests {
 
     @Test func calloutNeverStartsAboveItsPlace() {
         #expect(SpendingChart.calloutRise(barTop: -20, calloutBottom: -10) == 0)
+    }
+
+    // The home card as laid out on an iPhone 16 Pro: a 338pt chart with its
+    // plot starting 6pt down, the total's text 40pt above the chart, and a
+    // callout 106 by 66pt as in the reference.
+    private let total = SpendingChart.Area(x: 0, y: -88, width: 190, height: 48)
+
+    private func placement(
+        barCenter: Double,
+        barTop: Double,
+        keepClear: SpendingChart.Area?,
+        barWidth: Double = 17.5,
+        calloutWidth: Double = 106
+    ) -> SpendingChart.CalloutPlacement {
+        SpendingChart.calloutPlacement(
+            barCenter: barCenter,
+            barWidth: barWidth,
+            barTop: barTop,
+            calloutWidth: calloutWidth,
+            calloutHeight: 66,
+            chartWidth: 338,
+            plotTop: 6,
+            keepClear: keepClear
+        )
+    }
+
+    @Test func calloutRestsAboveThePlotAsInTheReference() {
+        // The All Time bar near the trailing edge: 14pt above the plot,
+        // clear of the total to its left.
+        #expect(placement(barCenter: 280, barTop: 6, keepClear: total)
+            == SpendingChart.CalloutPlacement(leading: 227, bottom: -8))
+        // Nothing to avoid (before the total is measured): the same.
+        #expect(placement(barCenter: 12, barTop: 6, keepClear: nil)
+            == SpendingChart.CalloutPlacement(leading: 0, bottom: -8))
+        #expect(placement(barCenter: 12, barTop: 6, keepClear: SpendingChart.Area(x: 0, y: 0, width: 0, height: 0))
+            == SpendingChart.CalloutPlacement(leading: 0, bottom: -8))
+    }
+
+    @Test func calloutDropsAboveItsBarRatherThanCoverTheTotal() {
+        // January of This Year, $748 of a 2K scale: the bar's top is 110pt
+        // into the plot, so the callout sits 14pt above it.
+        let january = placement(barCenter: 12, barTop: 116, keepClear: total)
+        #expect(january == SpendingChart.CalloutPlacement(leading: 0, bottom: 102))
+        #expect(!total.overlaps(SpendingChart.Area(x: january.leading, y: january.bottom - 66, width: 106, height: 66)))
+    }
+
+    @Test func calloutGoesBesideATallBarUnderTheTotal() {
+        // The tallest bar at the leading edge: no room above it, so beside
+        // it on the trailing side, its top 4pt under the total.
+        let tallest = placement(barCenter: 12, barTop: 6, keepClear: total)
+        #expect(tallest == SpendingChart.CalloutPlacement(leading: 12 + 8.75 + 4, bottom: -40 + 4 + 66))
+        #expect(!total.overlaps(SpendingChart.Area(x: tallest.leading, y: tallest.bottom - 66, width: 106, height: 66)))
+        // A total as wide as the chart and a bar at the trailing edge:
+        // beside it on the leading side.
+        let wide = SpendingChart.Area(x: 0, y: -88, width: 338, height: 48)
+        #expect(placement(barCenter: 320, barTop: 6, keepClear: wide)
+            == SpendingChart.CalloutPlacement(leading: 320 - 8.75 - 4 - 106, bottom: -40 + 4 + 66))
+    }
+
+    @Test func calloutNeverCoversTheTotal() {
+        // Every bar of a month and of a year, at every height.
+        for count in [12, 31] {
+            let slot = 300.0 / Double(count)
+            for index in 0..<count {
+                for barTop in stride(from: 6.0, through: 186, by: 20) {
+                    let spot = placement(barCenter: slot * (Double(index) + 0.5), barTop: barTop, keepClear: total, barWidth: slot * 0.7)
+                    let frame = SpendingChart.Area(x: spot.leading, y: spot.bottom - 66, width: 106, height: 66)
+                    #expect(!total.overlaps(frame), "bar \(index) of \(count), top \(barTop)")
+                    #expect(frame.minX >= 0 && frame.maxX <= 338)
+                }
+            }
+        }
     }
 }
 

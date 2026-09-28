@@ -97,6 +97,16 @@ public enum SpendingChart {
         }
     }
 
+    /// The text under `bucket` on the chart's axis: its label, or its
+    /// `narrowLabel` when `narrow`, and nil for a bar that goes unlabelled
+    /// (the days between a month's weekly labels). The chart asks this for
+    /// every mark it draws, so the axis keeps to these labels even where
+    /// Charts marks every category.
+    public static func axisLabel(of bucket: Bucket, narrow: Bool) -> String? {
+        guard bucket.showsLabel else { return nil }
+        return narrow ? bucket.narrowLabel : bucket.label
+    }
+
     /// What VoiceOver says for a bar, fuller than its axis label: "4 AM to
     /// 8 AM", "Monday, September 21", "September 15", "September 2026",
     /// "2026".
@@ -157,6 +167,88 @@ public enum SpendingChart {
     public static func calloutLeading(barCenter: Double, calloutWidth: Double, chartWidth: Double) -> Double {
         let centred = barCenter - calloutWidth / 2
         return min(max(centred, 0), max(chartWidth - calloutWidth, 0))
+    }
+
+    /// Where the long-press callout rests, in the chart's coordinates (y
+    /// grows downwards): its leading edge and its bottom edge.
+    public struct CalloutPlacement: Equatable, Sendable {
+        public var leading: Double
+        public var bottom: Double
+
+        public init(leading: Double, bottom: Double) {
+            self.leading = leading
+            self.bottom = bottom
+        }
+    }
+
+    /// A rectangle in the chart's coordinates (y grows downwards).
+    public struct Area: Equatable, Sendable {
+        public var minX: Double
+        public var minY: Double
+        public var maxX: Double
+        public var maxY: Double
+
+        public init(x: Double, y: Double, width: Double, height: Double) {
+            minX = x
+            minY = y
+            maxX = x + width
+            maxY = y + height
+        }
+
+        public var isEmpty: Bool { maxX <= minX || maxY <= minY }
+
+        /// Whether the two share more than an edge.
+        public func overlaps(_ other: Area) -> Bool {
+            minX < other.maxX && other.minX < maxX && minY < other.maxY && other.minY < maxY
+        }
+
+        func grown(by amount: Double) -> Area {
+            Area(x: minX - amount, y: minY - amount, width: maxX - minX + 2 * amount, height: maxY - minY + 2 * amount)
+        }
+    }
+
+    /// Where the long-press callout rests, never over `keepClear` (the
+    /// period's total, printed above the chart; nil or empty when there is
+    /// nothing to avoid). In order:
+    ///
+    /// 1. Centred over its bar, `gap` above the plot, as in the reference.
+    /// 2. Where that would cover the total (a bar near the leading edge):
+    ///    `gap` above the bar's top, inside the plot.
+    /// 3. Where the bar is too tall for that: beside the bar, on the
+    ///    trailing side if the chart has room there, else the leading one,
+    ///    with its top just under the total.
+    ///
+    /// It always stays inside the chart, `chartWidth` wide. `barTop` and
+    /// `plotTop` are y positions; `barWidth` is the drawn bar's width.
+    public static func calloutPlacement(
+        barCenter: Double,
+        barWidth: Double,
+        barTop: Double,
+        calloutWidth: Double,
+        calloutHeight: Double,
+        chartWidth: Double,
+        plotTop: Double,
+        keepClear: Area?,
+        gap: Double = 14,
+        margin: Double = 4
+    ) -> CalloutPlacement {
+        let centred = calloutLeading(barCenter: barCenter, calloutWidth: calloutWidth, chartWidth: chartWidth)
+        let abovePlot = CalloutPlacement(leading: centred, bottom: plotTop - gap)
+        guard let keepClear, !keepClear.isEmpty else { return abovePlot }
+        let avoided = keepClear.grown(by: margin)
+        func isClear(_ placement: CalloutPlacement) -> Bool {
+            !avoided.overlaps(Area(x: placement.leading, y: placement.bottom - calloutHeight, width: calloutWidth, height: calloutHeight))
+        }
+        if isClear(abovePlot) { return abovePlot }
+        let aboveBar = CalloutPlacement(leading: centred, bottom: max(barTop, plotTop) - gap)
+        if isClear(aboveBar) { return aboveBar }
+        let bottom = avoided.maxY + calloutHeight
+        let trailing = barCenter + barWidth / 2 + margin
+        if trailing + calloutWidth <= chartWidth {
+            return CalloutPlacement(leading: trailing, bottom: bottom)
+        }
+        let leading = barCenter - barWidth / 2 - margin - calloutWidth
+        return CalloutPlacement(leading: max(leading, 0), bottom: bottom)
     }
 
     /// How far below its resting place the callout starts as it grows out

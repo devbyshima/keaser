@@ -20,6 +20,9 @@ extension Color {
     static let homeSheetTile = Color(light: .white.opacity(0.75), dark: .clear)
     /// The tile behind a suggested expense's category symbol.
     static let homeSuggestionTile = Color(light: .white.opacity(0.75), dark: .white.opacity(0.08))
+    /// A header button's label while it is disabled (Save with nothing to
+    /// save), measured from the reference.
+    static let homeSheetDisabledAction = Color(light: .init(white: 0.56), dark: .init(white: 0.41))
 }
 
 extension View {
@@ -31,5 +34,39 @@ extension View {
         dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .padding(.horizontal, 16)
             .padding(.top, HomeSheetMetrics.headerTop)
+    }
+
+    /// Cancel and Save in the expense editor's header. On iOS 26 and later
+    /// they are glass capsules at the reference's size, with Save, the
+    /// confirming action, in semibold; before iOS 26 the translucent
+    /// capsules stay as they are.
+    @ViewBuilder
+    func homeSheetHeaderButton(confirms: Bool = false) -> some View {
+        if #available(iOS 26.0, *) {
+            buttonStyle(HomeSheetHeaderButtonStyle(confirms: confirms))
+        } else {
+            keaserGlassButtonStyle()
+        }
+    }
+}
+
+/// A glass capsule 42pt tall with 16pt either side of its label, as
+/// measured from the reference's Edit Expense header. The system glass
+/// button style draws its own size, which iOS 27 made smaller (and its
+/// large size larger) than the reference.
+private struct HomeSheetHeaderButtonStyle: ButtonStyle {
+    let confirms: Bool
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(confirms ? .semibold : .regular))
+            .foregroundStyle(isEnabled ? Color.keaserPrimaryText : Color.homeSheetDisabledAction)
+            .lineLimit(1)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 42)
+            .contentShape(Capsule())
+            .keaserGlass(interactive: isEnabled)
     }
 }

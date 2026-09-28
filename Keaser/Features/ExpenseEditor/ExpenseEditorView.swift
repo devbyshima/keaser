@@ -44,6 +44,10 @@ struct ExpenseEditorView: View {
     @State private var receiptNotFound = false
     @State private var date: Date
     @State private var confirmingDelete = false
+    /// Where the scroll view and Delete Expense end on screen: the button
+    /// only shows when all of it is above the keyboard.
+    @State private var visibleBottom = CGFloat.infinity
+    @State private var deleteBottom = CGFloat.zero
     @State private var suggestionTaken = 0
     @State private var finished = 0
     @FocusState private var focus: Field?
@@ -99,11 +103,11 @@ struct ExpenseEditorView: View {
         VStack(spacing: 0) {
             KeaserSheetHeader(title: isNew ? "New Expense" : "Edit Expense") {
                 Button("Cancel") { dismiss() }
-                    .keaserGlassButtonStyle()
+                    .homeSheetHeaderButton()
                     .accessibilityShowsLargeContentViewer()
             } trailing: {
                 Button("Save", action: save)
-                    .keaserGlassButtonStyle()
+                    .homeSheetHeaderButton(confirms: true)
                     .disabled(!canSave)
                     .accessibilityShowsLargeContentViewer()
             }
@@ -125,6 +129,9 @@ struct ExpenseEditorView: View {
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
             .keaserReadableScrollContent()
+            // Where the scroll view ends on screen: at the keyboard's top
+            // edge while it is up. Delete Expense only shows above it.
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { visibleBottom = $0 }
         }
         // One detent, as in the reference: the keyboard lifts the sheet
         // instead of expanding it.
@@ -312,8 +319,13 @@ struct ExpenseEditorView: View {
         .editorRow(height: 64)
     }
 
+    /// Delete Expense under the card. Smart Suggestions' rows (or a large
+    /// text size) can push it down to the keyboard's edge; rather than show
+    /// it cut in half there, it stays out of sight until it is scrolled
+    /// fully into view, or the keyboard or the rows go away.
     private var deleteButton: some View {
-        KeaserCard(fill: .homeSheetCard) {
+        let fits = deleteBottom <= visibleBottom + 0.5
+        return KeaserCard(fill: .homeSheetCard) {
             Button {
                 focus = nil
                 confirmingDelete = true
@@ -329,6 +341,10 @@ struct ExpenseEditorView: View {
             }
             .buttonStyle(HighlightRowButtonStyle())
         }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { deleteBottom = $0 }
+        .opacity(fits ? 1 : 0)
+        .allowsHitTesting(fits)
+        .animation(.easeOut(duration: 0.15), value: fits)
     }
 
     // MARK: Actions
@@ -486,9 +502,7 @@ struct ExpenseEditorView: View {
                let filled = day.date(keepingTimeOf: date, calendar: store.preferences.calendar) {
                 date = filled
             }
-            receiptNote = draft.isInOtherCurrency(than: currencyCode)
-                ? "Filled in from your receipt, which shows \(draft.currencyCode ?? ""). Keaser records amounts in \(currencyCode), so check the amount before saving."
-                : "Filled in from your receipt. Check the details before saving."
+            receiptNote = draft.note(recordingIn: currencyCode)
         }
         focus = nil
         guessLabels()
@@ -521,9 +535,16 @@ struct ExpenseEditorView: View {
 }
 
 /// The note under the card once a receipt filled it in, set like a list
-/// section's footer.
+/// section's footer. On iOS 26 and later Home's + button shows blurred
+/// through the glass sheet at the trailing edge, level with the note, as
+/// in the reference; the note's lines wrap before they reach it.
 private struct ReceiptNote: View {
     let text: String
+
+    /// The + button and its blur, measured from the note's trailing edge.
+    private static var trailingClearance: CGFloat {
+        if #available(iOS 26.0, *) { 72 } else { 0 }
+    }
 
     var body: some View {
         Text(text)
@@ -531,6 +552,7 @@ private struct ReceiptNote: View {
             .foregroundStyle(Color.keaserSecondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
+            .padding(.trailing, Self.trailingClearance)
             .transition(.opacity)
     }
 }

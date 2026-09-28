@@ -25,14 +25,18 @@ public struct ReceiptAmount: Equatable, Sendable {
 /// Intelligence, and the fallback for any detail the model gets wrong.
 ///
 /// - Total: the amount on the line saying "Total" (or "Amount due",
-///   "Summe", "Total TTC"...), never a subtotal, tax, cash or change line;
-///   the largest price on the receipt when no line says so.
+///   "Summe", "Total TTC"...), never a subtotal, tax, cash, change, amount
+///   paid, gross amount or suggested-tip line; the largest price on the
+///   receipt when no line says so.
 /// - Day: the first date printed that is not in the future, in any common
 ///   format; "03/04/2026" is read the way the receipt's currency or else
-///   the person's region writes dates.
+///   the person's region writes dates, unless that reading is tomorrow and
+///   the other one is not.
 /// - Merchant: the first line near the top that is not an address, phone
 ///   number, date, greeting or price, tidied up to be a title.
-/// - Currency: a code or a symbol only one currency uses, next to an amount.
+/// - Currency: a code or a symbol only one currency uses, next to an amount
+///   (never letters after a count, such as "6 FT" or "5 KGS"); otherwise a
+///   symbol several currencies share ("$", "¥"), kept on the draft.
 public enum ReceiptParser {
     /// What the heuristics read, and whether the receipt itself settled the
     /// details a language model might read better.
@@ -62,6 +66,7 @@ public enum ReceiptParser {
     public static func reading(from lines: [String], today: ReceiptDay, prefersMonthFirst: Bool) -> Reading {
         let lines = lines.map(oneLine).filter { !$0.isEmpty }
         let currency = currencyCode(in: lines)
+        let symbol = currency == nil ? sharedSymbol(in: lines) : nil
         // Receipts with decimal commas come from places that write the day
         // first.
         let receiptOrder = currency.map { monthFirstCurrencies.contains($0) }
@@ -73,7 +78,8 @@ public enum ReceiptParser {
                 merchant: merchant(in: lines),
                 total: labelled ?? largestPrice(in: lines),
                 day: found?.day,
-                currencyCode: currency
+                currencyCode: currency,
+                currencySymbol: symbol
             ),
             totalIsLabelled: labelled != nil,
             dayIsSettled: found.map { !$0.isAmbiguous || receiptOrder != nil } ?? false
@@ -95,12 +101,15 @@ public enum ReceiptParser {
         labelledTotal(in: lines) ?? largestPrice(in: lines)
     }
 
-    /// The amount on the line naming the final total, if any does.
+    /// The amount on the line naming the final total, if any does. Between
+    /// lines of the same rank the larger amount wins: the total with the tip
+    /// after the one without. A plain "Total" line with a percentage on it
+    /// is a suggested tip ("18%: $7.78 (Total: $51.02)"), not the total.
     static func labelledTotal(in lines: [String]) -> Decimal? {
         let separator = decimalSeparator(in: lines)
         var best: (rank: Int, value: Decimal)?
         for (index, line) in lines.enumerated() {
-            guard let rank = totalRank(words(line)) else { continue }
+            guard let rank = totalRank(words(line)), rank == 2 || !line.contains("%") else { continue }
             var found = amounts(in: line, decimalSeparator: separator).filter { !$0.isNegative && !$0.hasUnit && $0.value > 0 }
             // The label and the amount can come out on separate lines.
             if found.isEmpty, index + 1 < lines.count, isBareAmount(lines[index + 1]) {
@@ -162,6 +171,9 @@ public enum ReceiptParser {
         "sconto", "coupon", "coupons", "items", "item", "articles", "article", "artikel", "qty",
         "quantity", "count", "points", "point", "tip", "tips", "gratuity", "pourboire", "trinkgeld",
         "propina", "mancia", "小計", "小计", "소계",
+        // "Amount paid" is often the cash handed over; "Total paid" still
+        // names the total (a final phrase, matched first).
+        "paid",
     ]).union(notPaidWords)
 
     /// Words on a line whose amount is not what was paid.
@@ -170,6 +182,8 @@ public enum ReceiptParser {
         "given", "gegeben", "change", "rendu", "monnaie", "ruckgeld", "wechselgeld", "cambio", "resto",
         "deposit", "pfand", "saving", "savings", "saved", "discount", "points", "balance", "お預り",
         "お預かり", "預り", "お釣り", "釣銭",
+        // Before a discount.
+        "gross", "brutto",
     ]
 
     // MARK: Amounts
@@ -242,8 +256,19 @@ public enum ReceiptParser {
 
         let leading = mark(in: characters, before: start)
         let trailing = mark(in: characters, after: end)
-        let leadingCurrency = currency(forMark: leading.text)
-        let trailingCurrency = currency(forMark: trailing.text)
+        var leadingCurrency = currency(forMark: leading.text)
+        var trailingCurrency = currency(forMark: trailing.text)
+        // Letters after a count are its unit, even where they spell a
+        // currency: "6 FT HDMI CABLE 12.99" (feet, not forints) and
+        // "RICE 5 KGS 250.00" (kilograms, not Kyrgyz som, for either
+        // number). A currency after a whole number ends the line: "3,000 Frw".
+        let isCount = text.allSatisfy(\.isASCIIDigit)
+        if isCount, trailingCurrency.isMark, hasText(in: characters, from: trailing.start + trailing.text.count) {
+            trailingCurrency = (nil, false)
+        }
+        if leadingCurrency.isMark, followsCount(characters, before: leading.start) {
+            leadingCurrency = (nil, false)
+        }
 
         var hasUnit = false
         if leading.isAttached, !leading.text.isEmpty, !leadingCurrency.isMark { hasUnit = true }
@@ -323,6 +348,21 @@ public enum ReceiptParser {
         return digits == 3 ? digits : nil
     }
 
+    /// Whether a letter or a digit comes at or after `index`.
+    private static func hasText(in characters: [Character], from index: Int) -> Bool {
+        characters[min(index, characters.count)...].contains { $0.isLetter || $0.isNumber }
+    }
+
+    /// Whether a whole number ends just before `index`, give or take a
+    /// space: "5 " in "RICE 5 KGS 250.00".
+    private static func followsCount(_ characters: [Character], before index: Int) -> Bool {
+        var end = index
+        if end > 0, characters[end - 1] == " " { end -= 1 }
+        var start = end
+        while start > 0, characters[start - 1].isASCIIDigit { start -= 1 }
+        return start < end && (start == 0 || characters[start - 1] == " ")
+    }
+
     private static func isHyphen(_ character: Character) -> Bool {
         character == "-" || character == "\u{2212}" || character == "\u{2013}"
     }
@@ -400,6 +440,20 @@ public enum ReceiptParser {
         return order.max { counts[$0, default: 0] < counts[$1, default: 0] }
     }
 
+    /// The symbol several currencies share ("$", "¥") printed next to the
+    /// receipt's amounts, for a receipt that names no currency. "￥" is
+    /// read as "¥".
+    public static func sharedSymbol(in lines: [String]) -> String? {
+        var counts: [String: Int] = [:]
+        for line in lines where amounts(in: line).contains(where: { $0.hasCurrencyMark && $0.currencyCode == nil }) {
+            for character in line {
+                let text = String(character) == "￥" ? "¥" : String(character)
+                if ambiguousSymbols.contains(text) { counts[text, default: 0] += 1 }
+            }
+        }
+        return counts.max { $0.value < $1.value || ($0.value == $1.value && $0.key > $1.key) }?.key
+    }
+
     /// The currency a mark names, and whether it is a currency mark at all
     /// ("$" is one, but names no single currency).
     static func currency(forMark mark: String) -> (code: String?, isMark: Bool) {
@@ -468,19 +522,24 @@ public enum ReceiptParser {
     }
 
     /// `day(in:today:monthFirst:)`, and whether the date it came from could
-    /// be read another way.
+    /// be read another way. Tomorrow is only taken when it is the one
+    /// reading: "03/04" read on April 2 is March 4, even where the day
+    /// comes first.
     static func dayChoice(in lines: [String], today: ReceiptDay, monthFirst: Bool) -> (day: ReceiptDay, isAmbiguous: Bool)? {
         for line in lines {
             guard Set(words(line)).isDisjoint(with: notPurchaseDayWords) else { continue }
             for candidates in days(in: line, monthFirst: monthFirst) {
                 let plausible = candidates.filter { isPlausible($0, today: today) }
-                if let day = plausible.first { return (day, plausible.count > 1) }
+                if let day = plausible.first(where: { $0 <= today }) ?? plausible.first {
+                    return (day, plausible.count > 1)
+                }
             }
         }
         return nil
     }
 
-    /// Whether `day` could be when a receipt was printed.
+    /// Whether `day` could be when a receipt was printed: not after
+    /// tomorrow (the shop may be a time zone ahead) and not decades ago.
     public static func isPlausible(_ day: ReceiptDay, today: ReceiptDay) -> Bool {
         day <= today.next && day.year >= today.year - 20
     }

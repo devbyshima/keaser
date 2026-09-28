@@ -98,6 +98,21 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.amounts(in: "TOP 19.99").first?.currencyCode == nil)
     }
 
+    @Test func lettersAfterACountAreItsUnitNotACurrency() {
+        // Six feet, not forints; five kilograms, not Kyrgyz som (for either number).
+        #expect(ReceiptParser.amounts(in: "6 FT HDMI CABLE 12.99").map(\.currencyCode) == [nil, nil])
+        #expect(ReceiptParser.amounts(in: "6 FT HDMI CABLE 12.99").first?.looksLikeMoney == false)
+        #expect(ReceiptParser.amounts(in: "RICE 5 KGS 250.00").map(\.currencyCode) == [nil, nil])
+        #expect(ReceiptParser.amounts(in: "6FT HDMI CABLE 12.99").first?.hasUnit == true)
+        #expect(ReceiptParser.currencyCode(in: ["6 FT HDMI CABLE 12.99", "TOTAL $12.99"]) == nil)
+        #expect(ReceiptParser.currencyCode(in: ["RICE 5 KGS 250.00", "TOTAL PHP 250.00"]) == "PHP")
+        // A currency still ends a line, or comes before its amount.
+        #expect(ReceiptParser.amounts(in: "3,000 Frw").first?.currencyCode == "RWF")
+        #expect(ReceiptParser.amounts(in: "Total 250 Ft").first?.currencyCode == "HUF")
+        #expect(ReceiptParser.amounts(in: "TOTAL KGS 250.00").first?.currencyCode == "KGS")
+        #expect(ReceiptParser.amounts(in: "Total 12.50 EUR Visa").first?.currencyCode == "EUR")
+    }
+
     // MARK: Total
 
     @Test func takesTheTotalNotTheSubtotalTaxOrCash() {
@@ -111,6 +126,22 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.total(in: ["Total 43.50", "Tip 8.00", "Total 51.50"]) == Decimal(string: "51.50"))
         #expect(ReceiptParser.total(in: ["Total 51.50", "Amount due 43.50"]) == Decimal(string: "43.50"))
         #expect(ReceiptParser.total(in: ["Total incl. VAT 24.00", "VAT 4.00"]) == 24)
+    }
+
+    @Test func aSuggestedTipIsNotTheTotal() {
+        let lines = ["Subtotal 40.00", "Tax 3.20", "Total 43.20", "Suggested gratuity", "18%: $7.78 (Total: $51.02)", "20%: $8.64 (Total: $51.84)"]
+        #expect(ReceiptParser.total(in: lines) == Decimal(string: "43.20"))
+        #expect(ReceiptParser.reading(from: lines, today: today, prefersMonthFirst: true).totalIsLabelled)
+        // A final phrase keeps its rank with a percentage on the line.
+        #expect(ReceiptParser.total(in: ["Total 51.50", "Total incl. 20% VAT 43.50"]) == Decimal(string: "43.50"))
+    }
+
+    @Test func theAmountPaidAndTheGrossAmountAreNotTheTotal() {
+        #expect(ReceiptParser.total(in: ["Total 43.20", "Amount Paid 50.00", "Change 6.80"]) == Decimal(string: "43.20"))
+        #expect(ReceiptParser.total(in: ["Total 43.20", "Total paid 43.20", "Cash 50.00"]) == Decimal(string: "43.20"))
+        #expect(ReceiptParser.total(in: ["Gross Amount 500.00", "Discount -50.00", "Net Amount 450.00"]) == 450)
+        // Without a total line, the amount paid is still a price.
+        #expect(ReceiptParser.total(in: ["Burrito 11.00", "Soda 2.50", "Amount paid 13.50"]) == Decimal(string: "13.50"))
     }
 
     @Test func findsAnAmountPrintedUnderItsLabel() {
@@ -155,6 +186,19 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.day(in: ["MAYO 2.99"], today: today, monthFirst: true) == nil)
         // Tomorrow is allowed: the shop may be a time zone ahead.
         #expect(ReceiptParser.day(in: ["09/28/2026"], today: today, monthFirst: true) == day(2026, 9, 28))
+    }
+
+    @Test func aPastReadingBeatsTomorrow() {
+        // Read on April 2 on a British iPhone: April 3 would be tomorrow,
+        // so "03/04/2026" is March 4, still open to the model.
+        let april2 = day(2026, 4, 2)
+        let reading = ReceiptParser.reading(from: ["Total $18.00", "03/04/2026"], today: april2, prefersMonthFirst: false)
+        #expect(reading.draft.day == day(2026, 3, 4))
+        #expect(!reading.dayIsSettled)
+        // Tomorrow as the only reading still counts.
+        #expect(ReceiptParser.day(in: ["03/13/2026"], today: day(2026, 3, 12), monthFirst: false) == day(2026, 3, 13))
+        // A day that is not tomorrow keeps the region's order.
+        #expect(ReceiptParser.day(in: ["03/04/2026"], today: day(2026, 4, 3), monthFirst: false) == day(2026, 4, 3))
     }
 
     @Test func aDayKeepsTheTimeOfDayItIsPutOn() throws {
@@ -213,6 +257,39 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptDraft(total: 14.5, currencyCode: "EUR").isInOtherCurrency(than: "USD"))
         #expect(!ReceiptDraft(total: 14.5, currencyCode: "EUR").isInOtherCurrency(than: "EUR"))
         #expect(!ReceiptDraft(total: 12.5).isInOtherCurrency(than: "RWF"))
+    }
+
+    @Test func keepsASharedSymbolWhenNoCurrencyIsNamed() {
+        #expect(ReceiptParser.sharedSymbol(in: ["Total $12.50"]) == "$")
+        #expect(ReceiptParser.sharedSymbol(in: ["Total ￥753"]) == "¥")
+        #expect(ReceiptParser.sharedSymbol(in: ["Total 12.50"]) == nil)
+        #expect(ReceiptParser.draft(from: ["Total $12.50"], today: today, prefersMonthFirst: true).currencySymbol == "$")
+        // A named currency wins over the symbol.
+        let named = ReceiptParser.draft(from: ["Total US$12.50", "Tip $2.00"], today: today, prefersMonthFirst: true)
+        #expect(named.currencyCode == "USD" && named.currencySymbol == nil)
+        #expect(ReceiptDraft(currencyCode: "EUR", currencySymbol: "$").currencySymbol == nil)
+    }
+
+    @Test func aSharedSymbolIsFlaggedOnlyWhereTheCurrencyNeverUsesIt() {
+        let dollars = ReceiptDraft(total: 43.2, currencySymbol: "$")
+        for code in ["USD", "CAD", "AUD", "MXN", "COP", "HKD"] {
+            #expect(!dollars.isInOtherCurrency(than: code), "\(code)")
+        }
+        for code in ["EUR", "GBP", "RWF", "KES", "JPY", "INR"] {
+            #expect(dollars.isInOtherCurrency(than: code), "\(code)")
+        }
+        let yen = ReceiptDraft(total: 753, currencySymbol: "¥")
+        #expect(!yen.isInOtherCurrency(than: "JPY") && !yen.isInOtherCurrency(than: "CNY"))
+        #expect(yen.isInOtherCurrency(than: "USD"))
+    }
+
+    @Test func theNoteSaysWhichCurrencyTheReceiptShows() {
+        #expect(ReceiptDraft(total: 14.5, currencyCode: "EUR").note(recordingIn: "USD")
+            == "Filled in from your receipt, which shows EUR. Keaser records amounts in USD, so check the amount before saving.")
+        #expect(ReceiptDraft(total: 43.2, currencySymbol: "$").note(recordingIn: "EUR")
+            == "Filled in from your receipt, which shows prices in $. Keaser records amounts in EUR, so check the amount before saving.")
+        #expect(ReceiptDraft(total: 43.2, currencySymbol: "$").note(recordingIn: "USD")
+            == "Filled in from your receipt. Check the details before saving.")
     }
 
     @Test func theRegionsDateOrder() {
