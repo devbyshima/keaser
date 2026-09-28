@@ -23,6 +23,10 @@ extension Color {
     /// A header button's label while it is disabled (Save with nothing to
     /// save), measured from the reference.
     static let homeSheetDisabledAction = Color(light: .init(white: 0.56), dark: .init(white: 0.41))
+    /// The expense editor's Title and $0.00 prompts on iOS 26 and later,
+    /// measured from the reference: darker than `keaserTertiaryText` on the
+    /// grey card in light mode, lighter in dark mode.
+    static let homeSheetPlaceholder = Color(light: .init(white: 0.37), dark: .init(white: 0.44))
 }
 
 extension View {
@@ -30,10 +34,10 @@ extension View {
     /// Account, the expense editor) draw it. Like a navigation bar, its text
     /// stops growing at the largest standard size so the title keeps room
     /// between the side controls; those show the Large Content Viewer.
-    func homeSheetHeader() -> some View {
+    func homeSheetHeader(top: CGFloat = HomeSheetMetrics.headerTop) -> some View {
         dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .padding(.horizontal, 16)
-            .padding(.top, HomeSheetMetrics.headerTop)
+            .padding(.top, top)
     }
 
     /// Cancel and Save in the expense editor's header. On iOS 26 and later
@@ -50,10 +54,11 @@ extension View {
     }
 }
 
-/// A glass capsule 42pt tall with 16pt either side of its label, as
-/// measured from the reference's Edit Expense header. The system glass
-/// button style draws its own size, which iOS 27 made smaller (and its
-/// large size larger) than the reference.
+/// A glass capsule 44pt tall with 16pt either side of its label, as
+/// measured from the reference's Edit Expense header (in the sheet's own
+/// points; with the keyboard up, iOS draws the sheet at 96%). The system
+/// glass button style draws its own size, which iOS 27 made smaller (and
+/// its large size larger) than the reference.
 private struct HomeSheetHeaderButtonStyle: ButtonStyle {
     let confirms: Bool
 
@@ -65,7 +70,7 @@ private struct HomeSheetHeaderButtonStyle: ButtonStyle {
             .foregroundStyle(isEnabled ? Color.keaserPrimaryText : Color.homeSheetDisabledAction)
             .lineLimit(1)
             .padding(.horizontal, 16)
-            .frame(minHeight: 42)
+            .frame(minHeight: 44)
             .contentShape(Capsule())
             .keaserGlass(interactive: isEnabled)
     }

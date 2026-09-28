@@ -111,7 +111,7 @@ struct ExpenseEditorView: View {
                     .disabled(!canSave)
                     .accessibilityShowsLargeContentViewer()
             }
-            .homeSheetHeader()
+            .homeSheetHeader(top: EditorMetrics.headerTop)
             ScrollView {
                 VStack(spacing: 16) {
                     card
@@ -123,7 +123,7 @@ struct ExpenseEditorView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, HomeSheetMetrics.contentTop)
+                .padding(.top, EditorMetrics.contentTop)
                 .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
@@ -204,7 +204,7 @@ struct ExpenseEditorView: View {
         KeaserCard(fill: .homeSheetCard) {
             titleRow
             ForEach(suggestions) { suggestion in
-                KeaserRowSeparator()
+                separator
                 SuggestionRow(
                     expense: suggestion,
                     symbol: account?.symbol(for: suggestion) ?? ExpenseCategory.fallbackSymbol,
@@ -214,21 +214,25 @@ struct ExpenseEditorView: View {
                 }
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
             }
-            KeaserRowSeparator()
+            separator
             amountRow
-            KeaserRowSeparator()
+            separator
             categoryRow
-            KeaserRowSeparator()
+            separator
             paymentRow
-            KeaserRowSeparator()
+            separator
             dateRow
         }
         .animation(.snappy(duration: 0.25), value: suggestions.map(\.id))
     }
 
+    private var separator: some View {
+        KeaserRowSeparator(overlapsRows: EditorMetrics.separatorsOverlapRows)
+    }
+
     private var titleRow: some View {
         HStack(spacing: 8) {
-            TextField("Title", text: $title, prompt: Text("Title").foregroundStyle(Color.keaserTertiaryText))
+            TextField("Title", text: $title, prompt: Text("Title").foregroundStyle(EditorMetrics.placeholder))
                 .font(.body)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .focused($focus, equals: .title)
@@ -240,7 +244,7 @@ struct ExpenseEditorView: View {
                 ReceiptScanButton(isReading: readingReceipt, onOpen: openReceiptScanner, onScan: readReceipt)
             }
         }
-        .editorRow()
+        .editorRow(height: EditorMetrics.titleRowHeight)
     }
 
     private var amountRow: some View {
@@ -248,7 +252,7 @@ struct ExpenseEditorView: View {
             TextField(
                 "Amount",
                 text: $amountDisplay,
-                prompt: Text(MoneyFormat.string(0, currencyCode: currencyCode)).foregroundStyle(Color.keaserTertiaryText)
+                prompt: Text(MoneyFormat.string(0, currencyCode: currencyCode)).foregroundStyle(EditorMetrics.placeholder)
             )
             .font(.body)
             .foregroundStyle(Color.keaserPrimaryText)
@@ -316,7 +320,7 @@ struct ExpenseEditorView: View {
                 .datePickerStyle(.compact)
                 .labelsHidden()
         }
-        .editorRow(height: 64)
+        .editorRow(height: EditorMetrics.dateRowHeight)
     }
 
     /// Delete Expense under the card. Smart Suggestions' rows (or a large
@@ -666,8 +670,33 @@ private struct MenuValueLabel: View {
     }
 }
 
+/// The editor's layout. On iOS 26 and later it is the reference's, measured
+/// in the sheet's own points: with the keyboard up, iOS draws the floating
+/// sheet at 96% (in the reference as here), so lengths read straight off the
+/// recording's pixels come out 4% short. Before iOS 26 the sheet keeps its
+/// earlier layout.
+private enum EditorMetrics {
+    private static var isFloatingSheet: Bool {
+        if #available(iOS 26.0, *) { true } else { false }
+    }
+
+    /// Above Cancel and Save, which are 44pt glass capsules there.
+    static var headerTop: CGFloat { isFloatingSheet ? 16 : HomeSheetMetrics.headerTop }
+    /// Between the header and the card.
+    static var contentTop: CGFloat { isFloatingSheet ? 45 : HomeSheetMetrics.contentTop }
+    static var titleRowHeight: CGFloat { isFloatingSheet ? 51.5 : 50 }
+    /// Amount, Category and Payment.
+    static var rowHeight: CGFloat { isFloatingSheet ? 52 : 50 }
+    static var dateRowHeight: CGFloat { isFloatingSheet ? 67 : 64 }
+    /// The reference's hairlines sit on the boundary between two rows
+    /// rather than add to their height.
+    static var separatorsOverlapRows: Bool { isFloatingSheet }
+    /// The Title and $0.00 prompts.
+    static var placeholder: Color { isFloatingSheet ? .homeSheetPlaceholder : .keaserTertiaryText }
+}
+
 private extension View {
-    func editorRow(height: CGFloat = 50) -> some View {
+    func editorRow(height: CGFloat = EditorMetrics.rowHeight) -> some View {
         padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
     }
