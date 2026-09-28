@@ -68,18 +68,24 @@ struct ShortcutCardListTests {
             for count in 0...60 {
                 for goBack in [false, true] {
                     for prefix in ["", "A long name for a label"] {
-                        let options = labels(count: count, prefix: prefix)
-                        var seen = Set<UUID>()
-                        let first = ShortcutCardList(field: .category, options: options, current: nil, offersGoBack: goBack, lines: lines)
-                        #expect(first.lineCount <= lines)
-                        for page in 0..<first.pageCount {
-                            let list = ShortcutCardList(field: .category, options: options, current: nil, offersGoBack: goBack, page: page, lines: lines)
-                            #expect(list.lineCount <= lines)
-                            #expect(!list.options.isEmpty || options.isEmpty)
-                            seen.formUnion(list.options.map(\.id))
+                        for twoColumns in [true, false] {
+                            let options = labels(count: count, prefix: prefix)
+                            var seen = Set<UUID>()
+                            let first = ShortcutCardList(field: .category, options: options, current: nil, offersGoBack: goBack, lines: lines, allowsTwoColumns: twoColumns)
+                            #expect(first.lineCount <= lines)
+                            for page in 0..<first.pageCount {
+                                let list = ShortcutCardList(field: .category, options: options, current: nil, offersGoBack: goBack, page: page, lines: lines, allowsTwoColumns: twoColumns)
+                                #expect(list.lineCount <= lines)
+                                #expect(!list.options.isEmpty || options.isEmpty)
+                                #expect(twoColumns || list.columnCount == 1)
+                                // The rows hold this page's options, one line each.
+                                #expect(list.rows.count == (list.columnCount == 2 ? (list.options.count + 1) / 2 : list.options.count))
+                                #expect(Set(list.rows.flatMap { $0 }.map(\.id)) == Set(list.options.map(\.id)))
+                                seen.formUnion(list.options.map(\.id))
+                            }
+                            // Every option is on some page.
+                            #expect(seen == Set(options.map(\.id)))
                         }
-                        // Every option is on some page.
-                        #expect(seen == Set(options.map(\.id)))
                     }
                 }
             }
@@ -106,6 +112,77 @@ struct ShortcutCardListTests {
                 #expect(card <= ShortcutCardList.cardHeightLimit, "at \(height) points")
             }
         }
+    }
+
+    @Test func onlyTheStandardTextSizesAllowTwoColumns() {
+        let allowed = Self.calloutLineHeights.map(ShortcutCardList.allowsTwoColumns(forLineHeight:))
+        // xSmall to XXXL, then AX1 to AX5.
+        #expect(allowed == Array(repeating: true, count: 7) + Array(repeating: false, count: 5))
+        // The card's own line heights: 21 scaled as callout, 16 points at Large.
+        #expect(ShortcutCardList.allowsTwoColumns(forLineHeight: 21 * 22 / 16))
+        #expect(!ShortcutCardList.allowsTwoColumns(forLineHeight: 21 * 26 / 16))
+    }
+
+    @Test func theDefaultCategoriesRunDownOneColumnAtAccessibilitySizes() {
+        let categories = ExpenseCategory.defaults().map { ShortcutFlow.Label(id: $0.id, name: $0.name) }
+        let source = ShortcutCardList.Source(field: .category, options: categories, current: categories[1].id, offersGoBack: true)
+
+        // The largest standard size: seven short names still take two
+        // columns, four lines of them and Go Back.
+        let xxxl = source.list(forLineHeight: 28.9)
+        #expect(xxxl.lineBudget == 5)
+        #expect(xxxl.columnCount == 2)
+        #expect(xxxl.pageCount == 1)
+        #expect(xxxl.rows.map { $0.map(\.name) } == [
+            [categories[0].name, categories[4].name],
+            [categories[1].name, categories[5].name],
+            [categories[2].name, categories[6].name],
+            [categories[3].name],
+        ])
+
+        // AccessibilityL (AX2): four lines, all in one column, so two names
+        // a page with More and Go Back, opening on the chosen one's page.
+        let ax2 = source.list(forLineHeight: 42)
+        #expect(ax2.lineBudget == 4)
+        #expect(ax2.columnCount == 1)
+        #expect(ax2.pageCount == 4)
+        #expect(ax2.page == 0)
+        #expect(ax2.rows.map { $0.map(\.name) } == [[categories[0].name], [categories[1].name]])
+        #expect(ax2.options.contains { $0.isCurrent })
+        #expect(ax2.offersMore && ax2.offersGoBack)
+        #expect(ax2.lineCount == 4)
+
+        // AccessibilityXXXL (AX5): the fewest lines, one name a page.
+        let ax5 = source.list(forLineHeight: 66.9)
+        #expect(ax5.lineBudget == ShortcutCardList.minLines)
+        #expect(ax5.columnCount == 1)
+        #expect(ax5.pageCount == categories.count)
+        #expect(ax5.page == 1)
+        #expect(ax5.options.map(\.name) == [categories[1].name])
+        #expect(ax5.lineCount == ShortcutCardList.minLines)
+    }
+
+    @Test func twoColumnsNeedShortNamesAndAStandardSize() {
+        let short = labels(count: 10, prefix: "Tag")
+        #expect(ShortcutCardList(field: .category, options: short, current: nil, offersGoBack: true).columnCount == 2)
+        #expect(ShortcutCardList(field: .category, options: short, current: nil, offersGoBack: true, allowsTwoColumns: false).columnCount == 1)
+        let long = labels(count: 10, prefix: "Shared household")
+        #expect(ShortcutCardList(field: .category, options: long, current: nil, offersGoBack: true).columnCount == 1)
+        // A list that fits one column never takes two.
+        #expect(ShortcutCardList(field: .category, options: labels(count: 3), current: nil, offersGoBack: true).columnCount == 1)
+    }
+
+    @Test func rowsPairTheColumnsLineByLine() {
+        let seven = labels(count: 7)
+        let two = ShortcutCardList(field: .category, options: seven, current: nil, offersGoBack: true)
+        #expect(two.columnCount == 2)
+        #expect(two.rows.map { $0.map(\.name) } == [
+            ["Label 1", "Label 5"], ["Label 2", "Label 6"], ["Label 3", "Label 7"], ["Label 4"],
+        ])
+        let one = ShortcutCardList(field: .category, options: seven, current: nil, offersGoBack: false)
+        #expect(one.columnCount == 1)
+        #expect(one.rows.map { $0.map(\.name) } == seven.map { [$0.name] })
+        #expect(ShortcutCardList(field: .category, options: [], current: nil, offersGoBack: true).rows.isEmpty)
     }
 
     @Test func aSmallBudgetPagesSooner() {
@@ -142,6 +219,8 @@ struct ShortcutCardListTests {
         #expect(source.list() == ShortcutCardList(flow: flow, field: .category, page: 0))
         #expect(source.list(lines: 4) == ShortcutCardList(flow: flow, field: .category, page: 0, lines: 4))
         #expect(source.list(lines: 4).lineBudget == 4)
+        #expect(source.list(forLineHeight: 21) == source.list())
+        #expect(source.list(forLineHeight: 42) == source.list(lines: 4, allowsTwoColumns: false))
     }
 
     @Test func theFlowsListFollowsItsAccountAndGoBackSetting() {

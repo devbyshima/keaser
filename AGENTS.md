@@ -141,10 +141,11 @@ Seeded launches keep the database in memory and never touch the real file.
   spoken sentence (`QuickLog.confirmation`) instead of the card.
 - The confirmation card (iOS 26+): tapping Account, Category or Payment
   opens that detail's options inside the card (`ShortcutCardList`: names
-  only, the chosen one checked, two columns or pages with More when long,
-  Go Back when it is on); picking one sets it and closes the list. The taps
-  are the non-discoverable `ShowExpenseCardOptionsIntent`,
-  `PickExpenseCardOptionIntent`, `PageExpenseCardOptionsIntent` and
+  only, the chosen one checked, two columns (standard text sizes only) or
+  pages with More when long, Go Back when it is on); picking one sets it and
+  closes the list. The taps are the non-discoverable
+  `ShowExpenseCardOptionsIntent`, `PickExpenseCardOptionIntent`,
+  `PageExpenseCardOptionsIntent` and
   `CloseExpenseCardOptionsIntent`, which only change the draft in
   `AddExpenseDrafts`; `ExpenseCardSnippetIntent` then draws the card again.
   The closed card must stay as the reference has it.
@@ -185,8 +186,13 @@ Seeded launches keep the database in memory and never touch the real file.
   confirmation (with `ShortcutCard.otherCurrencyNote`); nothing is converted.
   `ShortcutFlow` keeps a category or payment method the person picked when
   moving forward again, until the title or account changes. The in-card option
-  list is fitted to the text size (`ShortcutCardList.lines(forLineHeight:)`,
-  7 lines up to Large, down to 3) to stay under the 340pt snippet limit.
+  list is fitted to the text size (`ShortcutCardList.Source.list(forLineHeight:)`):
+  `lines(forLineHeight:)` gives 7 lines up to Large, down to 3, to stay under
+  the 340pt snippet limit, and `allowsTwoColumns(forLineHeight:)` keeps every
+  list in one column at the accessibility sizes. Two columns share rows
+  (`ShortcutCardList.rows`) so their names sit on one baseline. The open
+  detail's header stays one line: when its label and value do not both fit,
+  the value takes the label's place.
 - App Intents tests (`KeaserIntentTests`, 31 tests): every test resets data with
   the DEBUG `ResetTestDataIntent` (`IntentTestFixture`, fixed IDs). AppIntentsTesting
   accepts confirmations on its own, so confirmation paths are device-only checks.

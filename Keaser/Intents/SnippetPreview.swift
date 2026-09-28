@@ -187,7 +187,8 @@ struct SnippetPreview: View {
     }
 }
 
-/// One of the system's capsule buttons under a card.
+/// One of the system's capsule buttons under a card. Its title stays on one
+/// line, shrinking at the largest text sizes.
 private struct SystemButton: View {
     let title: String
     let fill: Color
@@ -197,6 +198,9 @@ private struct SystemButton: View {
         Text(title)
             .keaserFont(17, weight: .semibold, relativeTo: .body)
             .foregroundStyle(text)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, minHeight: 51)
             .background(fill, in: Capsule())
     }
