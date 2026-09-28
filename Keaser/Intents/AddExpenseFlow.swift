@@ -11,12 +11,26 @@ extension AddExpenseIntent {
     /// decides, then shows the expense for confirmation when Settings >
     /// Shortcut asks for it, and saves. Returns the expense, so a shortcut
     /// can pass it on.
+    ///
+    /// An amount the shortcut passed in another currency is always
+    /// confirmed, with a sentence saying what will be added: Keaser records
+    /// the number in its own currency and never converts it, so 1,500 yen
+    /// is never quietly saved as $1,500.00.
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<ExpenseEntity> & ProvidesDialog & ShowsSnippetView {
         let store = try IntentSupport.freshStore()
         let preferences = store.preferences
         let voiceOnly = isVoiceOnly
         var flow = try makeFlow(store: store)
+        let currencyNote = amount.flatMap { given in
+            flow.amount.flatMap { recorded in
+                ShortcutCard.otherCurrencyNote(
+                    amount: given.amount, currencyCode: given.currencyCode,
+                    recordedAs: recorded, appCurrencyCode: preferences.currencyCode
+                )
+            }
+        }
+        let confirms = preferences.shortcutConfirmsDetails || currencyNote != nil
         // Titles nothing else knows get their category from the on-device
         // model when it answers in time; otherwise the question is asked.
         let model = CategoryModels.current
@@ -25,8 +39,8 @@ extension AddExpenseIntent {
             let answer = try await ask(current, in: flow, currencyCode: preferences.currencyCode)
             step = await flow.next(after: current, answer: answer, model: model, budget: SmartLabels.intentBudget)
         }
-        if preferences.shortcutConfirmsDetails {
-            flow = try await confirm(flow, currencyCode: preferences.currencyCode, voiceOnly: voiceOnly)
+        if confirms {
+            flow = try await confirm(flow, currencyCode: preferences.currencyCode, voiceOnly: voiceOnly, note: currencyNote)
         }
 
         // The questions may have taken a while: file the expense with the
@@ -45,7 +59,7 @@ extension AddExpenseIntent {
             let spoken = QuickLog.confirmation(amount: saved.amount, currencyCode: latest.preferences.currencyCode, accountName: account.name, title: saved.title)
             return .result(value: entity, dialog: "\(spoken)", view: EmptyView())
         }
-        if preferences.shortcutConfirmsDetails {
+        if confirms {
             // Continue was the last word: the shortcut ends there, back where
             // it started, with nothing more to say or show.
             var quiet = IntentResultContainer.result(value: entity, dialog: "", view: EmptyView())
@@ -129,15 +143,17 @@ extension AddExpenseIntent {
     /// Shows the expense with Cancel and Continue; throws when cancelled.
     /// From iOS 26 the card is interactive (see `ExpenseCardView`) and the
     /// flow comes back with whatever was changed on it. With nothing shown
-    /// (Siri by voice alone) every detail is asked out loud instead.
+    /// (Siri by voice alone) every detail is asked out loud instead. `note`
+    /// comes first, in both.
     @MainActor
-    private func confirm(_ flow: ShortcutFlow, currencyCode: String, voiceOnly: Bool) async throws -> ShortcutFlow {
+    private func confirm(_ flow: ShortcutFlow, currencyCode: String, voiceOnly: Bool, note: String?) async throws -> ShortcutFlow {
+        let lead = note.map { "\($0) " } ?? ""
         if voiceOnly, let expense = flow.expense {
             let question = QuickLog.confirmationQuestion(for: expense, in: flow.account, currencyCode: currencyCode)
-            try await requestConfirmation(actionName: .add, dialog: "\(question)")
+            try await requestConfirmation(actionName: .add, dialog: "\(lead)\(question)")
             return flow
         }
-        let dialog: IntentDialog = "Confirm expense details:"
+        let dialog: IntentDialog = "\(lead)Confirm expense details:"
         if #available(iOS 26.0, *) {
             let drafts = AddExpenseDrafts.shared
             let session = drafts.open(flow, currencyCode: currencyCode)

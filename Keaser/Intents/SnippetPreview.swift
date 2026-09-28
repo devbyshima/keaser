@@ -82,7 +82,7 @@ struct SnippetPreview: View {
                 }
             } else if let card {
                 platter(dialog: kind.dialog) {
-                    ExpenseCardView(card: card, session: kind.isInteractive ? "preview" : nil, list: list)
+                    ExpenseCardView(card: card, session: kind.isInteractive ? "preview" : nil, options: openOptions)
                 }
                 .padding(.horizontal, 8)
                 .padding(.top, 56)
@@ -126,7 +126,7 @@ struct SnippetPreview: View {
     }
 
     /// The open detail's options, as the draft of a real card gives them.
-    private var list: ShortcutCardList? {
+    private var openOptions: ShortcutCardList.Source? {
         guard let field = kind.openField, let account else { return nil }
         let expense = expense(in: account)
         let options: [ShortcutFlow.Label]
@@ -142,7 +142,7 @@ struct SnippetPreview: View {
             options = account.paymentMethods.map { ShortcutFlow.Label(id: $0.id, name: $0.name) }
             current = expense.paymentMethodID
         }
-        return ShortcutCardList(
+        return ShortcutCardList.Source(
             field: field,
             options: options,
             current: current,

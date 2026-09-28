@@ -47,6 +47,11 @@ extension Color {
     /// Behind a row's non-destructive swipe action (Edit), whose label the
     /// system draws white: a grey dark enough for that in both appearances.
     static let keaserSwipeAction = Color(light: .init(white: 0.45), dark: .init(white: 0.32))
+    /// Labels and symbols on the shortcut's expense card: the system's
+    /// secondary label over its card, which the reference card uses
+    /// (measured 0.52 to 0.54 in light mode against 0.45 for
+    /// `keaserSecondaryText`), in both appearances.
+    static let keaserSnippetLabel = Color(light: .init(white: 0.54), dark: .init(white: 0.6))
 
     /// A sheet's own background before iOS 26 (from iOS 26 the system draws
     /// glass). Charcoal in dark mode; grouped grey in light mode, so white

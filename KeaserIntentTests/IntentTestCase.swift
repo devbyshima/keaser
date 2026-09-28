@@ -1,5 +1,6 @@
 import AppIntents
 import AppIntentsTesting
+import Synchronization
 import XCTest
 
 /// Runs Keaser's App Intents and entity queries through the system, as Siri
@@ -19,6 +20,8 @@ class IntentTestCase: XCTestCase {
     var startsWithPro: Bool { true }
     /// False starts with no account at all.
     var startsWithAccounts: Bool { true }
+    /// Tests that search Spotlight get more time (see `spotlight(_:_:)`).
+    var searchesSpotlight: Bool { false }
 
     var expenses: AppEntityDefinition { definitions.entities["ExpenseEntity"] }
     var accounts: AppEntityDefinition { definitions.entities["AccountEntity"] }
@@ -28,6 +31,7 @@ class IntentTestCase: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         continueAfterFailure = false
+        if searchesSpotlight { executionTimeAllowance = 240 }
         await Self.launchApp()
         // Straight after the first install the system may not have read the
         // app's intents yet.
@@ -87,6 +91,48 @@ class IntentTestCase: XCTestCase {
 
     func money(_ text: String) -> Decimal { Decimal(string: text)! }
 
+    /// How long one Spotlight search may take. The simulator's search
+    /// daemon holds a search back while it still has writes queued ("the
+    /// task has data in the set queue") and answers after its next flush,
+    /// seen to take about 15 seconds; when it never flushes, the search
+    /// never returns. Unbounded, such a search used up the test's whole
+    /// execution time allowance and restarted the runner.
+    static let spotlightQueryLimit: Duration = .seconds(40)
+    /// How long a test waits for Spotlight to show a change.
+    static let spotlightChangeLimit: Duration = .seconds(60)
+
+    /// `entity.spotlightQuery(text)`, or a `TimedOut` error after
+    /// `spotlightQueryLimit`.
+    func spotlight(_ entity: AppEntityDefinition, _ text: String) async throws -> [AnyAppEntity] {
+        try await within(Self.spotlightQueryLimit, "Spotlight search for \"\(text)\"") {
+            try await entity.spotlightQuery(text)
+        }
+    }
+
+    /// Thrown by `within(_:_:_:)` when the work outlasts its limit.
+    struct TimedOut: Error, CustomStringConvertible {
+        let what: String
+        let limit: Duration
+        var description: String { "\(what) did not answer within \(limit)" }
+    }
+
+    /// What `body` returns, or `TimedOut` once `limit` passes, whichever
+    /// comes first. The work is abandoned at the limit rather than awaited,
+    /// since a stalled system call ignores cancellation.
+    func within<T: Sendable>(_ limit: Duration, _ what: String, _ body: @escaping @Sendable () async throws -> T) async throws -> T {
+        let once = ResumeOnce<T>()
+        return try await withCheckedThrowingContinuation { continuation in
+            once.set(continuation)
+            Task {
+                do { once.resume(with: .success(try await body())) } catch { once.resume(with: .failure(error)) }
+            }
+            Task {
+                try? await Task.sleep(for: limit)
+                once.resume(with: .failure(TimedOut(what: what, limit: limit)))
+            }
+        }
+    }
+
     /// Repeats `body` until it stops throwing, for work the system finishes
     /// a moment later (Spotlight, reading a new install's intents).
     func retrying<T>(for limit: Duration = .seconds(20), _ body: () async throws -> T) async throws -> T {
@@ -101,12 +147,19 @@ class IntentTestCase: XCTestCase {
         }
     }
 
-    /// Checks `condition` until it holds or `limit` passes.
+    /// Checks `condition` until it holds or `limit` passes. A check that
+    /// times out (`TimedOut`) counts as not yet.
     func eventually(for limit: Duration = .seconds(20), _ message: String, _ condition: () async throws -> Bool) async throws {
         let deadline = ContinuousClock.now + limit
-        while try await !condition() {
+        while true {
+            var lastTimeout: TimedOut?
+            do {
+                if try await condition() { return }
+            } catch let timeout as TimedOut {
+                lastTimeout = timeout
+            }
             if ContinuousClock.now >= deadline {
-                XCTFail("Timed out: \(message)")
+                XCTFail("Timed out: \(message)" + (lastTimeout.map { " (\($0))" } ?? ""))
                 return
             }
             try await Task.sleep(for: .seconds(1))
@@ -121,5 +174,23 @@ class IntentTestCase: XCTestCase {
         } catch {
             return String(describing: error)
         }
+    }
+}
+
+/// Resumes a continuation exactly once, from whichever of several tasks
+/// gets there first.
+private final class ResumeOnce<T: Sendable>: Sendable {
+    private let continuation = Mutex<CheckedContinuation<T, any Error>?>(nil)
+
+    func set(_ continuation: CheckedContinuation<T, any Error>) {
+        self.continuation.withLock { $0 = continuation }
+    }
+
+    func resume(with result: Result<T, any Error>) {
+        let waiting = continuation.withLock { current -> CheckedContinuation<T, any Error>? in
+            defer { current = nil }
+            return current
+        }
+        waiting?.resume(with: result)
     }
 }

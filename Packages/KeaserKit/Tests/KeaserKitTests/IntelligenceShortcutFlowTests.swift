@@ -102,6 +102,24 @@ struct IntelligenceShortcutFlowTests {
         #expect(model.asked == ["Watsons"])
     }
 
+    @Test func thePersonsPickOutlastsTheModelsAnswer() async {
+        // No Cash method, so the payment question is asked.
+        let account = Account(name: "Personal", paymentMethods: [PaymentMethod(name: "Credit Card", symbol: "creditcard.fill")])
+        let model = FakeCategoryModel("Shopping")
+        var f = flow([account], title: "Watsons")
+        #expect(await f.start(model: model, budget: budget) == .amount)
+        #expect(await f.next(after: .amount, answer: .amount(5), model: model, budget: budget) == .paymentMethod)
+        #expect(f.categoryID == category("Shopping", in: account))
+        #expect(await f.next(after: .paymentMethod, answer: .goBack, model: model, budget: budget) == .category)
+        let health = category("Health", in: account)
+        #expect(await f.next(after: .category, answer: .category(health), model: model, budget: budget) == .paymentMethod)
+        #expect(await f.next(after: .paymentMethod, answer: .goBack, model: model, budget: budget) == .category)
+        #expect(await f.next(after: .category, answer: .goBack, model: model, budget: budget) == .amount)
+        #expect(await f.next(after: .amount, answer: .amount(6), model: model, budget: budget) == .paymentMethod)
+        #expect(f.categoryID == health)
+        #expect(model.asked == ["Watsons"])
+    }
+
     @Test func knownTitlesSuppliedLabelsAndSuggestionsOffNeverAsk() async {
         let account = Account(name: "Personal")
         let model = FakeCategoryModel("Health")

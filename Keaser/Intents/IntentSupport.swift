@@ -45,7 +45,9 @@ enum IntentSupport {
 
     /// Saves, then brings the widgets, the weekly summary and Spotlight up to
     /// date before the intent returns, since the system may suspend the app
-    /// right after.
+    /// right after. Each gets a few seconds at most, so a slow notification
+    /// service or index never makes the intent time out; whatever is left
+    /// finishes in the background or on the next launch.
     ///
     /// Throws when the expense did not reach the disk. It is taken back out
     /// of memory as well: kept there, a later save would write it anyway,

@@ -9,7 +9,9 @@ import Foundation
 /// front, nor when there is nothing to choose between (a single account, an
 /// account without categories). With suggestions on, a category or payment
 /// method guessed from the title is filled in without asking; Go Back still
-/// shows that question, so a wrong guess can be put right.
+/// shows that question, so a wrong guess can be put right, and a guess never
+/// replaces what the person picked there, however often they go back and
+/// forward again (until the title or account changes).
 public struct ShortcutFlow: Hashable, Sendable {
     public enum Step: Int, CaseIterable, Comparable, Sendable {
         case title, amount, account, category, paymentMethod
@@ -75,6 +77,11 @@ public struct ShortcutFlow: Hashable, Sendable {
     /// `start(model:budget:)`).
     var modelAnswer: ModelAnswer?
     private let supplied: Set<Step>
+    /// The category and payment method questions the person answered
+    /// themselves: moving forward again keeps those answers rather than
+    /// guessing over them. Cleared when the title or account changes, since
+    /// guesses depend on both.
+    private var picked: Set<Step> = []
     private let suppliedCategory: Label?
     private let suppliedPaymentMethod: Label?
 
@@ -131,11 +138,14 @@ public struct ShortcutFlow: Hashable, Sendable {
         case .goBack:
             return previous(before: step) ?? step
         case .title(let text):
-            title = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed != title { picked = [] }
+            title = trimmed
         case .amount(let value):
             amount = value
         case .account(let id):
             guard accounts.contains(where: { $0.id == id }) else { return step }
+            if id != accountID { picked = [] }
             accountID = id
             // Labels belong to an account; the next questions pick them again.
             categoryID = nil
@@ -143,9 +153,11 @@ public struct ShortcutFlow: Hashable, Sendable {
         case .category(let id):
             guard let category = account.category(id: id) else { return step }
             categoryID = category.id
+            picked.insert(.category)
         case .paymentMethod(let id):
             guard let method = account.paymentMethod(id: id) else { return step }
             paymentMethodID = method.id
+            picked.insert(.paymentMethod)
         }
         return advance(after: step)
     }
@@ -182,7 +194,9 @@ public struct ShortcutFlow: Hashable, Sendable {
     }
 
     /// Whether `step` is asked when moving forward. When it is not, fills in
-    /// what it stands for: the supplied label, a guess, or nothing.
+    /// what it stands for: the supplied label, a guess, or nothing. Where a
+    /// guess would skip the question, the person's own earlier answer is
+    /// kept instead of the guess.
     private mutating func asksOnTheWayForward(_ step: Step) -> Bool {
         switch step {
         case .title, .amount, .account:
@@ -194,7 +208,7 @@ public struct ShortcutFlow: Hashable, Sendable {
             }
             guard canAsk(step) else { categoryID = nil; return false }
             guard let guess = guess().categoryID else { return true }
-            categoryID = guess
+            if !picked.contains(.category) { categoryID = guess }
             return false
         case .paymentMethod:
             if let label = suppliedPaymentMethod {
@@ -203,16 +217,16 @@ public struct ShortcutFlow: Hashable, Sendable {
             }
             guard canAsk(step) else { paymentMethodID = nil; return false }
             guard let guess = guess().paymentMethodID else { return true }
-            paymentMethodID = guess
+            if !picked.contains(.paymentMethod) { paymentMethodID = guess }
             return false
         }
     }
 
     /// Whether moving forward fills the category in with a guess, when
-    /// there is one: suggestions are on, the shortcut did not supply a
-    /// category, and the account has some.
+    /// there is one: suggestions are on, neither the shortcut nor the person
+    /// chose the category, and the account has some.
     var guessesCategory: Bool {
-        suggestionsEnabled && suppliedCategory == nil && canAsk(.category)
+        suggestionsEnabled && suppliedCategory == nil && !picked.contains(.category) && canAsk(.category)
     }
 
     private func guess() -> SmartSuggester.LabelGuess {
@@ -319,6 +333,24 @@ public struct ShortcutCard: Hashable, Sendable {
         category = account.category(id: expense.categoryID)?.name ?? Self.noLabel
         paymentMethod = account.paymentMethod(id: expense.paymentMethodID)?.name ?? Self.noLabel
         date = Self.dateText(expense.date, locale: locale, timeZone: timeZone)
+    }
+
+    /// Said before the confirmation when the shortcut passed an amount in
+    /// another currency than Keaser's, which is then always confirmed: Keaser
+    /// records the number as it is, in its own currency, and never converts
+    /// it. Nil when the amount is in Keaser's currency or names none.
+    public static func otherCurrencyNote(
+        amount: Decimal,
+        currencyCode given: String,
+        recordedAs recorded: Decimal,
+        appCurrencyCode: String,
+        locale: Locale = .current
+    ) -> String? {
+        let code = given.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !code.isEmpty, code != appCurrencyCode.uppercased() else { return nil }
+        let passed = MoneyFormat.string(amount, currencyCode: code, locale: locale)
+        let added = MoneyFormat.string(recorded, currencyCode: appCurrencyCode, locale: locale)
+        return "The shortcut passed \(passed), but Keaser records amounts in \(appCurrencyCode.uppercased()), so it will be added as \(added)."
     }
 
     /// Two-digit month and day in the locale's order: "04/08/2026" in the

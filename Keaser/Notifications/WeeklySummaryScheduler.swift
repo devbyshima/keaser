@@ -21,9 +21,23 @@ import UserNotifications
 final class WeeklySummaryScheduler {
     static let shared = WeeklySummaryScheduler()
 
+    /// How long an App Intent that changed data waits for the reschedule
+    /// before it returns. The reschedule finishes on its own if it takes
+    /// longer, so a slow notification service never makes Add Expense, Log
+    /// Wallet Transaction or Delete Expense time out.
+    static let intentWait: Duration = .seconds(3)
+    /// How long a reschedule waits for the notification service to say
+    /// whether notifications are allowed. Without an answer the pending
+    /// request is left as it is until the next change or launch.
+    static let permissionWait: Duration = .seconds(10)
+
     private weak var store: KeaserStore?
     private var pending: Task<Void, Never>?
     private var observesActivation = false
+    /// Reschedules, one at a time, so a slow one is never overtaken by a
+    /// later one with an older plan. Each reads the store when it begins, so
+    /// requests made while one waits share it.
+    private let work = SerialWork()
 
     /// Starts keeping the notification in step with `store`. Safe to call more
     /// than once (App Intents call it when they run without the app's UI).
@@ -45,34 +59,58 @@ final class WeeklySummaryScheduler {
     /// Replaces the pending request with one computed from the store now.
     /// Bursts of edits collapse into a single reschedule.
     func refresh() {
-        guard let store else { return }
+        guard store != nil else { return }
         pending?.cancel()
-        pending = Task { [weak store] in
+        pending = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled, let store else { return }
-            await Self.apply(WeeklySummary.plan(for: store.database, now: .now))
+            guard !Task.isCancelled, let self else { return }
+            self.work.startOrJoin { [weak self] in await self?.reschedule() }
         }
     }
 
     /// Reschedules and waits for it, for App Intents that must finish their
-    /// work before the system suspends them.
+    /// work before the system suspends them, and for the permission prompt.
+    /// Waits `intentWait` at most.
     func refreshNow() async {
-        guard let store else { return }
+        guard store != nil else { return }
         pending?.cancel()
-        await Self.apply(WeeklySummary.plan(for: store.database, now: .now))
+        await work.runOrJoin(within: Self.intentWait) { [weak self] in await self?.reschedule() }
     }
 
-    /// Runs away from the main actor. Removing a request is a synchronous call
-    /// into the system's notification service; when that service is slow or
-    /// stuck (a freshly booted simulator, a busy phone), running it on the
-    /// main actor froze the whole app.
-    @concurrent
-    private nonisolated static func apply(_ plan: WeeklySummaryPlan?) async {
-        let center = UNUserNotificationCenter.current()
-        guard let plan, await NotificationPermission.status() == .granted else {
-            center.removePendingNotificationRequests(withIdentifiers: [WeeklySummary.identifier])
-            return
+    /// Reads the permission, works out the plan from the store as it is
+    /// then, and hands it to the notification queue.
+    private func reschedule() async {
+        guard store != nil,
+              let permission = await Deadline.value(within: Self.permissionWait, of: { await NotificationPermission.status() }),
+              let store
+        else { return }
+        Self.submit(permission == .granted ? WeeklySummary.plan(for: store.database, now: .now) : nil)
+    }
+
+    /// The notification service's own queue in this app. Replacing or
+    /// removing the request calls into the system's notification service
+    /// synchronously, and when that service is slow or stuck (a freshly
+    /// booted simulator, a busy phone) the call can block for a long time.
+    /// On this serial queue it holds neither the main actor nor one of
+    /// Swift's few cooperative threads, and the requests still reach the
+    /// service in the order they were made.
+    private nonisolated static let queue = DispatchQueue(label: "com.fulltimestudio.keaser.weekly-summary", qos: .utility)
+
+    /// Schedules `plan`, or removes the pending summary for nil, without
+    /// waiting for the notification service.
+    private nonisolated static func submit(_ plan: WeeklySummaryPlan?) {
+        queue.async {
+            let center = UNUserNotificationCenter.current()
+            guard let plan else {
+                center.removePendingNotificationRequests(withIdentifiers: [WeeklySummary.identifier])
+                return
+            }
+            // Adding a request with an existing identifier replaces it.
+            center.add(request(for: plan), withCompletionHandler: nil)
         }
+    }
+
+    private nonisolated static func request(for plan: WeeklySummaryPlan) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = plan.title
         content.body = plan.body
@@ -86,9 +124,7 @@ final class WeeklySummaryScheduler {
         // Wall-clock components, so 7:00 pm stays 7:00 pm if the user travels.
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: plan.fireDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        // Adding a request with an existing identifier replaces it.
-        let request = UNNotificationRequest(identifier: WeeklySummary.identifier, content: content, trigger: trigger)
-        try? await center.add(request)
+        return UNNotificationRequest(identifier: WeeklySummary.identifier, content: content, trigger: trigger)
     }
 }
 

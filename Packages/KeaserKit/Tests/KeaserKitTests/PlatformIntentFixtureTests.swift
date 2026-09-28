@@ -53,4 +53,17 @@ struct IntentTestFixtureTests {
         #expect(!IntentTestFixture.database(pro: true, confirmsDetails: false, now: now, calendar: utc).preferences.shortcutConfirmsDetails)
         #expect(IntentTestFixture.database(pro: true, confirmsDetails: true, now: now, calendar: utc).preferences.shortcutConfirmsDetails)
     }
+
+    @Test func everyResetHasTheSameIDs() {
+        // Minutes apart on the same day: nothing Spotlight holds changes.
+        let first = IntentTestFixture.database(pro: true, confirmsDetails: false, now: noon(2026, 9, 28), calendar: utc)
+        let later = IntentTestFixture.database(pro: true, confirmsDetails: false, now: noon(2026, 9, 28).addingTimeInterval(600), calendar: utc)
+        #expect(first.accounts.map(\.id) == later.accounts.map(\.id))
+        #expect(first.accounts.flatMap(\.expenses).map(\.id) == later.accounts.flatMap(\.expenses).map(\.id))
+        #expect(first.preferences.selectedAccountID == first.accounts[0].id)
+        let ids = first.accounts.map(\.id) + first.accounts.flatMap(\.expenses).map(\.id)
+        #expect(Set(ids).count == ids.count)
+        let marker = "1/1.0.0/1"
+        #expect(SpotlightPlan.changes(from: SpotlightPlan.manifest(for: first, marker: marker), to: SpotlightPlan.manifest(for: later, marker: marker)).isEmpty)
+    }
 }

@@ -12,8 +12,13 @@ import os
 /// since the app last ran, or rebuilds the whole index when it was written
 /// by another build (see `SpotlightPlan`); after that every store change
 /// writes only the difference, a moment later so a burst of edits is written
-/// once. Which items the index holds is kept in a small file beside the app's
-/// data, not in the shared database.
+/// once. Which items the index holds is kept in a small file in the app's
+/// caches, not in the shared database: a backup restores neither the index
+/// nor that file, so a restored iPhone rebuilds the index.
+///
+/// Every write, including the ones Spotlight asks for on iOS 27, goes
+/// through one serial queue of syncs, so two never write at once and the
+/// manifest always says what the index holds.
 @MainActor
 final class SpotlightIndexer {
     static let shared = SpotlightIndexer()
@@ -23,7 +28,7 @@ final class SpotlightIndexer {
     /// process. Nil until the first sync has read it from disk.
     private var indexed: SpotlightManifest?
     private var pending: Task<Void, Never>?
-    private var running: Task<Void, Never>?
+    private let work = SerialWork()
 
     nonisolated private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "Spotlight")
 
@@ -50,19 +55,7 @@ final class SpotlightIndexer {
         guard store != nil else { return }
         pending?.cancel()
         pending = nil
-        // Whichever comes first. (A task group would wait for both, since
-        // waiting on a task's value ignores cancellation.)
-        let (finished, signal) = AsyncStream<Void>.makeStream()
-        Task {
-            await self.sync()
-            signal.yield()
-        }
-        Task {
-            try? await Task.sleep(for: .seconds(3))
-            signal.yield()
-        }
-        for await _ in finished { break }
-        signal.finish()
+        await work.run(within: .seconds(3)) { [weak self] in await self?.syncChanges() }
     }
 
     private func schedule(after delay: Duration = .milliseconds(500)) {
@@ -70,29 +63,29 @@ final class SpotlightIndexer {
         pending?.cancel()
         pending = Task { [weak self] in
             if delay > .zero { try? await Task.sleep(for: delay) }
-            guard !Task.isCancelled else { return }
-            await self?.sync()
+            guard !Task.isCancelled, let self else { return }
+            // After any sync that is already running, so the later one
+            // always sees the earlier one's result.
+            self.work.start { [weak self] in await self?.syncChanges() }
         }
     }
 
-    /// Runs one sync after any that is already running, so two never write
-    /// at once and the later one always sees the earlier one's result.
-    private func sync() async {
-        let previous = running
-        let task = Task { [weak self] in
-            await previous?.value
-            await self?.performSync()
-        }
-        running = task
-        await task.value
-    }
-
-    private func performSync() async {
+    /// Writes the difference between the index and the store. With a
+    /// `request` from Spotlight, the items it names are written again too
+    /// (or removed, when they are gone). Throws only for a request, so
+    /// Spotlight asks again later.
+    private func performSync(_ request: SpotlightReindex?, protectionClass: FileProtectionType?) async throws {
         // Before the first unlock after a restart the store holds an empty
         // stand-in for a file it cannot read, which must not empty the index.
-        guard let store, store.loadError == nil else { return }
+        guard let store, store.loadError == nil else {
+            if request != nil { throw CocoaError(.fileReadNoPermission) }
+            return
+        }
         do {
-            let outcome = try await Self.bringUpToDate(store.database, from: indexed, marker: Self.currentMarker)
+            let outcome = try await Self.bringUpToDate(
+                store.database, from: indexed, marker: Self.currentMarker,
+                forgetting: request, protectionClass: protectionClass
+            )
             indexed = outcome.manifest
             // Siri's "Open <account> in Keaser" phrases name the accounts.
             if outcome.touchesAccounts { KeaserShortcuts.updateAppShortcutParameters() }
@@ -100,7 +93,14 @@ final class SpotlightIndexer {
             // `indexed` still describes the index as it was, so the next
             // change writes this difference again.
             Self.log.error("Spotlight sync failed: \(error.localizedDescription, privacy: .public)")
+            if request != nil { throw error }
         }
+    }
+
+    /// `performSync(_:protectionClass:)` for store changes, which retry on
+    /// the next change rather than throw.
+    private func syncChanges() async {
+        try? await performSync(nil, protectionClass: nil)
     }
 
     private struct Outcome: Sendable {
@@ -112,16 +112,23 @@ final class SpotlightIndexer {
     /// `database`, away from the main actor (a rebuild can be thousands of
     /// items).
     @concurrent
-    private nonisolated static func bringUpToDate(_ database: Database, from known: SpotlightManifest?, marker: String) async throws -> Outcome {
-        let baseline = known ?? readManifest() ?? SpotlightManifest()
+    private nonisolated static func bringUpToDate(
+        _ database: Database,
+        from known: SpotlightManifest?,
+        marker: String,
+        forgetting request: SpotlightReindex? = nil,
+        protectionClass: FileProtectionType? = nil
+    ) async throws -> Outcome {
+        let stored = known ?? readManifest() ?? SpotlightManifest()
+        let baseline = request.map { SpotlightPlan.forgetting($0, in: stored) } ?? stored
         let rebuild = SpotlightPlan.needsFullReindex(indexedMarker: baseline.marker, currentMarker: marker)
         let wanted = SpotlightPlan.manifest(for: database, marker: marker)
         let changes = SpotlightPlan.changes(from: rebuild ? SpotlightManifest() : baseline, to: wanted)
         guard rebuild || !changes.isEmpty else {
-            return Outcome(manifest: baseline, touchesAccounts: false)
+            return Outcome(manifest: stored, touchesAccounts: false)
         }
 
-        let index = makeIndex()
+        let index = makeIndex(protectionClass: protectionClass)
         if rebuild { try await index.deleteAllSearchableItems() }
         for batch in SpotlightPlan.batches(changes.expensesToDelete) {
             try await index.deleteAppEntities(identifiedBy: batch, ofType: ExpenseEntity.self)
@@ -148,38 +155,26 @@ final class SpotlightIndexer {
         return Outcome(manifest: wanted, touchesAccounts: rebuild || changes.touchesAccounts)
     }
 
-    // MARK: Spotlight asking for a rebuild (iOS 27)
+    // MARK: Spotlight asking for items again (iOS 27)
 
-    /// Indexes these expenses again (all of them for nil) from the shared
-    /// file, and removes any of the asked-for IDs that no longer exist.
-    @concurrent
-    nonisolated static func reindexExpenses(_ ids: [UUID]?, protectionClass: FileProtectionType?) async throws {
-        // Throws while the file is locked, rather than taking an unreadable
-        // file for an empty one.
-        let database = try DatabaseFile.shared.read() ?? Database()
-        let index = makeIndex(protectionClass: protectionClass)
-        let found = ids.map { EntityCatalog.expenses(withIDs: $0, in: database) } ?? EntityCatalog.allExpenses(in: database)
-        for batch in SpotlightPlan.batches(found) {
-            try await index.indexAppEntities(batch.map(ExpenseEntity.init))
-        }
-        if let ids {
-            let existing = Set(found.map(\.id))
-            let gone = ids.filter { !existing.contains($0) }
-            if !gone.isEmpty { try await index.deleteAppEntities(identifiedBy: gone, ofType: ExpenseEntity.self) }
-        }
+    /// Writes the items Spotlight asks for again, from the store as it is
+    /// now, in turn with every other sync: an expense deleted meanwhile is
+    /// removed rather than brought back, and one put back is indexed rather
+    /// than dropped. Throws while the data cannot be read (before the first
+    /// unlock), so Spotlight asks again later.
+    nonisolated static func reindex(_ request: SpotlightReindex, protectionClass: FileProtectionType?) async throws {
+        try await shared.reindex(request, protectionClass: protectionClass)
     }
 
-    /// `reindexExpenses` for accounts.
-    @concurrent
-    nonisolated static func reindexAccounts(_ ids: [UUID]?, protectionClass: FileProtectionType?) async throws {
-        let database = try DatabaseFile.shared.read() ?? Database()
-        let index = makeIndex(protectionClass: protectionClass)
-        let found = ids.map { wanted in database.accounts.filter { wanted.contains($0.id) } } ?? database.accounts
-        if !found.isEmpty { try await index.indexAppEntities(found.map(AccountEntity.init)) }
-        if let ids {
-            let existing = Set(found.map(\.id))
-            let gone = ids.filter { !existing.contains($0) }
-            if !gone.isEmpty { try await index.deleteAppEntities(identifiedBy: gone, ofType: AccountEntity.self) }
+    private func reindex(_ request: SpotlightReindex, protectionClass: FileProtectionType?) async throws {
+        let store = AppEnvironment.store
+        // An intent query may run before anything else in this process.
+        attach(to: store)
+        // Seeded launches never index (see `attach`).
+        guard self.store != nil else { return }
+        store.reloadFromDisk()
+        try await work.perform { [weak self] in
+            try await self?.performSync(request, protectionClass: protectionClass)
         }
     }
 
@@ -199,15 +194,28 @@ final class SpotlightIndexer {
         )
     }
 
-    /// In the app's own container: only the app writes to Spotlight.
+    /// In the app's own caches: only the app writes to Spotlight. Caches are
+    /// never backed up, and neither is the index, so after a restore (or
+    /// when the system clears caches) there is no manifest and the index is
+    /// rebuilt. In backed-up storage the manifest would come back without
+    /// the index and claim everything was still indexed.
     private nonisolated static var manifestURL: URL {
+        URL.cachesDirectory.appending(path: "Keaser", directoryHint: .isDirectory).appending(path: "spotlight-index.json")
+    }
+
+    /// Where earlier builds kept it, in backed-up storage.
+    private nonisolated static var legacyManifestURL: URL {
         URL.applicationSupportDirectory.appending(path: "Keaser", directoryHint: .isDirectory).appending(path: "spotlight-index.json")
     }
 
     /// Nil when there is none yet or it cannot be read, which rebuilds the
     /// index.
     private nonisolated static func readManifest() -> SpotlightManifest? {
-        guard let data = try? Data(contentsOf: manifestURL) else { return nil }
+        guard let data = try? Data(contentsOf: manifestURL) else {
+            // The rebuild this causes replaces whatever the old copy said.
+            try? FileManager.default.removeItem(at: legacyManifestURL)
+            return nil
+        }
         return SpotlightManifest.decoded(from: data)
     }
 

@@ -21,12 +21,23 @@ struct ResetTestDataIntent: AppIntent {
     @Parameter(title: "Accounts", default: true)
     var accounts: Bool
 
+    /// Settings > Smart Suggestions (New Expense's switch).
+    @Parameter(title: "Smart Suggestions", default: true)
+    var suggestions: Bool
+
+    /// Settings > Shortcut > Smart Suggestions.
+    @Parameter(title: "Shortcut Smart Suggestions", default: true)
+    var shortcutSuggestions: Bool
+
     init() {}
 
     @MainActor
     func perform() async throws -> some IntentResult {
         let store = AppEnvironment.store
-        try DatabaseFile.shared.save(IntentTestFixture.database(pro: pro, confirmsDetails: confirmsDetails, accounts: accounts))
+        var database = IntentTestFixture.database(pro: pro, confirmsDetails: confirmsDetails, accounts: accounts)
+        database.preferences.smartSuggestionsEnabled = suggestions
+        database.preferences.shortcutSmartSuggestionsEnabled = shortcutSuggestions
+        try DatabaseFile.shared.save(database)
         store.reloadFromDisk()
         if store.loadError != nil { throw KeaserIntentError.dataUnavailable }
         // Spotlight holds the new data, and nothing of the old, before the

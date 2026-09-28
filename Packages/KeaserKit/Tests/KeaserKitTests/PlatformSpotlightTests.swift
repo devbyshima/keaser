@@ -163,3 +163,62 @@ struct SpotlightSupportTests {
         #expect(SpotlightPlan.entityID(inItemIdentifier: "") == nil)
     }
 }
+
+/// Spotlight asking for items again (iOS 27): written through the same diff
+/// as every other change, so the manifest keeps saying what the index holds.
+struct SpotlightReindexTests {
+    @Test func askedExpensesAreWrittenAgainOrRemoved() {
+        var db = database()
+        let indexed = SpotlightPlan.manifest(for: db, marker: "m")
+        let kept = db.accounts[0].expenses[0].id
+        let gone = db.accounts[0].expenses.remove(at: 1).id
+        let wanted = SpotlightPlan.manifest(for: db, marker: "m")
+        let changes = SpotlightPlan.changes(from: SpotlightPlan.forgetting(.expenses([kept, gone]), in: indexed), to: wanted)
+        #expect(changes.expensesToIndex == [kept])
+        #expect(changes.expensesToDelete == [gone])
+        #expect(!changes.touchesAccounts)
+    }
+
+    @Test func anExpenseTheManifestNeverListedIsStillRemovedWhenGone() {
+        let db = database()
+        let manifest = SpotlightPlan.manifest(for: db, marker: "m")
+        let stray = UUID()
+        let changes = SpotlightPlan.changes(from: SpotlightPlan.forgetting(.expenses([stray]), in: manifest), to: manifest)
+        #expect(changes.expensesToDelete == [stray])
+        #expect(changes.expensesToIndex.isEmpty)
+    }
+
+    @Test func askingForEveryExpenseWritesThemAllButNoAccount() {
+        let db = database()
+        let manifest = SpotlightPlan.manifest(for: db, marker: "m")
+        let changes = SpotlightPlan.changes(from: SpotlightPlan.forgetting(.expenses(nil), in: manifest), to: manifest)
+        #expect(changes.expensesToIndex.count == 3)
+        #expect(changes.expensesToDelete.isEmpty)
+        #expect(changes.accountsToIndex.isEmpty)
+    }
+
+    @Test func askingForAccountsLeavesTheExpensesAlone() {
+        let db = database()
+        let manifest = SpotlightPlan.manifest(for: db, marker: "m")
+        let changes = SpotlightPlan.changes(from: SpotlightPlan.forgetting(.accounts(nil), in: manifest), to: manifest)
+        #expect(Set(changes.accountsToIndex) == Set(db.accounts.map(\.id)))
+        #expect(changes.expensesToIndex.isEmpty)
+        #expect(changes.touchesAccounts)
+        let one = SpotlightPlan.changes(from: SpotlightPlan.forgetting(.accounts([db.accounts[1].id]), in: manifest), to: manifest)
+        #expect(one.accountsToIndex == [db.accounts[1].id])
+    }
+
+    @Test func theMarkerIsKeptSoNothingElseIsRebuilt() {
+        let manifest = SpotlightPlan.manifest(for: database(), marker: "1/1.0.0/1")
+        #expect(SpotlightPlan.forgetting(.expenses(nil), in: manifest).marker == "1/1.0.0/1")
+    }
+
+    @Test func noItemHasTheUnknownFingerprint() {
+        let db = database()
+        let manifest = SpotlightPlan.manifest(for: db, marker: "m")
+        #expect(!manifest.expenses.values.contains(SpotlightPlan.unknownFingerprint))
+        #expect(!manifest.accounts.values.contains(SpotlightPlan.unknownFingerprint))
+        // FNV-1a of nothing at all is its offset basis, never zero.
+        #expect(SpotlightPlan.stableHash([]) != SpotlightPlan.unknownFingerprint)
+    }
+}
