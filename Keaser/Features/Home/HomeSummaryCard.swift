@@ -193,10 +193,10 @@ struct HomeSpendingChart: View {
         #endif
     }
 
-    /// The pressed bar's callout, centred over the bar just above the plot
-    /// and kept inside the chart, or lower down where it would cover the
-    /// total (`SpendingChart.calloutPlacement`). It rises out of the bar's
-    /// top as it appears and sinks back into it as it goes.
+    /// The pressed bar's callout, sitting on top of the bar and kept inside
+    /// the chart, or beside it where it would cover the total
+    /// (`SpendingChart.calloutPlacement`). It rises out of the bar's top as
+    /// it appears and sinks back into it as it goes.
     ///
     /// The placement lives on a container that stays put while the callout
     /// inside it comes and goes, so the exit plays where the callout was and

@@ -248,12 +248,11 @@ public enum SpendingChart {
     /// period's total, printed above the chart; nil or empty when there is
     /// nothing to avoid). In order:
     ///
-    /// 1. Centred over its bar, `gap` above the plot, as in the reference.
-    /// 2. Where that would cover the total (a bar near the leading edge):
-    ///    `gap` above the bar's top, inside the plot.
-    /// 3. Where the bar is too tall for that: beside the bar, on the
-    ///    trailing side if the chart has room there, else the leading one,
-    ///    with its top just under the total.
+    /// 1. Centred over its bar, sitting `gap` above the bar's top, so it
+    ///    reads as rising out of the bar.
+    /// 2. Where that would cover the total (a tall bar near the leading
+    ///    edge): beside the bar, on the trailing side if the chart has room
+    ///    there, else the leading one, with its top just under the total.
     ///
     /// It always stays inside the chart, `chartWidth` wide. `barTop` and
     /// `plotTop` are y positions; `barWidth` is the drawn bar's width.
@@ -266,19 +265,17 @@ public enum SpendingChart {
         chartWidth: Double,
         plotTop: Double,
         keepClear: Area?,
-        gap: Double = 14,
+        gap: Double = 6,
         margin: Double = 4
     ) -> CalloutPlacement {
         let centred = calloutLeading(barCenter: barCenter, calloutWidth: calloutWidth, chartWidth: chartWidth)
-        let abovePlot = CalloutPlacement(leading: centred, bottom: plotTop - gap)
-        guard let keepClear, !keepClear.isEmpty else { return abovePlot }
+        let onBar = CalloutPlacement(leading: centred, bottom: max(barTop, plotTop) - gap)
+        guard let keepClear, !keepClear.isEmpty else { return onBar }
         let avoided = keepClear.grown(by: margin)
         func isClear(_ placement: CalloutPlacement) -> Bool {
             !avoided.overlaps(Area(x: placement.leading, y: placement.bottom - calloutHeight, width: calloutWidth, height: calloutHeight))
         }
-        if isClear(abovePlot) { return abovePlot }
-        let aboveBar = CalloutPlacement(leading: centred, bottom: max(barTop, plotTop) - gap)
-        if isClear(aboveBar) { return aboveBar }
+        if isClear(onBar) { return onBar }
         let bottom = avoided.maxY + calloutHeight
         let trailing = barCenter + barWidth / 2 + margin
         if trailing + calloutWidth <= chartWidth {

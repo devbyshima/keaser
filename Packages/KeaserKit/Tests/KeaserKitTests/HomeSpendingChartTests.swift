@@ -230,23 +230,27 @@ struct HomeChartCalloutTests {
         )
     }
 
-    @Test func calloutRestsAboveThePlotAsInTheReference() {
-        // The All Time bar near the trailing edge: 14pt above the plot,
-        // clear of the total to its left.
+    @Test func calloutSitsOnTopOfItsBar() {
+        // The All Time bar near the trailing edge, reaching the top of the
+        // plot: 6pt above its top, clear of the total to its left.
         #expect(placement(barCenter: 280, barTop: 6, keepClear: total)
-            == SpendingChart.CalloutPlacement(leading: 227, bottom: -8))
-        // Nothing to avoid (before the total is measured): the same.
+            == SpendingChart.CalloutPlacement(leading: 227, bottom: 0))
+        // A short bar: the callout comes down with it instead of floating
+        // at the top of the plot.
+        #expect(placement(barCenter: 280, barTop: 150, keepClear: total)
+            == SpendingChart.CalloutPlacement(leading: 227, bottom: 144))
+        // Nothing to avoid (before the total is measured): the same rule.
         #expect(placement(barCenter: 12, barTop: 6, keepClear: nil)
-            == SpendingChart.CalloutPlacement(leading: 0, bottom: -8))
+            == SpendingChart.CalloutPlacement(leading: 0, bottom: 0))
         #expect(placement(barCenter: 12, barTop: 6, keepClear: SpendingChart.Area(x: 0, y: 0, width: 0, height: 0))
-            == SpendingChart.CalloutPlacement(leading: 0, bottom: -8))
+            == SpendingChart.CalloutPlacement(leading: 0, bottom: 0))
     }
 
-    @Test func calloutDropsAboveItsBarRatherThanCoverTheTotal() {
+    @Test func calloutSitsOnALowBarUnderTheTotal() {
         // January of This Year, $748 of a 2K scale: the bar's top is 110pt
-        // into the plot, so the callout sits 14pt above it.
+        // into the plot, so the callout sits 6pt above it, under the total.
         let january = placement(barCenter: 12, barTop: 116, keepClear: total)
-        #expect(january == SpendingChart.CalloutPlacement(leading: 0, bottom: 102))
+        #expect(january == SpendingChart.CalloutPlacement(leading: 0, bottom: 110))
         #expect(!total.overlaps(SpendingChart.Area(x: january.leading, y: january.bottom - 66, width: 106, height: 66)))
     }
 
