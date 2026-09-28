@@ -15,8 +15,13 @@ letter | -KeaserSeed account -KeaserLetter 1
 letter-tldr | -KeaserSeed account -KeaserLetter 1 -KeaserLetterPage tldr
 letter-follow | -KeaserSeed account -KeaserLetter 1 -KeaserLetterPage follow
 
-# The Spending widget (medium only), drawn by the widget's own view: Today,
-# This Week and This Month (compare with the reference home screens), then
-# locked once the pass is over and without an account.
+# The Spending widget in every size, drawn by the widget's own view: the
+# medium widgets for Today, This Week and This Month first (compare with the
+# reference home screens), then the small and lock screen widgets, with a long
+# RWF total that has to shrink. Then the same sizes locked once the pass is
+# over and without an account. The large sizes are in platform.txt.
 widgets | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery
+widgets-small | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryScroll small
+widgets-lock-screen | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryScroll lockScreen
 widgets-locked | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked
+widgets-locked-small | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked -KeaserGalleryScroll small
