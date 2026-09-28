@@ -122,14 +122,16 @@ public enum ReceiptReading {
     ///   tell a French receipt's "03/04" from an American one's, then the
     ///   person's region.
     /// - Currency: the one printed most often next to the amounts, else the
-    ///   model's (both are printed on the receipt).
+    ///   model's (both are printed on the receipt), else the shared symbol
+    ///   printed next to them.
     public static func merged(_ model: ReceiptDraft, over heuristic: ReceiptParser.Reading) -> ReceiptDraft {
         let rules = heuristic.draft
         return ReceiptDraft(
             merchant: model.merchant ?? rules.merchant,
             total: heuristic.totalIsLabelled ? rules.total : (model.total ?? rules.total),
             day: heuristic.dayIsSettled ? rules.day : (model.day ?? rules.day),
-            currencyCode: rules.currencyCode ?? model.currencyCode
+            currencyCode: rules.currencyCode ?? model.currencyCode,
+            currencySymbol: rules.currencySymbol
         )
     }
 

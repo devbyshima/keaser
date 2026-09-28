@@ -62,6 +62,7 @@ public enum ReceiptParser {
     public static func reading(from lines: [String], today: ReceiptDay, prefersMonthFirst: Bool) -> Reading {
         let lines = lines.map(oneLine).filter { !$0.isEmpty }
         let currency = currencyCode(in: lines)
+        let symbol = currency == nil ? sharedSymbol(in: lines) : nil
         // Receipts with decimal commas come from places that write the day
         // first.
         let receiptOrder = currency.map { monthFirstCurrencies.contains($0) }
@@ -73,7 +74,8 @@ public enum ReceiptParser {
                 merchant: merchant(in: lines),
                 total: labelled ?? largestPrice(in: lines),
                 day: found?.day,
-                currencyCode: currency
+                currencyCode: currency,
+                currencySymbol: symbol
             ),
             totalIsLabelled: labelled != nil,
             dayIsSettled: found.map { !$0.isAmbiguous || receiptOrder != nil } ?? false
@@ -398,6 +400,20 @@ public enum ReceiptParser {
             }
         }
         return order.max { counts[$0, default: 0] < counts[$1, default: 0] }
+    }
+
+    /// The symbol several currencies share ("$", "¥") printed next to the
+    /// receipt's amounts, for a receipt that names no currency. "￥" is
+    /// read as "¥".
+    public static func sharedSymbol(in lines: [String]) -> String? {
+        var counts: [String: Int] = [:]
+        for line in lines where amounts(in: line).contains(where: { $0.hasCurrencyMark && $0.currencyCode == nil }) {
+            for character in line {
+                let text = String(character) == "￥" ? "¥" : String(character)
+                if ambiguousSymbols.contains(text) { counts[text, default: 0] += 1 }
+            }
+        }
+        return counts.max { $0.value < $1.value || ($0.value == $1.value && $0.key > $1.key) }?.key
     }
 
     /// The currency a mark names, and whether it is a currency mark at all

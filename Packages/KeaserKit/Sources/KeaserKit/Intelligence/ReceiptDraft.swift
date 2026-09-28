@@ -13,23 +13,57 @@ public struct ReceiptDraft: Equatable, Sendable {
     /// The ISO 4217 code of the currency printed on the receipt, only when
     /// the receipt names it (a code, or a symbol only one currency uses).
     public var currencyCode: String?
+    /// A symbol several currencies share ("$", "¥") printed next to the
+    /// amounts of a receipt that names no currency.
+    public var currencySymbol: String?
 
-    public init(merchant: String? = nil, total: Decimal? = nil, day: ReceiptDay? = nil, currencyCode: String? = nil) {
+    public init(
+        merchant: String? = nil,
+        total: Decimal? = nil,
+        day: ReceiptDay? = nil,
+        currencyCode: String? = nil,
+        currencySymbol: String? = nil
+    ) {
         self.merchant = merchant
         self.total = total
         self.day = day
         self.currencyCode = currencyCode
+        self.currencySymbol = currencyCode == nil ? currencySymbol : nil
     }
 
     /// True when it reads as a receipt: a total or a date was found. A name
     /// alone is not enough, since any photo with a line of text has one.
     public var isReceipt: Bool { total != nil || day != nil }
 
-    /// True when the receipt names a currency other than `currencyCode`, the
-    /// one Keaser records amounts in: the person should check the amount.
+    /// True when the receipt is in a currency other than `currencyCode`, the
+    /// one Keaser records amounts in, so the person should check the
+    /// amount: it names another currency, or prints a shared symbol that
+    /// `currencyCode` is never written with ("$" for someone who records
+    /// euros, but not for someone who records Canadian dollars or pesos).
     public func isInOtherCurrency(than currencyCode: String) -> Bool {
-        guard let printed = self.currencyCode else { return false }
-        return printed.caseInsensitiveCompare(currencyCode) != .orderedSame
+        if let printed = self.currencyCode {
+            return printed.caseInsensitiveCompare(currencyCode) != .orderedSame
+        }
+        guard let currencySymbol else { return false }
+        return !Self.isWritten(currencyCode, with: currencySymbol)
+    }
+
+    /// Whether amounts in `currencyCode` can be printed with `symbol`: its
+    /// shortest written form contains it. "$" writes every dollar, the
+    /// pesos and the real ("R$"); "¥" writes the yen and the yuan.
+    static func isWritten(_ currencyCode: String, with symbol: String) -> Bool {
+        let narrow = Decimal(0).formatted(.currency(code: currencyCode).presentation(.narrow).locale(Locale(identifier: "en_US")))
+        return narrow.contains(symbol)
+    }
+
+    /// The note New Expense shows under the card once it is filled in from
+    /// this receipt, for someone who records amounts in `currencyCode`.
+    public func note(recordingIn currencyCode: String) -> String {
+        guard isInOtherCurrency(than: currencyCode) else {
+            return "Filled in from your receipt. Check the details before saving."
+        }
+        let shown = self.currencyCode ?? "prices in \(currencySymbol ?? "")"
+        return "Filled in from your receipt, which shows \(shown). Keaser records amounts in \(currencyCode), so check the amount before saving."
     }
 }
 

@@ -215,6 +215,39 @@ struct IntelligenceReceiptParserTests {
         #expect(!ReceiptDraft(total: 12.5).isInOtherCurrency(than: "RWF"))
     }
 
+    @Test func keepsASharedSymbolWhenNoCurrencyIsNamed() {
+        #expect(ReceiptParser.sharedSymbol(in: ["Total $12.50"]) == "$")
+        #expect(ReceiptParser.sharedSymbol(in: ["Total ￥753"]) == "¥")
+        #expect(ReceiptParser.sharedSymbol(in: ["Total 12.50"]) == nil)
+        #expect(ReceiptParser.draft(from: ["Total $12.50"], today: today, prefersMonthFirst: true).currencySymbol == "$")
+        // A named currency wins over the symbol.
+        let named = ReceiptParser.draft(from: ["Total US$12.50", "Tip $2.00"], today: today, prefersMonthFirst: true)
+        #expect(named.currencyCode == "USD" && named.currencySymbol == nil)
+        #expect(ReceiptDraft(currencyCode: "EUR", currencySymbol: "$").currencySymbol == nil)
+    }
+
+    @Test func aSharedSymbolIsFlaggedOnlyWhereTheCurrencyNeverUsesIt() {
+        let dollars = ReceiptDraft(total: 43.2, currencySymbol: "$")
+        for code in ["USD", "CAD", "AUD", "MXN", "COP", "HKD"] {
+            #expect(!dollars.isInOtherCurrency(than: code), "\(code)")
+        }
+        for code in ["EUR", "GBP", "RWF", "KES", "JPY", "INR"] {
+            #expect(dollars.isInOtherCurrency(than: code), "\(code)")
+        }
+        let yen = ReceiptDraft(total: 753, currencySymbol: "¥")
+        #expect(!yen.isInOtherCurrency(than: "JPY") && !yen.isInOtherCurrency(than: "CNY"))
+        #expect(yen.isInOtherCurrency(than: "USD"))
+    }
+
+    @Test func theNoteSaysWhichCurrencyTheReceiptShows() {
+        #expect(ReceiptDraft(total: 14.5, currencyCode: "EUR").note(recordingIn: "USD")
+            == "Filled in from your receipt, which shows EUR. Keaser records amounts in USD, so check the amount before saving.")
+        #expect(ReceiptDraft(total: 43.2, currencySymbol: "$").note(recordingIn: "EUR")
+            == "Filled in from your receipt, which shows prices in $. Keaser records amounts in EUR, so check the amount before saving.")
+        #expect(ReceiptDraft(total: 43.2, currencySymbol: "$").note(recordingIn: "USD")
+            == "Filled in from your receipt. Check the details before saving.")
+    }
+
     @Test func theRegionsDateOrder() {
         #expect(ReceiptParser.prefersMonthFirst(locale: Locale(identifier: "en_US")))
         #expect(!ReceiptParser.prefersMonthFirst(locale: Locale(identifier: "en_GB")))

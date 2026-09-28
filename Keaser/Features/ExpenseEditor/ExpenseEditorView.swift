@@ -502,9 +502,7 @@ struct ExpenseEditorView: View {
                let filled = day.date(keepingTimeOf: date, calendar: store.preferences.calendar) {
                 date = filled
             }
-            receiptNote = draft.isInOtherCurrency(than: currencyCode)
-                ? "Filled in from your receipt, which shows \(draft.currencyCode ?? ""). Keaser records amounts in \(currencyCode), so check the amount before saving."
-                : "Filled in from your receipt. Check the details before saving."
+            receiptNote = draft.note(recordingIn: currencyCode)
         }
         focus = nil
         guessLabels()
