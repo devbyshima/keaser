@@ -101,6 +101,7 @@ DECISION: force the confirmation card, the same rule Add Expense already follows
    A Mac probe ran a copy of today's MoneyFormat.parse and confirmed the bug: en_US "4,50 €" gives 450, de_DE "$4.50" gives 450, en_US "1.234,56 €" gives 1.23456, and de_DE "RWF 5,000" gives 5.
    A probe of the proposed reader returned 4.5, 4.5, 1234.56 and 5000 (the RWF case after the rule above), and returned nil for "$0.00", "-$4.50" and "free".
    A negative or zero amount is still refused with "Enter an amount greater than zero."
+   DONE ahead of the device test: `WalletAmount.read(_:currencyCode:locale:)` (Platform/WalletAmount.swift) now does this reading, with `text`, `value` and `marks`, and `QuickLog.amount(from text:)` uses it. It widens the rule above: three digits after a lone separator group thousands for any currency with at most two decimals (so "¥1,500" and "€1.234" read the same on every phone), and only a three-decimal currency (KWD) is left to the phone's separator. A bare number takes Keaser's currency. Step 2 below therefore only adds `isWritten` and `otherCurrencyNote`.
 
 7. Fallback, used only if device questions 1 and 2 show that a Wallet automation cannot show or answer a prompt: save the expense, and replace "Successfully added expense" with "Added as $12.40. The payment was €12.40, and Keaser records amounts in USD, so change the amount in Keaser if needed."
 
