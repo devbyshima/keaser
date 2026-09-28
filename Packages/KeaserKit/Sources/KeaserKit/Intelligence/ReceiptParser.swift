@@ -25,14 +25,18 @@ public struct ReceiptAmount: Equatable, Sendable {
 /// Intelligence, and the fallback for any detail the model gets wrong.
 ///
 /// - Total: the amount on the line saying "Total" (or "Amount due",
-///   "Summe", "Total TTC"...), never a subtotal, tax, cash or change line;
-///   the largest price on the receipt when no line says so.
+///   "Summe", "Total TTC"...), never a subtotal, tax, cash, change, amount
+///   paid, gross amount or suggested-tip line; the largest price on the
+///   receipt when no line says so.
 /// - Day: the first date printed that is not in the future, in any common
 ///   format; "03/04/2026" is read the way the receipt's currency or else
-///   the person's region writes dates.
+///   the person's region writes dates, unless that reading is tomorrow and
+///   the other one is not.
 /// - Merchant: the first line near the top that is not an address, phone
 ///   number, date, greeting or price, tidied up to be a title.
-/// - Currency: a code or a symbol only one currency uses, next to an amount.
+/// - Currency: a code or a symbol only one currency uses, next to an amount
+///   (never letters after a count, such as "6 FT" or "5 KGS"); otherwise a
+///   symbol several currencies share ("$", "¥"), kept on the draft.
 public enum ReceiptParser {
     /// What the heuristics read, and whether the receipt itself settled the
     /// details a language model might read better.
@@ -518,19 +522,24 @@ public enum ReceiptParser {
     }
 
     /// `day(in:today:monthFirst:)`, and whether the date it came from could
-    /// be read another way.
+    /// be read another way. Tomorrow is only taken when it is the one
+    /// reading: "03/04" read on April 2 is March 4, even where the day
+    /// comes first.
     static func dayChoice(in lines: [String], today: ReceiptDay, monthFirst: Bool) -> (day: ReceiptDay, isAmbiguous: Bool)? {
         for line in lines {
             guard Set(words(line)).isDisjoint(with: notPurchaseDayWords) else { continue }
             for candidates in days(in: line, monthFirst: monthFirst) {
                 let plausible = candidates.filter { isPlausible($0, today: today) }
-                if let day = plausible.first { return (day, plausible.count > 1) }
+                if let day = plausible.first(where: { $0 <= today }) ?? plausible.first {
+                    return (day, plausible.count > 1)
+                }
             }
         }
         return nil
     }
 
-    /// Whether `day` could be when a receipt was printed.
+    /// Whether `day` could be when a receipt was printed: not after
+    /// tomorrow (the shop may be a time zone ahead) and not decades ago.
     public static func isPlausible(_ day: ReceiptDay, today: ReceiptDay) -> Bool {
         day <= today.next && day.year >= today.year - 20
     }

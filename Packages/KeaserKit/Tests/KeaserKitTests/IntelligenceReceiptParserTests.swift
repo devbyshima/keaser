@@ -188,6 +188,19 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.day(in: ["09/28/2026"], today: today, monthFirst: true) == day(2026, 9, 28))
     }
 
+    @Test func aPastReadingBeatsTomorrow() {
+        // Read on April 2 on a British iPhone: April 3 would be tomorrow,
+        // so "03/04/2026" is March 4, still open to the model.
+        let april2 = day(2026, 4, 2)
+        let reading = ReceiptParser.reading(from: ["Total $18.00", "03/04/2026"], today: april2, prefersMonthFirst: false)
+        #expect(reading.draft.day == day(2026, 3, 4))
+        #expect(!reading.dayIsSettled)
+        // Tomorrow as the only reading still counts.
+        #expect(ReceiptParser.day(in: ["03/13/2026"], today: day(2026, 3, 12), monthFirst: false) == day(2026, 3, 13))
+        // A day that is not tomorrow keeps the region's order.
+        #expect(ReceiptParser.day(in: ["03/04/2026"], today: day(2026, 4, 3), monthFirst: false) == day(2026, 4, 3))
+    }
+
     @Test func aDayKeepsTheTimeOfDayItIsPutOn() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Africa/Kigali")!
