@@ -78,7 +78,8 @@ extension DeleteExpenseIntent: UndoableIntent {
 
 extension IntentSupport {
     /// Deletes, then brings the widgets, the weekly summary and Spotlight up
-    /// to date before the intent returns, as `save` does. Throws when the
+    /// to date before the intent returns, a few seconds at most for each, as
+    /// `save` does. Throws when the
     /// deletion did not reach the disk; the expenses are then back in memory
     /// too (see `KeaserStore.delete(_:)`).
     static func delete(_ deletion: ExpenseDeletion, store: KeaserStore) async throws {
