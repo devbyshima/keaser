@@ -9,7 +9,7 @@
 Native iOS · SwiftUI · iOS 18 and later · no third-party packages
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-420%20in%2059%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
+[![Tests](https://img.shields.io/badge/tests-425%20in%2059%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
 </div>
@@ -32,12 +32,14 @@ widget. Everything stays on your iPhone.
 - **Insights**: a spending total and bar chart for Today, This Week, This
   Month, This Year or All Time, filterable by category and payment method, plus
   search. On iOS 27, swipe an expense to edit or delete it.
-- **Widgets**: one simple medium home screen widget with what you spent
-  Today, This Week, This Month or This Year ("Spent This Month" over the
-  total), for any account.
+- **Widgets**: one simple Spending widget in every size (small, medium,
+  large and, on iOS 27, extra large portrait on the home screen;
+  rectangular, circular and inline on the lock screen), each showing what
+  you spent Today, This Week, This Month or This Year the same way ("Spent
+  This Month" over the total), for any account.
   Two controls (Control Center, lock screen, Action button): "Add Expense"
-  opens Keaser on a new expense, and "Scan Receipt" opens it with the camera
-  up, to photograph a receipt into one.
+  opens Keaser straight on New Expense, and "Scan Receipt" opens it with the
+  camera up, to photograph a receipt into one.
 - **Shortcuts**: "Add Expense" and "Log Wallet Transaction" App Intents, with
   Siri phrases, for lock screen logging and Apple Wallet automations. Add
   Expense guides you one detail at a time, with Go Back and a confirmation

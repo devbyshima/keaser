@@ -6,6 +6,7 @@ struct SettingsTutorialsTests {
     private var everyText: [String] { Tutorials.all.flatMap(\.text) }
 
     @Test func listsEachTutorialOnceInOrder() {
+        #expect(Tutorials.all.map(\.id) == [.walletAutomation])
         #expect(Tutorials.all.map(\.id) == Tutorial.ID.allCases)
         for id in Tutorial.ID.allCases {
             #expect(Tutorials.tutorial(id).id == id)
@@ -22,16 +23,21 @@ struct SettingsTutorialsTests {
         #expect(Tutorials.paymentMethodFieldTitle == "Payment Method")
         #expect(Tutorials.accountFieldTitle == "Account")
         #expect(Tutorials.dateFieldTitle == "Date")
-        #expect(Tutorials.addExpenseFieldTitles == ["Title", "Amount", "Category", "Payment Method", "Account", "Date"])
     }
 
-    @Test func copyNamesTheActionAndEveryFieldExactly() {
+    /// The copy names, in bold, every field the Wallet guide has you set or
+    /// leave empty. Account is only drawn (`currentDate`), never named.
+    @Test func copyNamesTheActionAndItsFieldsExactly() {
         for tutorial in Tutorials.all {
             let text = tutorial.text.joined(separator: " ")
             #expect(text.contains("**\(Tutorials.addExpenseActionTitle)**"), "\(tutorial.id)")
         }
-        let text = everyText.joined(separator: " ")
-        for field in Tutorials.addExpenseFieldTitles {
+        let text = Tutorials.tutorial(.walletAutomation).text.joined(separator: " ")
+        let fields = [
+            Tutorials.titleFieldTitle, Tutorials.amountFieldTitle, Tutorials.categoryFieldTitle,
+            Tutorials.paymentMethodFieldTitle, Tutorials.dateFieldTitle,
+        ]
+        for field in fields {
             #expect(text.contains("**\(field)**"), "\(field)")
         }
     }
@@ -39,6 +45,16 @@ struct SettingsTutorialsTests {
     @Test func noLongerTeachesTheWalletTransactionAction() {
         for text in everyText {
             #expect(!text.contains("Log Wallet Transaction"), "\(text)")
+        }
+    }
+
+    /// Keaser's own Add Expense control took the place of the guide to a
+    /// home-made shortcut run from Back Tap or a Run Shortcut control.
+    @Test func noLongerTeachesAShortcutForBackTapOrAControl() {
+        for text in everyText {
+            for phrase in ["Run Shortcut", "Back Tap", "Add a Control"] {
+                #expect(!text.contains(phrase), "\(text)")
+            }
         }
     }
 
@@ -112,7 +128,7 @@ struct SettingsTutorialsTests {
                 #expect(tutorial.section(section.id) == section)
             }
         }
-        #expect(Tutorials.tutorial(.addExpenseShortcut).section("nowhere") == nil)
+        #expect(Tutorials.tutorial(.walletAutomation).section("nowhere") == nil)
     }
 
     @Test func stepNumbersRunOnThroughASection() throws {
@@ -124,28 +140,18 @@ struct SettingsTutorialsTests {
         #expect(starts == [1, 3])
 
         let made = TutorialSection(id: "x", title: "X", blocks: [
-            .paragraph("A"), .steps(["1", "2", "3"]), .illustration(.backTapSettings), .steps(["4"]),
+            .paragraph("A"), .steps(["1", "2", "3"]), .illustration(.walletOptions), .steps(["4"]),
         ])
         #expect(made.firstStepNumber(ofBlockAt: 0) == 1)
         #expect(made.firstStepNumber(ofBlockAt: 1) == 1)
         #expect(made.firstStepNumber(ofBlockAt: 3) == 4)
     }
 
-    @Test func shortcutGuideFollowsTheArticleOrder() throws {
-        let tutorial = Tutorials.tutorial(.addExpenseShortcut)
-        #expect(tutorial.sections.map(\.title) == ["Create a Shortcut", "Assign the Shortcut", "Back Tap", "Control Center", "Closing Remarks"])
-        #expect(tutorial.sections.map(\.level) == [.section, .section, .subsection, .subsection, .section])
-        try expectInOrder(tutorial, [
-            "**Shortcuts**", "**+**", "**Keaser**", "**Add Expense**",
-            "**Payment Method**", "**Current Date**",
-            "**Accessibility** > **Touch** > **Back Tap**", "**Double Tap**", "**Triple Tap**",
-            "**Control Center**", "**Add a Control**", "**Run Shortcut**", "**Choose Icon**",
-            "Action button",
-        ])
-    }
-
     @Test func walletGuideFollowsTheArticleOrder() throws {
         let tutorial = Tutorials.tutorial(.walletAutomation)
+        #expect(tutorial.sections.map(\.title) == ["Create the Automation", "Add Keaser's Action", "Optional Extras", "All Set"])
+        #expect(tutorial.sections.map(\.level) == [.section, .section, .section, .section])
+        #expect(tutorial.illustrations == [.walletTrigger, .walletOptions, .walletVariables, .currentDate, .askForCategory])
         try expectInOrder(tutorial, [
             "**Automation**", "**Wallet**", "**Run Immediately**", "**Create New Shortcut**",
             "**Add Expense**", "**Title**", "**Select Variable**", "**Merchant**", "**Amount**",
