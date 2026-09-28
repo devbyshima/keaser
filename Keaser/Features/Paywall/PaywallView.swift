@@ -90,7 +90,7 @@ struct PaywallView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Keaser Pro")
             .accessibilityAddTraits(.isHeader)
-            Text("Track your spending like a pro. No limits, more features.")
+            Text("Track your expenses like a pro. No limits and more features.")
                 .font(.body)
                 .foregroundStyle(Color.keaserSecondaryText)
                 .multilineTextAlignment(.center)
