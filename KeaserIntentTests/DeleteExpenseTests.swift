@@ -4,6 +4,8 @@ import XCTest
 
 /// "Delete Expense".
 final class DeleteExpenseTests: IntentTestCase {
+    override var searchesSpotlight: Bool { true }
+
     func testDeletesTheExpenseEverywhere() async throws {
         let kept = try await addExpense("Stays", amount: "8")
         let expense = try await addExpense("Wrong entry", amount: "27.35")
@@ -20,7 +22,7 @@ final class DeleteExpenseTests: IntentTestCase {
         let others = try await expenses.entities(identifiers: [kept.identifier.instanceIdentifier])
         XCTAssertEqual(others.count, 1, "nothing else is deleted")
         // And from Spotlight (the intent waits for the index).
-        try await eventually("the deleted expense leaves Spotlight") {
+        try await eventually(for: Self.spotlightChangeLimit, "the deleted expense leaves Spotlight") {
             try await self.spotlight(self.expenses, "Wrong entry").isEmpty
         }
     }

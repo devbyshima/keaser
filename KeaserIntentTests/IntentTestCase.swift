@@ -20,6 +20,8 @@ class IntentTestCase: XCTestCase {
     var startsWithPro: Bool { true }
     /// False starts with no account at all.
     var startsWithAccounts: Bool { true }
+    /// Tests that search Spotlight get more time (see `spotlight(_:_:)`).
+    var searchesSpotlight: Bool { false }
 
     var expenses: AppEntityDefinition { definitions.entities["ExpenseEntity"] }
     var accounts: AppEntityDefinition { definitions.entities["AccountEntity"] }
@@ -29,6 +31,7 @@ class IntentTestCase: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         continueAfterFailure = false
+        if searchesSpotlight { executionTimeAllowance = 240 }
         await Self.launchApp()
         // Straight after the first install the system may not have read the
         // app's intents yet.
@@ -88,11 +91,15 @@ class IntentTestCase: XCTestCase {
 
     func money(_ text: String) -> Decimal { Decimal(string: text)! }
 
-    /// How long one Spotlight search may take. AppIntentsTesting's
-    /// `spotlightQuery` can stall with no end on a freshly booted simulator;
-    /// unbounded, one stalled search used up the test's whole execution
-    /// time allowance and restarted the runner.
-    static let spotlightQueryLimit: Duration = .seconds(15)
+    /// How long one Spotlight search may take. The simulator's search
+    /// daemon holds a search back while it still has writes queued ("the
+    /// task has data in the set queue") and answers after its next flush,
+    /// seen to take about 15 seconds; when it never flushes, the search
+    /// never returns. Unbounded, such a search used up the test's whole
+    /// execution time allowance and restarted the runner.
+    static let spotlightQueryLimit: Duration = .seconds(40)
+    /// How long a test waits for Spotlight to show a change.
+    static let spotlightChangeLimit: Duration = .seconds(60)
 
     /// `entity.spotlightQuery(text)`, or a `TimedOut` error after
     /// `spotlightQueryLimit`.
