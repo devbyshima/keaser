@@ -60,6 +60,20 @@ struct CardRowBackground: View {
     }
 }
 
+enum SettingsListInset {
+    /// iOS 27 puts 4pt more between an inline navigation bar and a list's
+    /// first row than iOS 26, where the reference was recorded, so every
+    /// settings card sat 4pt low. Taking it back out of the margin puts the
+    /// cards where the reference has them; earlier systems use the margin
+    /// as it is.
+    static func top(_ margin: CGFloat) -> CGFloat {
+        if #available(iOS 27.0, *) {
+            return max(margin - 4, 0)
+        }
+        return margin
+    }
+}
+
 extension EdgeInsets {
     /// Rows with a leading symbol tile.
     static let settingsRow = EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 16)
@@ -71,13 +85,15 @@ extension View {
     /// The list look shared by every settings page. `sectionSpacing` is the
     /// gap between cards; pages whose sections carry a `SettingsSectionTitle`
     /// use a tighter one, since the title row adds its own height.
+    /// `topMargin` is the space under the navigation bar as iOS 26 lays it
+    /// out (see `SettingsListInset`).
     func settingsListStyle(sectionSpacing: CGFloat = 35, topMargin: CGFloat = 39) -> some View {
         self
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Color.settingsCanvas.ignoresSafeArea())
             .keaserReadableScrollContent(base: KeaserMetrics.screenPadding)
-            .contentMargins(.top, topMargin, for: .scrollContent)
+            .contentMargins(.top, SettingsListInset.top(topMargin), for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
             // Card rows set their own heights (52, 68 or 74pt); this floor
             // is for title rows and for sections other features embed.
