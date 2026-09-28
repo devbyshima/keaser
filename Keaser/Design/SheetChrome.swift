@@ -121,18 +121,23 @@ struct KeaserCard<Content: View>: View {
 }
 
 /// The hairline between rows of a card, starting where the row text starts.
+/// With `overlapsRows` it is drawn across the boundary between the rows
+/// instead of adding its own height between them.
 struct KeaserRowSeparator: View {
     var leading: CGFloat = 16
     var trailing: CGFloat = 16
+    var overlapsRows = false
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        // Measured from the reference: a hairline on black, a full point on
+        // white, where half a point at 10% black all but vanishes.
+        let thickness: CGFloat = colorScheme == .light ? 1 : 0.5
         Rectangle()
             .fill(Color.keaserSeparator)
-            // Measured from the reference: a hairline on black, a full point
-            // on white, where half a point at 10% black all but vanishes.
-            .frame(height: colorScheme == .light ? 1 : 0.5)
+            .frame(height: thickness)
+            .padding(.vertical, overlapsRows ? -thickness / 2 : 0)
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .accessibilityHidden(true)

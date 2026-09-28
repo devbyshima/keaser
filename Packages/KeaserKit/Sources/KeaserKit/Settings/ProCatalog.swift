@@ -133,8 +133,8 @@ extension ProFeature {
         switch self {
         case .widgets: "Quick access from your home screen."
         case .moreFilters: "Filter by categories and payment methods."
-        case .multipleAccounts: "Remove the limit of one account."
-        case .longTermInsights: "View all data and trends from past years."
+        case .multipleAccounts: "Remove the limit of one free account."
+        case .longTermInsights: "View all data and trends extending to past years."
         }
     }
 

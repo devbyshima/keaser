@@ -79,6 +79,43 @@ public enum SpendingChart {
         }
     }
 
+    /// The value axis on a fixed 0...1 scale: bars and grid lines are placed
+    /// as shares of the top tick rather than as amounts. Swift Charts lays
+    /// its axis labels out with invalid (negative) frames while an animated
+    /// change moves the scale's domain, as switching periods does when the
+    /// tallest bar changes. With the domain fixed, only the bar heights and
+    /// the label text change.
+    public struct ValueScale: Equatable, Sendable {
+        /// The grid line amounts, from `axisTicks(for:)`.
+        public let ticks: [Double]
+
+        public init(highest: Double) {
+            ticks = SpendingChart.axisTicks(for: highest)
+        }
+
+        /// The chart's domain, the same for every period.
+        public static let domain: ClosedRange<Double> = 0...1
+
+        /// The top grid line's amount.
+        public var top: Double { ticks.last ?? 0 }
+
+        /// Where `amount` sits on the axis: 0 at the bottom, 1 at the top
+        /// grid line.
+        public func position(of amount: Double) -> Double {
+            guard top > 0, amount.isFinite else { return 0 }
+            return max(amount, 0) / top
+        }
+
+        /// The grid lines' positions.
+        public var tickPositions: [Double] { ticks.map(position(of:)) }
+
+        /// The amount printed beside the grid line at `position`: the
+        /// nearest tick, so a label never shows a rounding error.
+        public func tick(at position: Double) -> Double? {
+            ticks.min { abs(self.position(of: $0) - position) < abs(self.position(of: $1) - position) }
+        }
+    }
+
     /// Whether the axis labels of `buckets`, each `width(label)` wide and
     /// centred under its bar, keep at least `gap` between neighbours on a
     /// plot `plotWidth` wide. When they do not, the chart shows

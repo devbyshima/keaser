@@ -479,6 +479,13 @@ struct SettingsProTests {
         for feature in ProFeature.allCases { #expect(!feature.detail.isEmpty) }
     }
 
+    @Test func paywallFeatureLinesAreTheReferences() {
+        #expect(ProFeature.widgets.detail == "Quick access from your home screen.")
+        #expect(ProFeature.moreFilters.detail == "Filter by categories and payment methods.")
+        #expect(ProFeature.multipleAccounts.detail == "Remove the limit of one free account.")
+        #expect(ProFeature.longTermInsights.detail == "View all data and trends extending to past years.")
+    }
+
     @Test func statusTextCoversEveryState() {
         #expect(ProStatusText.subtitle(trialDaysRemaining: 7, hasPurchased: false) == "7 days left in trial")
         #expect(ProStatusText.subtitle(trialDaysRemaining: 1, hasPurchased: false) == "1 day left in trial")

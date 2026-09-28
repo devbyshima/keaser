@@ -21,6 +21,16 @@ struct PaywallView: View {
     /// The home indicator's inset, so the panel can sit as low as the
     /// reference's, inside the screen's rounded corners.
     @State private var bottomSafeArea: CGFloat = 0
+    /// Where the plans panel meets the features at rest (`PaywallFold`), in
+    /// the sheet's coordinates: each feature's text as it would be without
+    /// `foldShift`, the panel's top, how far the list is scrolled, and how
+    /// far the content is moved down so the panel's edge falls between two
+    /// lines.
+    @State private var featureLines: [Int: PaywallFold.Row] = [:]
+    @State private var panelTop: CGFloat?
+    @State private var scrolledBy: CGFloat = 0
+    @State private var foldShift: CGFloat = 0
+    @State private var foldPlaced = false
 
     var body: some View {
         NavigationStack {
@@ -30,12 +40,16 @@ struct PaywallView: View {
                     features
                         .padding(.top, 32)
                 }
-                .padding(.top, Self.topPadding)
+                .padding(.top, Self.topPadding + foldShift)
                 .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, offset in
+                scrolledBy = offset
+            }
             .keaserReadableScrollContent(width: KeaserMetrics.narrowReadableWidth)
             .keaserBottomBar { bottomBar }
+            .coordinateSpace(.named(Self.sheetSpace))
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomSafeArea = $0 }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -90,7 +104,7 @@ struct PaywallView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Keaser Pro")
             .accessibilityAddTraits(.isHeader)
-            Text("Track your spending like a pro. No limits, more features.")
+            Text("Track your expenses like a pro. No limits and more features.")
                 .font(.body)
                 .foregroundStyle(Color.keaserSecondaryText)
                 .multilineTextAlignment(.center)
@@ -113,11 +127,16 @@ struct PaywallView: View {
     }
 
     private var features: some View {
-        VStack(alignment: .leading, spacing: 21) {
-            ForEach(ProFeature.ordered(highlighting: highlighted)) { feature in
-                FeatureRow(symbol: feature.symbol, title: feature.title, detail: feature.detail, isHighlighted: feature == highlighted)
+        let ordered = ProFeature.ordered(highlighting: highlighted)
+        return VStack(alignment: .leading, spacing: 21) {
+            ForEach(Array(ordered.enumerated()), id: \.element) { index, feature in
+                FeatureRow(symbol: feature.symbol, title: feature.title, detail: feature.detail, isHighlighted: feature == highlighted, foldShift: foldShift) {
+                    measured($0, at: index)
+                }
             }
-            FeatureRow(symbol: "heart.fill", title: "Support indie development", detail: "Help build more features.", tint: .keaserDestructive)
+            FeatureRow(symbol: "heart.fill", title: "Support indie development", detail: "Help build more features.", tint: .keaserDestructive, foldShift: foldShift) {
+                measured($0, at: ordered.count)
+            }
         }
         .padding(.leading, 48)
         .padding(.trailing, 40)
@@ -178,6 +197,10 @@ struct PaywallView: View {
         .padding(.bottom, pro.hasPurchased ? 14 : 6)
         .frame(maxWidth: .infinity)
         .modifier(PaywallPanelBackground(bottomRadius: bottomSafeArea > 0 ? 44 : 34))
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.sheetSpace)).minY } action: { top in
+            panelTop = top
+            updateFold()
+        }
         // The panel stays on screen whatever the text size, so it stops
         // growing before it would crowd out the features.
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -345,6 +368,40 @@ struct PaywallView: View {
     private static let startsWithAllPlans = false
     #endif
 
+    // MARK: Where the panel meets the features
+
+    fileprivate nonisolated static let sheetSpace = "PaywallSheet"
+    /// The most the content moves to keep the panel's edge off a line,
+    /// enough to clear a two-line detail at the default text size; past
+    /// that it stays where it is.
+    private static let foldLimit: CGFloat = 20
+
+    private func measured(_ row: PaywallFold.Row, at index: Int) {
+        guard featureLines[index] != row else { return }
+        featureLines[index] = row
+        updateFold()
+    }
+
+    /// Moves the content so that, at rest, the panel's top edge falls between
+    /// two lines of the feature list rather than through one, as it does in
+    /// the reference. The panel's place in the list depends on the sheet's
+    /// height and the panel's own, so it is measured, not fixed. Once every
+    /// plan is showing, the taller panel covers more of the list, as in the
+    /// reference, and the content stays put.
+    private func updateFold() {
+        guard !showsAllPlans, abs(scrolledBy) < 0.5, let panelTop, featureLines.count == ProFeature.allCases.count + 1 else { return }
+        let shift = CGFloat(PaywallFold.shift(panelTop: Double(panelTop), rows: Array(featureLines.values), limit: Double(Self.foldLimit)))
+        // The first placement happens as the sheet comes up; later ones
+        // (prices failing to load, an error under the plans) glide with the
+        // panel.
+        let glides = foldPlaced
+        foldPlaced = true
+        guard abs(shift - foldShift) > 0.25 else { return }
+        var transaction = Transaction(animation: glides ? .snappy(duration: 0.2) : nil)
+        transaction.disablesAnimations = !glides
+        withTransaction(transaction) { foldShift = shift }
+    }
+
     // MARK: Actions
 
     private func upgrade() {
@@ -369,6 +426,15 @@ private struct FeatureRow: View {
     let detail: String
     var tint: Color = .keaserPrimaryText
     var isHighlighted = false
+    /// The paywall's `foldShift` in this layout, taken back out of what
+    /// `onLines` reports so moving the content never feeds back into it.
+    var foldShift: CGFloat = 0
+    /// Reports the title's and the detail's line boxes in the paywall's
+    /// sheet, for where the plans panel meets the list.
+    var onLines: (PaywallFold.Row) -> Void = { _ in }
+
+    @State private var titleLines: ClosedRange<Double>?
+    @State private var detailLines: ClosedRange<Double>?
 
     @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 30
 
@@ -383,12 +449,14 @@ private struct FeatureRow: View {
                 Text(title)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Color.keaserPrimaryText)
+                    .onGeometryChange(for: ClosedRange<Double>.self) { [foldShift] in Self.lines($0, less: foldShift) } action: { titleLines = $0; report() }
                 // Subheadline, as measured in the reference (15pt on 20pt
                 // lines), so "Quick access from your home screen." fits on
                 // one line.
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(Color.keaserSecondaryText)
+                    .onGeometryChange(for: ClosedRange<Double>.self) { [foldShift] in Self.lines($0, less: foldShift) } action: { detailLines = $0; report() }
             }
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -403,6 +471,16 @@ private struct FeatureRow: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private nonisolated static func lines(_ proxy: GeometryProxy, less shift: CGFloat) -> ClosedRange<Double> {
+        let frame = proxy.frame(in: .named(PaywallView.sheetSpace))
+        return Double(frame.minY - shift)...Double(max(frame.minY, frame.maxY) - shift)
+    }
+
+    private func report() {
+        guard let titleLines, let detailLines else { return }
+        onLines(PaywallFold.Row(title: titleLines, detail: detailLines))
     }
 }
 
@@ -616,3 +694,4 @@ private extension View {
             .contentShape(Rectangle())
     }
 }
+

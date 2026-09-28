@@ -108,11 +108,12 @@ struct HomeSpendingChart: View {
 
     var body: some View {
         let narrow = usesNarrowLabels
+        let scale = valueScale
         Chart {
             ForEach(buckets) { bucket in
                 BarMark(
                     x: .value("Period", key(bucket.index)),
-                    y: .value("Spent", bucket.total.doubleValue),
+                    y: .value("Spent", scale.position(of: bucket.total.doubleValue)),
                     width: .ratio(Self.barWidthRatio)
                 )
                 // The pressed bar keeps full ink; the rest step back.
@@ -138,11 +139,11 @@ struct HomeSpendingChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing, values: ticks) { value in
+            AxisMarks(position: .trailing, values: scale.tickPositions) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 2 / 3))
                     .foregroundStyle(Color.keaserInk.opacity(0.17))
                 AxisValueLabel {
-                    if let amount = value.as(Double.self) {
+                    if let amount = value.as(Double.self).flatMap(scale.tick(at:)) {
                         Text(amount, format: .number.notation(.compactName))
                             .font(.caption2)
                             .foregroundStyle(Color.keaserSecondaryText)
@@ -150,7 +151,9 @@ struct HomeSpendingChart: View {
                 }
             }
         }
-        .chartYScale(domain: 0...(ticks.last ?? 20))
+        // A fixed domain: an animated domain change (a new tallest bar)
+        // makes Charts lay the axis labels out with invalid frames.
+        .chartYScale(domain: SpendingChart.ValueScale.domain)
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 let plot = proxy.plotFrame.map { geometry[$0] } ?? .zero
@@ -202,7 +205,7 @@ struct HomeSpendingChart: View {
     private func callout(proxy: ChartProxy, plot: CGRect, chartWidth: CGFloat) -> some View {
         let anchored = (selectedIndex ?? lastCalloutIndex).flatMap { index in buckets.first { $0.index == index } }
         let barCenter = anchored.flatMap { proxy.position(forX: key($0.index)) }.map { plot.minX + $0 } ?? plot.midX
-        let barTop = anchored.flatMap { proxy.position(forY: $0.total.doubleValue) }.map { plot.minY + $0 } ?? plot.maxY
+        let barTop = anchored.flatMap { proxy.position(forY: valueScale.position(of: $0.total.doubleValue)) }.map { plot.minY + $0 } ?? plot.maxY
         let barWidth = buckets.isEmpty ? 0 : plot.width / CGFloat(buckets.count) * Self.barWidthRatio
         let keepClear = keepClear
         let placement: @Sendable (_ width: CGFloat, _ height: CGFloat) -> SpendingChart.CalloutPlacement = { width, height in
@@ -291,8 +294,8 @@ struct HomeSpendingChart: View {
         }
     }
 
-    private var ticks: [Double] {
-        SpendingChart.axisTicks(for: buckets.map(\.total.doubleValue).max() ?? 0)
+    private var valueScale: SpendingChart.ValueScale {
+        SpendingChart.ValueScale(highest: buckets.map(\.total.doubleValue).max() ?? 0)
     }
 }
 
