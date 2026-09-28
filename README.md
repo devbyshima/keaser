@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Keaser/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="Keaser" width="120">
+<img src="docs/app-icon.png" alt="Keaser" width="120">
 
 # Keaser
 
