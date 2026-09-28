@@ -31,6 +31,8 @@ struct HomeExpenseRows: View {
     let expenses: [Expense]
     let account: Account
     let currencyCode: String
+    /// A tap: the expense's details. Long press and swipe edit it directly.
+    let onOpen: (Expense) -> Void
     let onEdit: (Expense) -> Void
     let onDelete: (Expense) -> Void
 
@@ -38,7 +40,7 @@ struct HomeExpenseRows: View {
         ForEach(Array(expenses.enumerated()), id: \.element.id) { index, expense in
             let position = CardPosition(index: index, count: expenses.count)
             Button {
-                onEdit(expense)
+                onOpen(expense)
             } label: {
                 HomeExpenseRow(
                     expense: expense,

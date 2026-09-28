@@ -7,6 +7,9 @@ struct ExpenseEditorView: View {
     let accountID: UUID
     /// Nil when creating.
     let original: Expense?
+    /// Called instead of dismissing the sheet when Cancel, Save or Delete
+    /// ends the edit: the expense details use it to come back into view.
+    let onClose: (() -> Void)?
 
     @Environment(KeaserStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -64,9 +67,10 @@ struct ExpenseEditorView: View {
     /// matching the reference.
     private static let paymentGuessDelay = Duration.milliseconds(350)
 
-    init(accountID: UUID, expense: Expense? = nil) {
+    init(accountID: UUID, expense: Expense? = nil, onClose: (() -> Void)? = nil) {
         self.accountID = accountID
         self.original = expense
+        self.onClose = onClose
         _title = State(initialValue: expense?.title ?? "")
         _amountDisplay = State(initialValue: "")
         _amountSeed = State(initialValue: expense?.amount)
@@ -98,7 +102,7 @@ struct ExpenseEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             KeaserSheetHeader(title: isNew ? "New Expense" : "Edit Expense") {
-                Button("Cancel") { dismiss() }
+                Button("Cancel", action: close)
                     .homeSheetHeaderButton()
                     .accessibilityShowsLargeContentViewer()
             } trailing: {
@@ -519,14 +523,18 @@ struct ExpenseEditorView: View {
         store.saveExpense(expense, in: accountID)
         if isNew { IntentDonations.addedInApp(expense, accountID: accountID, store: store) }
         finished += 1
-        dismiss()
+        close()
     }
 
     private func delete() {
         guard let original else { return }
         store.deleteExpense(original.id, in: accountID)
         finished += 1
-        dismiss()
+        close()
+    }
+
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 }
 

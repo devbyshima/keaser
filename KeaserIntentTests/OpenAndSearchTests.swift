@@ -7,16 +7,16 @@ import XCTest
 /// read through accessibility (never tapped) and through the entities it
 /// says are on screen.
 final class OpenAndSearchTests: IntentTestCase {
-    func testOpenExpenseShowsItInEditExpense() async throws {
+    func testOpenExpenseShowsItsDetails() async throws {
         let expense = try await addExpense("Museum tickets", amount: "31")
         try await definitions.intents["OpenExpenseIntent"].makeIntent(target: expense).run()
 
         try await Self.onScreen { app in
-            XCTAssertTrue(app.staticTexts["Edit Expense"].waitForExistence(timeout: 15), "Edit Expense is showing")
-            XCTAssertEqual(app.textFields["Title"].value as? String, "Museum tickets")
+            XCTAssertTrue(app.staticTexts["Expense"].waitForExistence(timeout: 15), "The expense details are showing")
+            XCTAssertEqual(app.descendants(matching: .any)["Title"].firstMatch.value as? String, "Museum tickets")
         }
-        // The editor tells Siri which expense is open.
-        try await eventually("Edit Expense is annotated with the expense") {
+        // The details tell Siri which expense is open.
+        try await eventually("The details are annotated with the expense") {
             try await self.expenses.viewAnnotations().contains { $0.entity.identifier == expense.identifier }
         }
         // Its account, Business, is selected.
@@ -31,8 +31,8 @@ final class OpenAndSearchTests: IntentTestCase {
         await Self.quitApp()
         try await definitions.intents["OpenExpenseIntent"].makeIntent(target: expense).run()
         try await Self.onScreen { app in
-            XCTAssertTrue(app.staticTexts["Edit Expense"].waitForExistence(timeout: 20), "Edit Expense is showing")
-            XCTAssertEqual(app.textFields["Title"].value as? String, "Late train")
+            XCTAssertTrue(app.staticTexts["Expense"].waitForExistence(timeout: 20), "The expense details are showing")
+            XCTAssertEqual(app.descendants(matching: .any)["Title"].firstMatch.value as? String, "Late train")
         }
     }
 
@@ -41,8 +41,8 @@ final class OpenAndSearchTests: IntentTestCase {
         // A name is resolved through the expense string query, as Siri does.
         try await definitions.intents["OpenExpenseIntent"].makeIntent(target: "Concert").run()
         try await Self.onScreen { app in
-            XCTAssertTrue(app.staticTexts["Edit Expense"].waitForExistence(timeout: 15))
-            XCTAssertEqual(app.textFields["Title"].value as? String, "Concert")
+            XCTAssertTrue(app.staticTexts["Expense"].waitForExistence(timeout: 15))
+            XCTAssertEqual(app.descendants(matching: .any)["Title"].firstMatch.value as? String, "Concert")
         }
     }
 

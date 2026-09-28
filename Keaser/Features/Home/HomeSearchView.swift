@@ -11,6 +11,7 @@ struct HomeSearchView: View {
     let currencyCode: String
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
+    let onOpen: (Expense) -> Void
     let onEdit: (Expense) -> Void
     let onDelete: (Expense) -> Void
     let onClose: () -> Void
@@ -46,6 +47,7 @@ struct HomeSearchView: View {
                         expenses: expenses,
                         account: account,
                         currencyCode: currencyCode,
+                        onOpen: onOpen,
                         onEdit: onEdit,
                         onDelete: onDelete
                     )

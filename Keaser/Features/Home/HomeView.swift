@@ -193,6 +193,7 @@ struct HomeView: View {
             expenses: expenses,
             account: account,
             currencyCode: store.preferences.currencyCode,
+            onOpen: { sheet = .expense($0.id) },
             onEdit: { sheet = .editExpense($0.id) },
             onDelete: { expenseToDelete = $0 }
         )
@@ -213,6 +214,7 @@ struct HomeView: View {
             currencyCode: store.preferences.currencyCode,
             text: $searchText,
             isFocused: $searchFocused,
+            onOpen: { sheet = .expense($0.id) },
             onEdit: { sheet = .editExpense($0.id) },
             onDelete: { expenseToDelete = $0 },
             onClose: endSearch
@@ -235,6 +237,10 @@ struct HomeView: View {
         case .editExpense(let id):
             if let account = store.selectedAccount, let expense = account.expenses.first(where: { $0.id == id }) {
                 ExpenseEditorView(accountID: account.id, expense: expense)
+            }
+        case .expense(let id):
+            if let account = store.selectedAccount, account.expenses.contains(where: { $0.id == id }) {
+                ExpenseDetailSheet(accountID: account.id, expenseID: id)
             }
         case .settings:
             SettingsView()
@@ -369,12 +375,12 @@ struct HomeView: View {
     }
 
     /// An expense opened from Siri, Shortcuts or Spotlight: its account is
-    /// selected (resetting the filters, as any switch does) and the expense
-    /// shows in Edit Expense, whatever period Home is on.
+    /// selected (resetting the filters, as any switch does) and the expense's
+    /// details show, whatever period Home is on.
     private func openExpense(_ id: UUID) {
         guard let account = EntityCatalog.account(containingExpense: id, in: store.database) else { return }
         store.selectAccount(account.id)
-        sheet = .editExpense(id)
+        sheet = .expense(id)
     }
 
     /// An account opened from Siri, Shortcuts or Spotlight: selected, with
@@ -417,6 +423,10 @@ struct HomeView: View {
             if let newest = store.selectedAccount?.expensesNewestFirst.first {
                 sheet = .editExpense(newest.id)
             }
+        case "expense":
+            if let newest = store.selectedAccount?.expensesNewestFirst.first {
+                sheet = .expense(newest.id)
+            }
         case "search" where store.selectedAccount != nil:
             isSearching = true
             searchText = DebugLaunch.string("KeaserSearch") ?? ""
@@ -431,6 +441,8 @@ enum HomeSheet: Identifiable, Hashable {
     case accounts
     case addAccount
     case newExpense
+    /// An expense's details, read only, with Edit and Delete.
+    case expense(UUID)
     case editExpense(UUID)
     case settings
     case paywall(ProFeature)

@@ -5,6 +5,7 @@ empty-account | -KeaserSeed account
 accounts | -KeaserSeed account -KeaserSheet accounts
 accounts-demo | -KeaserSeed demo -KeaserSheet accounts
 new-expense | -KeaserSeed single -KeaserSheet newExpense
+expense-details | -KeaserSeed demo -KeaserSheet expense
 edit-expense | -KeaserSeed single -KeaserSheet editExpense
 single | -KeaserSeed single
 demo-all-time | -KeaserSeed demo -KeaserPeriod allTime

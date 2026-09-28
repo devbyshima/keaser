@@ -75,6 +75,11 @@ simulator GUI; add launch arguments instead.
   is small Liquid Glass tinted with a breath of `keaserInk`, by the founder's
   choice over the recording's larger opaque tag: keep its look when matching
   the reference elsewhere. Its placement (clear of the total) is separate.
+- Tapping an expense (Home, Search, Open Expense, a Spotlight result) opens
+  its details (`ExpenseDetailSheet`: the Add Expense card, read only, with
+  Edit and Delete), not Edit Expense as the recording does: the founder's
+  choice. Edit turns the sheet into Edit Expense (`onClose` brings the
+  details back); long press and swipe still edit or delete directly.
 
 ## Data
 
@@ -108,7 +113,7 @@ any recognised category, the model's included, brings the Cash fallback
 | `-KeaserNotifState` | `granted`, `denied`: page 4 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
 | `-KeaserLetterPage` | `tldr`, `follow` (sample links, DEBUG only) | onboarding |
-| `-KeaserSheet` | `accounts`, `addAccount`, `newExpense`, `editExpense`, `search` | home |
+| `-KeaserSheet` | `accounts`, `addAccount`, `newExpense`, `expense` (the newest expense's details), `editExpense`, `search` | home |
 | `-KeaserPeriod` | `today`, `thisWeek`, `thisMonth`, `thisYear`, `allTime` | home |
 | `-KeaserSearch` | search text, with `-KeaserSheet search` | home |
 | `-KeaserExpenseTitle` | text typed into New Expense (shows Smart Suggestions) | home |
@@ -134,7 +139,7 @@ any recognised category, the model's included, brings the Cash fallback
 | `-KeaserReceipt` | a `ReceiptSamples` name (`coffee`, `grocery`, `cafe-paris`, `not-a-receipt`, `tip-suggestions`, `cash-change`, `gross-net`, `cable`, ...): New Expense reads that sample receipt as if it had just been scanned | intelligence |
 | `-KeaserReceiptImage` | `1`: with `-KeaserReceipt`, prints the sample onto an image first and reads it with Vision, the whole way a photo goes | intelligence |
 | `-KeaserReceiptHold` | `1`: with `-KeaserReceipt`, keeps the receipt reading (the spinner in the title row) | intelligence |
-| `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, Edit Expense over Home) | intents |
+| `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, the expense's details over Home) | intents |
 | `-KeaserOpenAccount` | an account index: the route `OpenAccountIntent` leaves (the account selected, Home with nothing over it) | intents |
 | `-KeaserOpenSearch` | search text: the route `SearchExpensesIntent` leaves (Search with the results, keyboard down) | intents |
 | `-KeaserSelectAccount` | an account index selected at launch, with a seed; `1` with seed `demo` starts on Business, to see an opened Personal expense switch back | intents |
@@ -214,7 +219,7 @@ Seeded launches keep the database in memory and never touch the real file.
   Spotlight searches go through `IntentTestCase.spotlight(_:_:)`, bounded at 40 s.
 - Deep links: `keaser://new-expense`, `keaser://settings` (see `AppRouter`).
   App Intents and Spotlight results use the routes `AppRouter.Route.expense(UUID)`
-  (select its account, Edit Expense), `.account(UUID)` (select it, Home) and
+  (select its account, the expense's details), `.account(UUID)` (select it, Home) and
   `.search(String)` (Search with the text); `HomeView.handle(_:)` follows them.
 - Siri, Spotlight and Shortcuts entities: `ExpenseEntity` (app only,
   `Keaser/Intents/ExpenseEntity.swift`; an `IndexedEntity` whose
