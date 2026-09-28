@@ -11,6 +11,9 @@ import SwiftUI
 /// Account, Category and Payment carry up and down chevrons. A tap opens that
 /// detail's options inside the card (`options`); picking one sets it and
 /// closes the list again. The system draws the card again after every tap.
+///
+/// Values are medium and labels a lighter grey (`keaserSnippetLabel`), as the
+/// reference card draws them.
 struct ExpenseCardView: View {
     let card: ShortcutCard
     var session: String?
@@ -60,7 +63,8 @@ struct ExpenseCardView: View {
     }
 }
 
-/// Symbol and label in grey on the leading side, the value trailing.
+/// Symbol and label in grey on the leading side, the value trailing, in
+/// medium.
 private struct ExpenseCardRow: View {
     let symbol: String
     let label: String
@@ -76,23 +80,23 @@ private struct ExpenseCardRow: View {
         HStack(spacing: 8) {
             Image(systemName: symbol)
                 .keaserFont(15, relativeTo: .callout)
-                .foregroundStyle(Color.keaserSecondaryText)
+                .foregroundStyle(Color.keaserSnippetLabel)
                 .frame(width: symbolWidth)
                 .accessibilityHidden(true)
             Text(label)
                 .font(.callout)
-                .foregroundStyle(Color.keaserSecondaryText)
+                .foregroundStyle(Color.keaserSnippetLabel)
                 .fixedSize()
             Spacer(minLength: 12)
             HStack(spacing: 5) {
                 Text(value)
-                    .font(.callout)
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(Color.keaserPrimaryText)
                     .lineLimit(1)
                 if changes {
                     Image(systemName: "chevron.up.chevron.down")
                         .keaserFont(10, weight: .semibold, relativeTo: .caption2)
-                        .foregroundStyle(Color.keaserSecondaryText)
+                        .foregroundStyle(Color.keaserSnippetLabel)
                         .accessibilityHidden(true)
                 }
             }
@@ -143,7 +147,7 @@ private struct ExpenseCardOptions: View {
                     if let empty = list.emptyText {
                         Text(empty)
                             .font(.callout)
-                            .foregroundStyle(Color.keaserSecondaryText)
+                            .foregroundStyle(Color.keaserSnippetLabel)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, Self.rowPadding)
                     } else {
@@ -253,7 +257,7 @@ private struct ActionRow: View {
                     .font(.callout)
             }
         }
-        .foregroundStyle(Color.keaserSecondaryText)
+        .foregroundStyle(Color.keaserSnippetLabel)
         .padding(.vertical, ExpenseCardOptions.rowPadding)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
