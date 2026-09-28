@@ -218,74 +218,53 @@ struct InfoRow: View {
     }
 }
 
-/// A 52pt row with a bare symbol (no tile), as on the Tutorials, Help and
-/// Follow Us pages. At accessibility sizes the value moves under the title.
+/// A 52pt row with a bare symbol (no tile), as on the Tutorials and Help
+/// pages. At accessibility sizes the title wraps instead of being cut short.
 struct CompactRow: View {
     let symbol: String
     let title: String
-    var value: String?
     var accessory: String?
-    /// The symbol's point size: 22 on Tutorials, as in the reference, and
-    /// 19 elsewhere. The title starts in the same place either way.
-    var symbolSize: CGFloat
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var symbolWidth: CGFloat = 24
 
-    init(symbol: String, title: String, value: String? = nil, accessory: String? = nil, symbolSize: CGFloat = 19) {
-        self.symbol = symbol
-        self.title = title
-        self.value = value
-        self.accessory = accessory
-        self.symbolSize = symbolSize
-    }
-
     var body: some View {
         HStack(spacing: 16) {
+            // The body font's large symbol scale, which grows with the text.
+            // Measured from the reference, every symbol on Tutorials and
+            // Help matches it to the pixel (the envelope 77 x 55 pixels):
+            // fixed sizes came out 6 pixels short (19pt) or too wide (22pt).
             Image(systemName: symbol)
-                .keaserFont(symbolSize, weight: .medium, relativeTo: .body)
+                .font(.body)
+                .imageScale(.large)
                 .foregroundStyle(Color.keaserPrimaryText)
                 .frame(width: symbolWidth)
                 .accessibilityHidden(true)
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 2) {
-                    titleText
-                    if let value { valueText(value) }
-                }
-                .padding(.vertical, 10)
+            Text(title)
+                .font(.body)
+                .foregroundStyle(Color.keaserPrimaryText)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 10 : 0)
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-                Spacer(minLength: 8)
-            } else {
-                titleText
-                    .lineLimit(1)
-                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-                Spacer(minLength: 8)
-                if let value {
-                    valueText(value)
-                        .lineLimit(1)
-                }
-            }
+            Spacer(minLength: 8)
             if let accessory {
-                Image(systemName: accessory)
-                    .keaserFont(13, weight: .semibold, relativeTo: .footnote)
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .accessibilityHidden(true)
+                LinkAccessory(symbol: accessory)
             }
         }
         .frame(minHeight: 52)
         .cardSeparatorTrailing()
         .contentShape(Rectangle())
     }
+}
 
-    private var titleText: some View {
-        Text(title)
-            .font(.body)
-            .foregroundStyle(Color.keaserPrimaryText)
-    }
+/// The small grey symbol at the end of a link row ("arrow.up.right").
+struct LinkAccessory: View {
+    let symbol: String
 
-    private func valueText(_ value: String) -> some View {
-        Text(value)
-            .font(.body)
+    var body: some View {
+        Image(systemName: symbol)
+            .keaserFont(13, weight: .semibold, relativeTo: .footnote)
             .foregroundStyle(Color.keaserSecondaryText)
+            .accessibilityHidden(true)
     }
 }
