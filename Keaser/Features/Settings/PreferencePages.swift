@@ -25,7 +25,9 @@ struct CurrencyPickerView: View {
                 }
             }
         }
-        .settingsListStyle(topMargin: 12)
+        // The reference leaves the same gap under the search field as other
+        // pages leave under the navigation bar.
+        .settingsListStyle()
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
         .autocorrectionDisabled()
         .overlay {
@@ -190,7 +192,9 @@ struct CheckRow: View {
                     .accessibilityHidden(true)
             }
         }
-        .padding(.vertical, 12)
+        // A one-line row is the 52pt minimum; a name that wraps gets the
+        // reference's 15pt above and below.
+        .padding(.vertical, 15)
         .frame(minHeight: 52)
         .cardSeparatorTrailing()
         .contentShape(Rectangle())
