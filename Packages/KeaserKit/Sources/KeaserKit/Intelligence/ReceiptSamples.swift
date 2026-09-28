@@ -318,6 +318,69 @@ public enum ReceiptSamples {
         Chenji 10,000
         Asante
         """),
+        // A suggested-tip block under the total: each suggestion prints
+        // its own "Total", larger than the one on the bill.
+        ReceiptSample("tip-suggestions", merchant: "Orchard Bistro", total: "43.20", day: day(2026, 9, 23), symbol: "$", """
+        ORCHARD BISTRO
+        455 Valencia St
+        San Francisco, CA 94103
+        09/23/2026 7:42 PM
+        2 Salmon Bowl 32.00
+        2 Iced Tea 8.00
+        Subtotal 40.00
+        Tax 3.20
+        Total 43.20
+        Suggested gratuity
+        18%: $7.78 (Total: $51.02)
+        20%: $8.64 (Total: $51.84)
+        22%: $9.50 (Total: $52.70)
+        """),
+        // Paid in cash: "Amount Paid" is the note handed over.
+        ReceiptSample("cash-change", merchant: "Corner Deli", total: "17.96", day: day(2026, 9, 22), """
+        CORNER DELI
+        120 Broadway
+        New York, NY 10271
+        09/22/2026 12:15 PM
+        Turkey Club 11.50
+        Chips 2.25
+        Coffee 2.75
+        Subtotal 16.50
+        Tax 1.46
+        Total 17.96
+        Amount Paid 20.00
+        Change 2.04
+        """),
+        // The gross amount is before the discount; the net amount is paid.
+        ReceiptSample("gross-net", merchant: "Fresh Mart", total: "450.00", day: day(2026, 9, 19), """
+        FRESH MART
+        MG Road, Bengaluru 560001
+        Date: 19/09/2026 18:20
+        Basmati Rice 5kg 350.00
+        Sunflower Oil 1L 150.00
+        Gross Amount 500.00
+        Discount -50.00
+        Net Amount 450.00
+        Paid by UPI 450.00
+        Thank you, visit again
+        """),
+        // "6 FT" is six feet of cable, not forints: dollars, month first.
+        ReceiptSample("cable", merchant: "Best Buy", total: "12.99", day: day(2026, 9, 4), symbol: "$", """
+        BEST BUY #123
+        2800 Geary Blvd
+        San Francisco, CA 94118
+        6 FT HDMI CABLE 12.99
+        TOTAL $12.99
+        09/04/2026 14:32
+        """),
+        // "5 KGS" is five kilograms, not Kyrgyz som: pesos, month first.
+        ReceiptSample("grocery-manila", merchant: "Puregold Price Club", total: "346.00", day: day(2026, 9, 5), currency: "PHP", """
+        PUREGOLD PRICE CLUB
+        Quezon Ave, Quezon City
+        09/05/2026 10:05 AM
+        RICE 5 KGS 250.00
+        EGGS 12 PCS 96.00
+        TOTAL PHP 346.00
+        """),
         ReceiptSample("not-a-receipt", merchant: "Meeting notes", total: nil, day: nil, """
         Meeting notes
         Call Sam about the budget
