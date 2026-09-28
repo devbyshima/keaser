@@ -52,6 +52,13 @@ simulator GUI; add launch arguments instead.
   The onboarding illustration keeps its own measured charcoal
   (`OnboardingPalette.widgetSurface`).
 
+- The app icon is an Icon Composer document, `Keaser/Resources/AppIcon.icon`
+  (black fill, the mark as one glass SVG layer), written by
+  `swift scripts/make_icon.swift`; never edit it by hand or keep an
+  `AppIcon.appiconset` beside it (Xcode ignores the set). Xcode renders the
+  flat iOS 18 to 25 icons from it. `--previews DIR` renders the default, dark,
+  clear and tinted looks with ictool.
+
 - Screens that sit under an inline navigation bar start 4pt lower on iOS 27
   than on the iOS 26 reference; `settingsListStyle` (SettingsListInset) and the
   paywall take it off on iOS 27 only, so pass margins as iOS 26 lays them out.
@@ -268,7 +275,7 @@ Seeded launches keep the database in memory and never touch the real file.
 | Area | Files |
 |---|---|
 | foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
-| onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, app icon |
+| onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, `Keaser/Resources/AppIcon.icon` and `scripts/make_icon.swift` (app icon) |
 | platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), the large and extra large portrait families and `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, the breakdown in `Packages/KeaserKit/Sources/KeaserKit/Platform/SpendingSnapshot.swift`, `scripts/shots/platform.txt` |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList}.swift`, the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
