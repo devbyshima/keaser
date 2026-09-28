@@ -36,8 +36,8 @@ widget. Everything stays on your iPhone.
   rectangular, circular and inline on the lock screen), each showing what
   you spent Today, This Week, This Month or This Year the same way ("Spent
   This Month" over the total), for any account.
-  The "Add Expense" control (Control Center, lock screen, Action button) asks
-  for the expense right where you tap it, without opening Keaser.
+  The "Add Expense" control (Control Center, lock screen, Action button) opens
+  Keaser straight on New Expense.
 - **Shortcuts**: "Add Expense" and "Log Wallet Transaction" App Intents, with
   Siri phrases, for lock screen logging and Apple Wallet automations. Add
   Expense guides you one detail at a time, with Go Back and a confirmation
