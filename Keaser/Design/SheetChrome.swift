@@ -8,6 +8,11 @@ import SwiftUI
 ///
 /// `xmark` is drawn grey and medium weight, like the reference; every other
 /// glyph is ink-coloured and semibold.
+///
+/// On iOS 26 and later the glyph is at the large symbol scale, as the
+/// system draws toolbar buttons and as the reference's round header buttons
+/// measure (the close glyph 52 pixels across, where the medium scale gave
+/// 41). Earlier systems keep the medium scale.
 struct KeaserCircleButton: View {
     let symbol: String
     let label: String
@@ -25,6 +30,7 @@ struct KeaserCircleButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: isClose ? .medium : .semibold))
+                .keaserHeaderGlyphScale()
                 .foregroundStyle(isClose ? Color.keaserCloseGlyph : Color.keaserPrimaryText)
                 .keaserCircleButton()
         }
@@ -185,7 +191,9 @@ extension ButtonStyle where Self == KeaserCapsuleButtonStyle {
 }
 
 /// The confirm button of a form sheet (New Account, New Category): a
-/// checkmark in a 44pt circle, filled with ink once the form is valid.
+/// checkmark in a 44pt circle, filled with ink once the form is valid. On
+/// iOS 26 and later the checkmark is the system toolbar's (medium weight at
+/// the large symbol scale), as the reference's New Account measures.
 struct KeaserConfirmButton: View {
     let label: String
     var isEnabled: Bool
@@ -200,7 +208,8 @@ struct KeaserConfirmButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "checkmark")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 17, weight: HeaderGlyph.usesToolbarSize ? .medium : .semibold))
+                .keaserHeaderGlyphScale()
                 .foregroundStyle(isEnabled ? Color.keaserOnInk : Color.keaserInk.opacity(0.55))
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(isEnabled ? Color.keaserInk : Color.keaserInk.opacity(0.14)))
@@ -212,6 +221,27 @@ struct KeaserConfirmButton: View {
         .accessibilityLabel(label)
         .accessibilityShowsLargeContentViewer { Label(label, systemImage: "checkmark") }
         .accessibilityRemoveTraits(.isSelected)
+    }
+}
+
+/// How round header buttons size their glyphs. From iOS 26, where the
+/// system's own toolbar buttons use the large symbol scale, the reference's
+/// custom ones match them.
+private enum HeaderGlyph {
+    static var usesToolbarSize: Bool {
+        if #available(iOS 26.0, *) { true } else { false }
+    }
+}
+
+private extension View {
+    /// The large symbol scale on iOS 26 and later; unchanged before.
+    @ViewBuilder
+    func keaserHeaderGlyphScale() -> some View {
+        if HeaderGlyph.usesToolbarSize {
+            imageScale(.large)
+        } else {
+            self
+        }
     }
 }
 

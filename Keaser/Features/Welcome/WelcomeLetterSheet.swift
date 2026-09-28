@@ -278,18 +278,11 @@ private struct FollowLinkRow: View {
         .accessibilityAddTraits(.isLink)
     }
 
-    // The glyphs are sized from the tile they sit in, not from the text.
-    // White on black in both appearances, like the brand marks in the
-    // reference's light and dark Follow Us rows.
     private var icon: some View {
-        Image(systemName: link.symbol)
-            .font(.system(size: tile * 13 / 24, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: tile, height: tile)
-            .background(Color.black, in: RoundedRectangle(cornerRadius: tile / 4, style: .continuous))
-            .accessibilityHidden(true)
+        SocialLinkTile(symbol: link.symbol, size: tile)
     }
 
+    // Sized from the tile, like its glyph.
     private var arrow: some View {
         Image(systemName: "arrow.up.right")
             .font(.system(size: tile * 13 / 24, weight: .semibold))

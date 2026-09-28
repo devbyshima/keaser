@@ -8,7 +8,7 @@ struct TutorialsView: View {
             ForEach(Tutorials.all) { tutorial in
                 Section {
                     NavigationLink(value: SettingsPage.tutorial(tutorial.id)) {
-                        CompactRow(symbol: tutorial.symbol, title: tutorial.title, symbolSize: 22)
+                        CompactRow(symbol: tutorial.symbol, title: tutorial.title)
                     }
                     .cardRow(.single, insets: .settingsTextRow)
                 } footer: {
@@ -178,7 +178,8 @@ struct HelpFeedbackView: View {
 
     private var links: [(symbol: String, title: String, url: URL)] {
         var rows: [(symbol: String, title: String, url: URL)] = []
-        if let url = SupportLinks.featureRequests { rows.append(("lightbulb.max.fill", "Feature Requests", url)) }
+        // The bulb with dotted rays, as in the reference.
+        if let url = SupportLinks.featureRequests { rows.append(("lightbulb.min.fill", "Feature Requests", url)) }
         if let url = SupportLinks.supportEmail { rows.append(("envelope.fill", "Support Email", url)) }
         return rows
     }
@@ -223,7 +224,7 @@ struct FollowUsView: View {
                         Button {
                             openURL(link.url)
                         } label: {
-                            CompactRow(symbol: link.symbol, title: link.service, value: link.handle, accessory: "arrow.up.right")
+                            SocialLinkRow(link: link)
                         }
                         .cardRow(CardPosition(index: index, count: links.count), insets: .settingsTextRow)
                     }
@@ -232,5 +233,54 @@ struct FollowUsView: View {
         }
         .settingsListStyle(sectionSpacing: 24, topMargin: 24)
         .settingsPage("Follow Us")
+    }
+}
+
+/// A profile on Follow Us, laid out as the reference's: the service's tile
+/// 16pt in from the card, then 12pt to the name, and again between the
+/// handle and the arrow, on a 54pt row. The separator starts under the
+/// name. At accessibility sizes the handle moves under the name.
+private struct SocialLinkRow: View {
+    let link: AppLinks.SocialLink
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// Grows with the text, but only so far, as in the welcome letter.
+    @ScaledMetric(relativeTo: .body) private var tile: CGFloat = 24
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SocialLinkTile(symbol: link.symbol, size: min(tile, 36))
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 2) {
+                    service
+                    handle
+                }
+                .padding(.vertical, 10)
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                Spacer(minLength: 8)
+            } else {
+                service
+                    .lineLimit(1)
+                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                Spacer(minLength: 8)
+                handle
+                    .lineLimit(1)
+            }
+            LinkAccessory(symbol: "arrow.up.right")
+        }
+        .font(.body)
+        .frame(minHeight: 54)
+        .cardSeparatorTrailing()
+        .contentShape(Rectangle())
+    }
+
+    private var service: some View {
+        Text(link.service)
+            .foregroundStyle(Color.keaserPrimaryText)
+    }
+
+    private var handle: some View {
+        Text(link.handle)
+            .foregroundStyle(Color.keaserSecondaryText)
     }
 }
