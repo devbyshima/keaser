@@ -12,8 +12,9 @@ import os
 /// since the app last ran, or rebuilds the whole index when it was written
 /// by another build (see `SpotlightPlan`); after that every store change
 /// writes only the difference, a moment later so a burst of edits is written
-/// once. Which items the index holds is kept in a small file beside the app's
-/// data, not in the shared database.
+/// once. Which items the index holds is kept in a small file in the app's
+/// caches, not in the shared database: a backup restores neither the index
+/// nor that file, so a restored iPhone rebuilds the index.
 ///
 /// Every write, including the ones Spotlight asks for on iOS 27, goes
 /// through one serial queue of syncs, so two never write at once and the
@@ -193,15 +194,28 @@ final class SpotlightIndexer {
         )
     }
 
-    /// In the app's own container: only the app writes to Spotlight.
+    /// In the app's own caches: only the app writes to Spotlight. Caches are
+    /// never backed up, and neither is the index, so after a restore (or
+    /// when the system clears caches) there is no manifest and the index is
+    /// rebuilt. In backed-up storage the manifest would come back without
+    /// the index and claim everything was still indexed.
     private nonisolated static var manifestURL: URL {
+        URL.cachesDirectory.appending(path: "Keaser", directoryHint: .isDirectory).appending(path: "spotlight-index.json")
+    }
+
+    /// Where earlier builds kept it, in backed-up storage.
+    private nonisolated static var legacyManifestURL: URL {
         URL.applicationSupportDirectory.appending(path: "Keaser", directoryHint: .isDirectory).appending(path: "spotlight-index.json")
     }
 
     /// Nil when there is none yet or it cannot be read, which rebuilds the
     /// index.
     private nonisolated static func readManifest() -> SpotlightManifest? {
-        guard let data = try? Data(contentsOf: manifestURL) else { return nil }
+        guard let data = try? Data(contentsOf: manifestURL) else {
+            // The rebuild this causes replaces whatever the old copy said.
+            try? FileManager.default.removeItem(at: legacyManifestURL)
+            return nil
+        }
         return SpotlightManifest.decoded(from: data)
     }
 
