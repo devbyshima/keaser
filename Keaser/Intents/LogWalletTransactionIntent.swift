@@ -39,10 +39,11 @@ struct LogWalletTransactionIntent: AppIntent {
             throw KeaserIntentError.invalidAmount
         }
         // A new merchant gets Smart Suggestions' category, from the on-device
-        // model too when it answers in time.
+        // model too when it answers in time. This is a Shortcuts action, so
+        // it follows Settings > Shortcut's switch, not New Expense's.
         let expense = await QuickLog.walletExpense(
             merchant: merchant, amount: value, card: card, in: target,
-            suggestionsEnabled: store.preferences.smartSuggestionsEnabled, model: CategoryModels.current
+            suggestionsEnabled: store.preferences.shortcutSmartSuggestionsEnabled, model: CategoryModels.current
         )
         try await IntentSupport.save(expense, in: target, store: store)
         let card = IntentSupport.card(for: expense, in: target, store: store)

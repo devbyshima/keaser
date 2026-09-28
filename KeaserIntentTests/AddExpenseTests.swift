@@ -63,4 +63,32 @@ final class AddExpenseTests: IntentTestCase {
         XCTAssertEqual(try expense.categoryName, Optional("Food & Drinks"))
         XCTAssertEqual(try expense.paymentMethodName, Optional("Cash"))
     }
+
+    func testWalletFollowsTheShortcutSmartSuggestionsSwitch() async throws {
+        // Settings > Shortcut > Smart Suggestions off, New Expense's on: a
+        // merchant Keaser has never seen is left without a category.
+        try await resetTestData(suggestions: true, shortcutSuggestions: false)
+        try await logWallet("Yellow Cab", amount: "$31.00")
+        var found = try await expenses.entities(matching: "Yellow Cab")
+        XCTAssertEqual(found.count, 1)
+        XCTAssertEqual(try found.first?.categoryName, Optional<String>.none)
+
+        // And the other way round: the word rules file it under Transportation.
+        try await resetTestData(suggestions: false, shortcutSuggestions: true)
+        try await logWallet("Yellow Cab", amount: "$31.00")
+        found = try await expenses.entities(matching: "Yellow Cab")
+        XCTAssertEqual(found.count, 1)
+        XCTAssertEqual(try found.first?.categoryName, Optional("Transportation"))
+    }
+
+    private func resetTestData(suggestions: Bool, shortcutSuggestions: Bool) async throws {
+        try await definitions.intents["ResetTestDataIntent"].makeIntent(
+            pro: true, confirmsDetails: false, accounts: true,
+            suggestions: suggestions, shortcutSuggestions: shortcutSuggestions
+        ).run()
+    }
+
+    private func logWallet(_ merchant: String, amount: String) async throws {
+        try await definitions.intents["LogWalletTransactionIntent"].makeIntent(merchant: merchant, amount: amount).run()
+    }
 }
