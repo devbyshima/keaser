@@ -9,17 +9,17 @@ import SwiftUI
 ///
 /// With a `session` (the interactive confirmation card, iOS 26 and later)
 /// Account, Category and Payment carry up and down chevrons. A tap opens that
-/// detail's options inside the card (`list`); picking one sets it and closes
-/// the list again. The system draws the card again after every tap.
+/// detail's options inside the card (`options`); picking one sets it and
+/// closes the list again. The system draws the card again after every tap.
 struct ExpenseCardView: View {
     let card: ShortcutCard
     var session: String?
     /// The detail open on its options, on the interactive card only.
-    var list: ShortcutCardList?
+    var options: ShortcutCardList.Source?
 
     var body: some View {
-        if let session, let list {
-            ExpenseCardOptions(card: card, list: list, session: session)
+        if let session, let options {
+            ExpenseCardOptions(card: card, source: options, session: session)
         } else {
             details
         }
@@ -105,15 +105,22 @@ private struct ExpenseCardRow: View {
 
 /// The card with one detail open: that detail's row on top (tapping it
 /// closes the list), a hairline, then its options, More and Go Back. Rows
-/// keep the card's 38.5-point rhythm, and `ShortcutCardList` keeps the whole
-/// card under the 340 points a snippet may take.
+/// keep the card's 38.5-point rhythm, and the list takes only as many lines
+/// as fit at the person's text size, so the whole card stays under the 340
+/// points a snippet may take.
 private struct ExpenseCardOptions: View {
     let card: ShortcutCard
-    let list: ShortcutCardList
+    let source: ShortcutCardList.Source
     let session: String
 
     @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .callout) private var symbolWidth: CGFloat = 23
+    /// A line of callout text: 21 points at the default text size.
+    @ScaledMetric(relativeTo: .callout) private var lineHeight: CGFloat = 21
+
+    private var list: ShortcutCardList {
+        source.list(lines: ShortcutCardList.lines(forLineHeight: Double(lineHeight)))
+    }
 
     /// Half the card's 17.5-point row spacing above and below each row, so
     /// the whole line is the tap target.
@@ -290,10 +297,11 @@ final class AddExpenseDrafts {
         return ShortcutCard(expense: expense, in: draft.flow.account, currencyCode: draft.currencyCode)
     }
 
-    /// The options of the open detail, or nil when none is open.
-    func list(_ session: String) -> ShortcutCardList? {
+    /// The options of the open detail, or nil when none is open. The card
+    /// fits them to the text size.
+    func options(_ session: String) -> ShortcutCardList.Source? {
         guard let draft = drafts[session], let field = draft.open else { return nil }
-        return ShortcutCardList(flow: draft.flow, field: field, page: draft.page)
+        return ShortcutCardList.Source(flow: draft.flow, field: field, page: draft.page)
     }
 
     func showOptions(_ field: ShortcutFlow.Field, in session: String) {
@@ -340,7 +348,7 @@ struct ExpenseCardSnippetIntent: SnippetIntent {
     func perform() async throws -> some IntentResult & ShowsSnippetView {
         let drafts = AddExpenseDrafts.shared
         guard let card = drafts.card(session) else { return .result(view: EmptyView()) }
-        return .result(view: ExpenseCardView(card: card, session: session, list: drafts.list(session)))
+        return .result(view: ExpenseCardView(card: card, session: session, options: drafts.options(session)))
     }
 }
 
