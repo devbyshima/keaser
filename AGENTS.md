@@ -10,8 +10,8 @@ Liquid Glass on iOS 26+.
   `./scripts/test.sh` (Swift Testing), no simulator needed. Anything testable
   belongs here, with `public` access.
 - `Keaser/` - the app: SwiftUI views, App Intents, notifications, StoreKit.
-- `KeaserWidgets/` - WidgetKit extension (the medium Spending widget and the
-  Add Expense control).
+- `KeaserWidgets/` - WidgetKit extension (the Spending widget, home screen
+  and lock screen, and the Add Expense control).
 
 The Xcode project is generated. After editing `project.yml`, run
 `xcodegen generate`. Never hand-edit `Keaser.xcodeproj` (it is gitignored).
@@ -46,16 +46,29 @@ simulator GUI; add launch arguments instead.
   or black; add a token with `Color(light:dark:)` instead. Screenshot both:
   `APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh`.
 
-- The Spending widget is the only widget, and medium only (no small, large or
-  lock screen families): `SpendingSnapshot.spentCaption` ("Spent This Month")
-  over the total, centred, for Today, This Week, This Month or This Year, plus
-  its Pro-locked and no-account states. It draws from `WidgetPalette`
+- The Spending widget is the only widget, in every iPhone size: small,
+  medium, large, extra large portrait (iOS 27 only) and the rectangular,
+  circular and inline lock screen families. Every size shows the info the
+  same way, and nothing else: `SpendingSnapshot.spentCaption` ("Spent This
+  Month") over the total, centred, for Today, This Week, This Month or This
+  Year, plus its Pro-locked and no-account states (a locked widget opens
+  Settings). The medium's sizes are measured from the reference (footnote
+  over a 30pt bold total, 7pt apart); the other home screen sizes are the
+  medium sized up or down in the same proportion (`SpendingHeadlineMetrics`:
+  small caption 2 over 25pt, large title 3 over 46pt, extra large portrait
+  title over 65pt), and a long total (RWF 12,345,678) shrinks to the width
+  rather than truncating. The rectangular lock screen widget uses the
+  medium's sizes, the circular one `shortCaption` ("Month") over
+  `compactTotal()` ("$1.4K"), the inline one `inlineText()` ("Spent This
+  Month: $271.37", or `shortInlineText()` where that does not fit), all in
+  the system's vibrant style. The small size is kept out of CarPlay. Home
+  screen sizes draw from `WidgetPalette`
   (KeaserWidgets/Shared/SpendingWidgetView.swift), not Theme: the surface is
   white / 20,20,20 and the caption grey 0.46 / 0.58, measured from the
-  reference widgets. Onboarding page 2's illustration still animates a small
-  "This Month" widget from the recording (`SpendingWidgetView` with
-  `.systemSmall`, kept for it alone) on its own measured charcoal
-  (`OnboardingPalette.widgetSurface`).
+  reference widgets. Onboarding page 2's illustration still animates the
+  recording's small "This Month" widget (`RecordingSmallWidget` in
+  OnboardingIllustrations.swift, not the real small size) on its own
+  measured charcoal (`OnboardingPalette.widgetSurface`).
 
 - The app icon is an Icon Composer document, `Keaser/Resources/AppIcon.icon`
   (black fill, the mark as one glass SVG layer), written by
@@ -112,8 +125,9 @@ any recognised category, the model's included, brings the Cash fallback
 |---|---|---|
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
 | `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing); `settingsPaywall` opens Settings with the paywall on a second sheet over it, as Upgrade does | foundation |
-| `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (the Spending widget for Today, This Week and This Month), `widgetGalleryLocked` (the widget once the pass is over, and without an account); both need seed `fresh` | onboarding |
-| `-KeaserGalleryRendering` | `accented`: the gallery's widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total) | platform |
+| `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (every Spending widget size: the Today, This Week and This Month medium widgets first, then small, lock screen, large and extra large portrait, with a long RWF total), `widgetGalleryLocked` (every size once the pass is over, and without an account); both need seed `fresh` | onboarding |
+| `-KeaserGalleryScroll` | `small` (then the lock screen widgets), `lockScreen`, `large`, `extraLarge` start either widget gallery at that section; `extraLargeNoAccount` starts the locked gallery at its last widget (the sections before the start are left out, so shots begin at its heading) | onboarding, platform |
+| `-KeaserGalleryRendering` | `accented`: the gallery's home screen widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total) | platform |
 | `-KeaserNotifState` | `granted`, `denied`: page 4 in its end state without the system prompt; with `-KeaserSettingsPage weeklySummary`, `denied` shows the summary on and notifications off | onboarding, settings |
 | `-KeaserLetter` | `1` shows the welcome letter over Home | onboarding |
 | `-KeaserLetterPage` | `tldr`, `follow` (sample links, DEBUG only) | onboarding |
@@ -293,7 +307,7 @@ Seeded launches keep the database in memory and never touch the real file.
 |---|---|
 | foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, `Keaser/Resources/AppIcon.icon` and `scripts/make_icon.swift` (app icon) |
-| platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, `scripts/shots/platform.txt` |
+| platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), the widget families, `SpendingHeadlineMetrics` (each home screen size's caption and total) and `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, the lock screen texts in `Packages/KeaserKit/Sources/KeaserKit/Platform/SpendingSnapshot.swift`, `scripts/shots/platform.txt` |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/` |
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/Shared/{AddExpenseIntent,ExpenseEntities}.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList,WalletAmount}.swift` (`WalletAmount` reads Log Wallet Transaction's text amount in any number style), the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
