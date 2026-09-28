@@ -97,12 +97,15 @@ public enum ReceiptParser {
         labelledTotal(in: lines) ?? largestPrice(in: lines)
     }
 
-    /// The amount on the line naming the final total, if any does.
+    /// The amount on the line naming the final total, if any does. Between
+    /// lines of the same rank the larger amount wins: the total with the tip
+    /// after the one without. A plain "Total" line with a percentage on it
+    /// is a suggested tip ("18%: $7.78 (Total: $51.02)"), not the total.
     static func labelledTotal(in lines: [String]) -> Decimal? {
         let separator = decimalSeparator(in: lines)
         var best: (rank: Int, value: Decimal)?
         for (index, line) in lines.enumerated() {
-            guard let rank = totalRank(words(line)) else { continue }
+            guard let rank = totalRank(words(line)), rank == 2 || !line.contains("%") else { continue }
             var found = amounts(in: line, decimalSeparator: separator).filter { !$0.isNegative && !$0.hasUnit && $0.value > 0 }
             // The label and the amount can come out on separate lines.
             if found.isEmpty, index + 1 < lines.count, isBareAmount(lines[index + 1]) {
@@ -164,6 +167,9 @@ public enum ReceiptParser {
         "sconto", "coupon", "coupons", "items", "item", "articles", "article", "artikel", "qty",
         "quantity", "count", "points", "point", "tip", "tips", "gratuity", "pourboire", "trinkgeld",
         "propina", "mancia", "小計", "小计", "소계",
+        // "Amount paid" is often the cash handed over; "Total paid" still
+        // names the total (a final phrase, matched first).
+        "paid",
     ]).union(notPaidWords)
 
     /// Words on a line whose amount is not what was paid.
@@ -172,6 +178,8 @@ public enum ReceiptParser {
         "given", "gegeben", "change", "rendu", "monnaie", "ruckgeld", "wechselgeld", "cambio", "resto",
         "deposit", "pfand", "saving", "savings", "saved", "discount", "points", "balance", "お預り",
         "お預かり", "預り", "お釣り", "釣銭",
+        // Before a discount.
+        "gross", "brutto",
     ]
 
     // MARK: Amounts

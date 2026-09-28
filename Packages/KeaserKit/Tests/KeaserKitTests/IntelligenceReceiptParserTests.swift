@@ -113,6 +113,22 @@ struct IntelligenceReceiptParserTests {
         #expect(ReceiptParser.total(in: ["Total incl. VAT 24.00", "VAT 4.00"]) == 24)
     }
 
+    @Test func aSuggestedTipIsNotTheTotal() {
+        let lines = ["Subtotal 40.00", "Tax 3.20", "Total 43.20", "Suggested gratuity", "18%: $7.78 (Total: $51.02)", "20%: $8.64 (Total: $51.84)"]
+        #expect(ReceiptParser.total(in: lines) == Decimal(string: "43.20"))
+        #expect(ReceiptParser.reading(from: lines, today: today, prefersMonthFirst: true).totalIsLabelled)
+        // A final phrase keeps its rank with a percentage on the line.
+        #expect(ReceiptParser.total(in: ["Total 51.50", "Total incl. 20% VAT 43.50"]) == Decimal(string: "43.50"))
+    }
+
+    @Test func theAmountPaidAndTheGrossAmountAreNotTheTotal() {
+        #expect(ReceiptParser.total(in: ["Total 43.20", "Amount Paid 50.00", "Change 6.80"]) == Decimal(string: "43.20"))
+        #expect(ReceiptParser.total(in: ["Total 43.20", "Total paid 43.20", "Cash 50.00"]) == Decimal(string: "43.20"))
+        #expect(ReceiptParser.total(in: ["Gross Amount 500.00", "Discount -50.00", "Net Amount 450.00"]) == 450)
+        // Without a total line, the amount paid is still a price.
+        #expect(ReceiptParser.total(in: ["Burrito 11.00", "Soda 2.50", "Amount paid 13.50"]) == Decimal(string: "13.50"))
+    }
+
     @Test func findsAnAmountPrintedUnderItsLabel() {
         #expect(ReceiptParser.total(in: ["TOTAL", "$12.50", "VISA 12.50"]) == Decimal(string: "12.50"))
     }
