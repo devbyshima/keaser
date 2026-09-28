@@ -129,6 +129,32 @@ struct QuickLogTests {
         #expect(QuickLog.amount(from: "$0.00", currencyCode: "USD", locale: us) == nil)
     }
 
+    /// Wallet writes the amount in its own number style, which need not be
+    /// the phone's: "4,50 €" on an English (US) phone is 4.50, not 450, and
+    /// "$4.50" on a German one is 4.50 too.
+    @Test(arguments: ["en_US", "en_GB", "de_DE", "fr_FR", "rw_RW"])
+    func walletTextAmountsReadTheSameInEveryLocale(_ identifier: String) {
+        let locale = Locale(identifier: identifier)
+        func amount(_ text: String, _ code: String = "USD") -> Decimal? {
+            QuickLog.amount(from: text, currencyCode: code, locale: locale)
+        }
+        #expect(amount("4,50 €", "EUR") == Decimal(string: "4.5"))
+        #expect(amount("4,50 €") == Decimal(string: "4.5"))
+        #expect(amount("1.234,56 €") == Decimal(string: "1234.56"))
+        #expect(amount("$4.50") == Decimal(string: "4.5"))
+        #expect(amount("US$4.50") == Decimal(string: "4.5"))
+        #expect(amount("4.50") == Decimal(string: "4.5"))
+        #expect(amount("RWF 5,000", "RWF") == 5000)
+        #expect(amount("5 000 RWF", "RWF") == 5000)
+        #expect(amount("¥1,500", "JPY") == 1500)
+        #expect(amount("CHF 1'234.50", "CHF") == Decimal(string: "1234.5"))
+        #expect(amount("-$4.50") == nil)
+        #expect(amount("$0.00") == nil)
+        #expect(amount("free") == nil)
+        // Rounded to Keaser's currency, as before.
+        #expect(amount("$4.99", "JPY") == 5)
+    }
+
     @Test func confirmationNamesAmountAndAccount() {
         let us = Locale(identifier: "en_US")
         let amount = Decimal(string: "16.99")!
