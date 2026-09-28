@@ -15,9 +15,8 @@ letter | -KeaserSeed account -KeaserLetter 1
 letter-tldr | -KeaserSeed account -KeaserLetter 1 -KeaserLetterPage tldr
 letter-follow | -KeaserSeed account -KeaserLetter 1 -KeaserLetterPage follow
 
-# Every widget family, drawn by the widget's own views: the three medium
-# widgets first (compare with the reference home screens), then the small and
-# lock screen widgets further down.
+# The Spending widget (medium only), drawn by the widget's own view: Today,
+# This Week and This Month (compare with the reference home screens), then
+# locked once the pass is over and without an account.
 widgets | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery
-widgets-bottom | -KeaserSeed fresh -KeaserOnboardingPage widgetGallery -KeaserGalleryScroll bottom
 widgets-locked | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked
