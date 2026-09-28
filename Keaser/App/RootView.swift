@@ -43,6 +43,7 @@ struct RootView: View {
             switch sheet {
             case .settings: SettingsView()
             case .paywall: PaywallView()
+            case .settingsPaywall: SettingsWithPaywall()
             }
         }
         #endif
@@ -112,7 +113,18 @@ private struct StorageBanner: View {
 /// directly from `-KeaserSheet` so they can be screenshotted in isolation.
 /// Home's own sheets (`newExpense`, `accounts`...) are handled by HomeView.
 private enum DebugSheet: String, Identifiable {
-    case settings, paywall
+    /// `settingsPaywall` is the paywall as Upgrade in Settings opens it, on a
+    /// second sheet over Settings, as in the reference recording.
+    case settings, paywall, settingsPaywall
     var id: String { rawValue }
+}
+
+private struct SettingsWithPaywall: View {
+    @State private var showsPaywall = true
+
+    var body: some View {
+        SettingsView()
+            .sheet(isPresented: $showsPaywall) { PaywallView() }
+    }
 }
 #endif

@@ -7,7 +7,8 @@ public struct SpendingSnapshot: Equatable, Sendable {
         case ready
         /// Nothing to show until the user creates an account.
         case noAccount
-        /// Widgets are a Pro feature and the pass is over.
+        /// Widgets are a Pro feature and the pass is over, with or without
+        /// an account.
         case locked
     }
 
@@ -20,7 +21,8 @@ public struct SpendingSnapshot: Equatable, Sendable {
     /// widgets. Empty unless the snapshot is ready.
     public var categories: [CategoryTotal]
     /// The newest expenses in the period (at most `latestLimit`), newest
-    /// first, for the extra large widget. Empty unless the snapshot is ready.
+    /// first, for the large widgets (see `breakdownPlans(extraLarge:)`).
+    /// Empty unless the snapshot is ready.
     public var latest: [LatestExpense]
 
     public init(
@@ -72,7 +74,7 @@ public struct SpendingSnapshot: Equatable, Sendable {
         public static let otherSymbol = "ellipsis"
     }
 
-    /// An expense as the extra large widget lists it.
+    /// An expense as the large widgets list it.
     public struct LatestExpense: Equatable, Sendable, Identifiable {
         public var id: UUID
         public var title: String
@@ -160,9 +162,51 @@ public struct SpendingSnapshot: Equatable, Sendable {
         return min(max((amount / total).doubleValue, 0), 1)
     }
 
+    /// How many breakdown rows (`categoryRows(maxRows:)`) and latest
+    /// expenses a large widget shows under its headline.
+    public struct BreakdownPlan: Equatable, Sendable {
+        public var categories: Int
+        public var latest: Int
+
+        public init(categories: Int, latest: Int) {
+            self.categories = categories
+            self.latest = latest
+        }
+    }
+
+    /// The most breakdown rows the large widget has room for.
+    public static let largeBreakdownRows = 6
+
+    /// The plans a large widget tries, most first. It shows the first one
+    /// that fits, so larger text sizes drop rows instead of cutting one off.
+    ///
+    /// The extra large portrait widget always lists the latest expenses
+    /// under the breakdown. The large widget gives its room to the
+    /// breakdown and fills what a short one leaves with the latest
+    /// expenses, so a quiet day does not leave its bottom half empty. It
+    /// never gives up a breakdown row for an expense. Empty when there is
+    /// no breakdown to show.
+    public func breakdownPlans(extraLarge: Bool) -> [BreakdownPlan] {
+        guard !categories.isEmpty else { return [] }
+        if extraLarge {
+            return [(5, 5), (5, 4), (5, 3), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1)]
+                .map { BreakdownPlan(categories: $0.0, latest: $0.1) }
+        }
+        let rows = min(categories.count, Self.largeBreakdownRows)
+        let filled = stride(from: min(latest.count, 5), through: 1, by: -1)
+            .map { BreakdownPlan(categories: rows, latest: $0) }
+        let breakdownOnly = stride(from: rows, through: 1, by: -1)
+            .map { BreakdownPlan(categories: $0, latest: 0) }
+        return filled + breakdownOnly
+    }
+
     /// The snapshot for `accountID` (or the selected account when it is nil or
     /// no longer exists). Pass `calendar` only in tests; otherwise the user's
     /// calendar, with their first weekday, is used.
+    ///
+    /// Once Pro has run out the widget is locked even without an account,
+    /// since adding one would not bring it back; before the pass has
+    /// started (a first run) it asks for an account instead.
     public static func make(
         database: Database,
         accountID: UUID?,
@@ -173,10 +217,11 @@ public struct SpendingSnapshot: Equatable, Sendable {
         let preferences = database.preferences
         let calendar = calendar ?? preferences.calendar
         let account = accountID.flatMap { id in database.accounts.first { $0.id == id } } ?? database.selectedAccount
-        guard let account else {
-            return SpendingSnapshot(state: .noAccount, period: period, accountName: nil, total: 0, currencyCode: preferences.currencyCode)
-        }
         let isPro = ProEntitlement.isPro(preferences, now: now)
+        guard let account else {
+            let hasLapsed = !isPro && (preferences.trialStartDate != nil || preferences.hasProPurchase)
+            return SpendingSnapshot(state: hasLapsed ? .locked : .noAccount, period: period, accountName: nil, total: 0, currencyCode: preferences.currencyCode)
+        }
         let interval = period.interval(containing: now, calendar: calendar)
         // A locked widget carries no spending at all, only the lock.
         guard isPro else {

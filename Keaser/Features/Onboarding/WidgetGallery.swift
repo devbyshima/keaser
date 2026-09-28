@@ -9,8 +9,11 @@ import WidgetKit
 /// or `widgetGalleryLocked` (the Pro-locked and no-account states).
 /// `-KeaserGalleryScroll bottom` starts at the small and lock screen widgets,
 /// `large` at the large widgets and `extraLarge` at iOS 27's extra large
-/// portrait one. `-KeaserGalleryRendering accented` draws the home screen
-/// widgets as a tinted or clear home screen would.
+/// portrait one. The sections before the start are left out rather than
+/// scrolled past, so a screenshot starts at the section's heading instead of
+/// with the end of the widget before it under the status bar.
+/// `-KeaserGalleryRendering accented` draws the home screen widgets as a
+/// tinted or clear home screen would.
 ///
 /// Home screen widgets follow the current appearance, as on a real home
 /// screen; lock screen widgets look the same in both, as the system draws
@@ -39,33 +42,36 @@ struct WidgetGallery: View {
     private static let previewTint = Color(red: 0.62, green: 0.84, blue: 1)
 
     private let now = Date.now
-    private let scrollTarget = DebugLaunch.string("KeaserGalleryScroll").flatMap(Section.init(rawValue:))
+    private let start = DebugLaunch.string("KeaserGalleryScroll").flatMap(Section.init(rawValue:)) ?? .top
     private let isAccented = DebugLaunch.string("KeaserGalleryRendering") == "accented"
 
-    /// Places `-KeaserGalleryScroll` can start at.
-    private enum Section: String {
-        case bottom, large, extraLarge
+    /// The gallery's sections in order; `-KeaserGalleryScroll` names the one
+    /// it starts at (all but `top`).
+    private enum Section: String, CaseIterable {
+        case top, bottom, large, extraLarge
+    }
+
+    /// Whether `section` is on the page: it is the start or comes after it.
+    private func shows(_ section: Section) -> Bool {
+        let order = Section.allCases
+        return order.firstIndex(of: section)! >= order.firstIndex(of: start)!
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if start == .top {
                     Text(title)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(isAccented ? Color.white : Color.keaserPrimaryText)
-                    if showsLockedStates { lockedStates } else { readyStates }
                 }
-                .padding(.horizontal, Self.margin)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
+                if showsLockedStates { lockedStates } else { readyStates }
             }
-            .scrollIndicators(.hidden)
-            .onAppear {
-                guard let scrollTarget else { return }
-                proxy.scrollTo(scrollTarget, anchor: scrollTarget == .bottom ? .bottom : .top)
-            }
+            .padding(.horizontal, Self.margin)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
         }
+        .scrollIndicators(.hidden)
         .background(background.ignoresSafeArea())
     }
 
@@ -91,32 +97,37 @@ struct WidgetGallery: View {
     @ViewBuilder
     private var readyStates: some View {
         let demo = DemoData.database(.demo, now: now)
-        section("Home Screen")
-        // The three periods the reference stacks, with its spacing.
-        VStack(spacing: 18) {
-            home(snapshot(demo, .today), .systemMedium)
-            home(snapshot(demo, .thisWeek), .systemMedium)
-            home(snapshot(demo, .thisMonth), .systemMedium)
+        if shows(.top) {
+            section("Home Screen")
+            // The three periods the reference stacks, with its spacing.
+            VStack(spacing: 18) {
+                home(snapshot(demo, .today), .systemMedium)
+                home(snapshot(demo, .thisWeek), .systemMedium)
+                home(snapshot(demo, .thisMonth), .systemMedium)
+            }
         }
-        // Two small widgets span a medium one, as on the home screen.
-        HStack(spacing: Self.medium.width - Self.small.width * 2) {
-            home(snapshot(demo, .thisMonth), .systemSmall)
-            home(snapshot(demo, .thisWeek), .systemSmall)
+        if shows(.bottom) {
+            if start == .bottom { section("Home Screen") }
+            // Two small widgets span a medium one, as on the home screen.
+            HStack(spacing: Self.medium.width - Self.small.width * 2) {
+                home(snapshot(demo, .thisMonth), .systemSmall)
+                home(snapshot(demo, .thisWeek), .systemSmall)
+            }
+            section("Lock Screen")
+            lockScreen(
+                rectangular: snapshot(demo, .today),
+                circular: snapshot(demo, .thisMonth),
+                inline: snapshot(demo, .thisMonth)
+            )
         }
-        section("Lock Screen")
-        lockScreen(
-            rectangular: snapshot(demo, .today),
-            circular: snapshot(demo, .thisMonth),
-            inline: snapshot(demo, .thisMonth)
-        )
-        .id(Section.bottom)
-        section("Large")
-            .id(Section.large)
-        home(snapshot(demo, .thisMonth), .systemLarge)
-        home(snapshot(demo, .today), .systemLarge)
+        if shows(.large) {
+            section("Large")
+            home(snapshot(demo, .thisMonth), .systemLarge)
+            home(snapshot(demo, .today), .systemLarge)
+        }
+        // The last section, so always on the page.
         if #available(iOS 27.0, *) {
             section("Extra Large Portrait")
-                .id(Section.extraLarge)
             home(snapshot(demo, .thisMonth), .systemExtraLargePortrait)
         }
     }
@@ -125,25 +136,29 @@ struct WidgetGallery: View {
     private var lockedStates: some View {
         let locked = snapshot(expiredPass, .thisMonth)
         let empty = snapshot(DemoData.database(.onboarded, now: now), .thisMonth)
-        section("Pass over")
-        HStack(spacing: Self.medium.width - Self.small.width * 2) {
-            home(locked, .systemSmall)
-            home(empty, .systemSmall)
+        if shows(.top) {
+            section("Pass over")
+            HStack(spacing: Self.medium.width - Self.small.width * 2) {
+                home(locked, .systemSmall)
+                home(empty, .systemSmall)
+            }
+            home(locked, .systemMedium)
         }
-        home(locked, .systemMedium)
-        section("Lock Screen, pass over")
-        lockScreen(rectangular: locked, circular: locked, inline: locked)
-        section("Lock Screen, no account")
-        lockScreen(rectangular: empty, circular: empty, inline: empty)
-            .id(Section.bottom)
-        section("Large, pass over")
-            .id(Section.large)
-        home(locked, .systemLarge)
-        section("Large, no account")
-        home(empty, .systemLarge)
+        if shows(.bottom) {
+            section("Lock Screen, pass over")
+            lockScreen(rectangular: locked, circular: locked, inline: locked)
+            section("Lock Screen, no account")
+            lockScreen(rectangular: empty, circular: empty, inline: empty)
+        }
+        if shows(.large) {
+            section("Large, pass over")
+            home(locked, .systemLarge)
+            section("Large, no account")
+            home(empty, .systemLarge)
+        }
+        // The last section, so always on the page.
         if #available(iOS 27.0, *) {
             section("Extra Large Portrait, pass over")
-                .id(Section.extraLarge)
             home(locked, .systemExtraLargePortrait)
         }
     }

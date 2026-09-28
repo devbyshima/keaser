@@ -9,7 +9,7 @@
 Native iOS · SwiftUI · iOS 18 and later · no third-party packages
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-349%20in%2050%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
+[![Tests](https://img.shields.io/badge/tests-354%20in%2050%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
 </div>
@@ -23,16 +23,26 @@ widget. Everything stays on your iPhone.
 
 - **Expenses**: title, amount, category, payment method and date. Smart
   Suggestions offer past expenses as you type a title and guess a category and
-  payment method for new titles.
+  payment method for new titles; with Apple Intelligence, an on-device model
+  helps pick the category. Scan a receipt or pick a photo of one to fill in
+  the merchant, total and date, read on device.
 - **Accounts**: separate ledgers (Personal, Business), each with its own
   categories and payment methods, fully editable with 40+ icons.
 - **Insights**: a spending total and bar chart for Today, This Week, This
   Month, This Year or All Time, filterable by category and payment method, plus
-  search.
-- **Widgets**: home screen (small, medium) and lock screen (rectangular,
-  circular, inline) spending widgets, and an "Add Expense" control.
+  search. On iOS 27, swipe an expense to edit or delete it.
+- **Widgets**: home screen (small, medium, large, and extra large portrait on
+  iOS 27) and lock screen (rectangular, circular, inline) spending widgets; the
+  large ones break the total down by category, with the latest expenses.
+  The "Add Expense" control (Control Center, lock screen, Action button) asks
+  for the expense right where you tap it, without opening Keaser.
 - **Shortcuts**: "Add Expense" and "Log Wallet Transaction" App Intents, with
-  Siri phrases, for lock screen logging and Apple Wallet automations.
+  Siri phrases, for lock screen logging and Apple Wallet automations. Add
+  Expense guides you one detail at a time, with Go Back and a confirmation
+  card before it saves.
+- **Siri and Spotlight**: ask "How Much Did I Spend", open an expense or an
+  account, search and delete expenses, and find them in Spotlight, where they
+  are indexed by default.
 - **Weekly summary**: an optional notification with the week's total.
 - **Keaser Pro**: a 7-day pass on first run, then a monthly or yearly
   subscription or a lifetime purchase (StoreKit 2) for widgets, more filters,
