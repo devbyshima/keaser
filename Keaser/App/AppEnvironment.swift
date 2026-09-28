@@ -28,6 +28,15 @@ enum AppEnvironment {
                     }
                 }
             }
+            // `-KeaserReceiptAttached 1` keeps a sample receipt with the
+            // selected account's newest expense (in the seeded folder).
+            if let sample = DebugLaunch.string("KeaserReceiptAttached"),
+               let a = database.accounts.firstIndex(where: { $0.id == database.selectedAccount?.id }),
+               let newest = database.accounts[a].expensesNewestFirst.first,
+               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == newest.id }),
+               let jpeg = ReceiptImage.debugSample(sample) {
+                database.accounts[a].expenses[e].receipt = try? receipts.add(jpeg)
+            }
             return KeaserStore(database: database, file: nil)
         }
         #endif
@@ -46,6 +55,33 @@ enum AppEnvironment {
     }()
 
     static let pro = ProStore(store: store)
+
+    /// Where receipt photos are kept. Seeded launches use a folder of their
+    /// own in the temporary directory, emptied at each launch, and never
+    /// touch the real one.
+    nonisolated static let receipts: ReceiptFolder = {
+        #if DEBUG
+        if DebugLaunch.seed != nil {
+            let url = FileManager.default.temporaryDirectory.appending(path: "SeededReceipts", directoryHint: .isDirectory)
+            try? FileManager.default.removeItem(at: url)
+            return ReceiptFolder(url: url)
+        }
+        #endif
+        return .shared
+    }()
+
+    /// Removes the receipt photos no expense has referred to for a day
+    /// (`ReceiptFolder`), away from the main actor. Called once at launch,
+    /// so a deletion's undo, which lives only as long as the process that
+    /// deleted, never loses its photo; nothing is removed while the
+    /// database cannot be read.
+    static func removeOrphanedReceipts() {
+        guard let inUse = store.receiptPhotosInUse else { return }
+        let folder = receipts
+        Task.detached(priority: .utility) {
+            folder.removeOrphans(keeping: inUse)
+        }
+    }
 }
 
 /// App-level navigation requests that arrive from outside the view tree:

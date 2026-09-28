@@ -5,8 +5,9 @@ import SwiftUI
 
 /// Receipt scanning for New Expense: reads the pages the document camera
 /// captured, or the photo the person picked, into a `ReceiptDraft` for them
-/// to check. Everything happens on the iPhone; nothing is saved, and the
-/// images are let go as soon as they are read.
+/// to check. Everything happens on the iPhone and reading saves nothing:
+/// New Expense keeps the photo with the expense (`ReceiptImage`) only when
+/// the person saves it.
 ///
 /// Vision reads the text on every system. On iOS 26 and later, with Apple
 /// Intelligence ready, the on-device model reads it too, and its answers are
@@ -37,19 +38,33 @@ enum ReceiptScanner {
         model.prewarm()
     }
 
+    /// The pages of what was scanned, upright: the camera's pages as they
+    /// are, or the picked photo scaled down (`ReceiptTextRecognizer.image(from:)`).
+    /// None for a photo that is not an image, or for text-only DEBUG samples.
+    static func pages(of source: Source) async -> [CGImage] {
+        switch source {
+        case .pages(let pages):
+            return pages
+        case .photo(let item):
+            guard let data = try? await item.loadTransferable(type: Data.self) else { return [] }
+            return await upright(data).map { [$0] } ?? []
+        case .lines:
+            return []
+        }
+    }
+
+    @concurrent
+    private nonisolated static func upright(_ photo: Data) async -> CGImage? {
+        ReceiptTextRecognizer.image(from: photo)
+    }
+
     /// The receipt's details. Dates are read the way this iPhone's region
     /// writes them unless the receipt settles it, and none after `now`.
     static func read(_ source: Source, calendar: Calendar, now: Date = .now) async -> ReceiptDraft {
         let lines: [String]
         switch source {
-        case .pages(let pages):
-            lines = await ReceiptTextRecognizer.lines(in: pages)
-        case .photo(let item):
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                lines = await ReceiptTextRecognizer.lines(inPhoto: data)
-            } else {
-                lines = []
-            }
+        case .pages, .photo:
+            lines = await ReceiptTextRecognizer.lines(in: pages(of: source))
         case .lines(let text):
             lines = text
         }

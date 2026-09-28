@@ -24,20 +24,30 @@ struct KeaserCircleButton: View {
         self.action = action
     }
 
-    private var isClose: Bool { symbol == "xmark" }
-
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: isClose ? .medium : .semibold))
-                .keaserHeaderGlyphScale()
-                .foregroundStyle(isClose ? Color.keaserCloseGlyph : Color.keaserPrimaryText)
-                .keaserCircleButton()
+            KeaserCircleGlyph(symbol: symbol)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         // A checkmark glyph would otherwise make VoiceOver say "selected".
         .accessibilityRemoveTraits(.isSelected)
+    }
+}
+
+/// The look of `KeaserCircleButton`, for controls that bring their own
+/// action, such as a `ShareLink`.
+struct KeaserCircleGlyph: View {
+    let symbol: String
+
+    private var isClose: Bool { symbol == "xmark" }
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 17, weight: isClose ? .medium : .semibold))
+            .keaserHeaderGlyphScale()
+            .foregroundStyle(isClose ? Color.keaserCloseGlyph : Color.keaserPrimaryText)
+            .keaserCircleButton()
     }
 }
 

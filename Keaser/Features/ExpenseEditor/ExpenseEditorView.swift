@@ -2,7 +2,8 @@ import KeaserKit
 import SwiftUI
 
 /// New Expense and Edit Expense: title, amount, category, payment method and
-/// date on one card, with Smart Suggestions under the title while typing.
+/// date on one card, with Smart Suggestions under the title while typing,
+/// and the receipt's photo under the card.
 struct ExpenseEditorView: View {
     let accountID: UUID
     /// Nil when creating.
@@ -45,6 +46,14 @@ struct ExpenseEditorView: View {
     @State private var receiptTask: Task<Void, Never>?
     @State private var receiptNote: String?
     @State private var receiptNotFound = false
+    /// The photo kept with the expense: the one it has, one attached here
+    /// (in memory until Save), or none.
+    @State private var receipt: ReceiptAttachment
+    @State private var receiptPrepareTask: Task<Void, Never>?
+    /// The camera or photo picker showing, and what for.
+    @State private var capture: ReceiptCaptureRequest?
+    @State private var viewingReceipt: ReceiptImageSource?
+    @State private var receiptNotSaved = false
     @State private var date: Date
     @State private var confirmingDelete = false
     @State private var suggestionTaken = 0
@@ -71,6 +80,7 @@ struct ExpenseEditorView: View {
         self.accountID = accountID
         self.original = expense
         self.onClose = onClose
+        _receipt = State(initialValue: expense?.receipt.map { .attached(.saved($0)) } ?? .none)
         _title = State(initialValue: expense?.title ?? "")
         _amountDisplay = State(initialValue: "")
         _amountSeed = State(initialValue: expense?.amount)
@@ -91,7 +101,7 @@ struct ExpenseEditorView: View {
     }
 
     private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (amount ?? 0) > 0
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (amount ?? 0) > 0 && receipt != .preparing
     }
 
     private var suggestions: [Expense] {
@@ -115,6 +125,13 @@ struct ExpenseEditorView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     card
+                    ReceiptAttachmentSection(
+                        attachment: receipt,
+                        rowHeight: EditorMetrics.rowHeight,
+                        onChoose: { startCapture($0, for: .attach) },
+                        onView: { viewingReceipt = $0 },
+                        onRemove: removeReceipt
+                    )
                     if let receiptNote {
                         ReceiptNote(text: receiptNote)
                     }
@@ -148,6 +165,17 @@ struct ExpenseEditorView: View {
             #endif
             prewarmCategoryModel()
             #if DEBUG
+            // `-KeaserReceiptAttached 1` starts New Expense with a sample
+            // receipt attached; `-KeaserReceiptViewer 1` then opens it.
+            if isNew, let sample = DebugLaunch.string("KeaserReceiptAttached"), let jpeg = ReceiptImage.debugSample(sample) {
+                receipt = .attached(.unsaved(UnsavedReceipt(jpeg: jpeg)))
+            }
+            if DebugLaunch.int("KeaserReceiptViewer") == 1, case .attached(let source) = receipt {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(700))
+                    viewingReceipt = source
+                }
+            }
             // `-KeaserReceipt <sample>` reads a sample receipt as if it had
             // just been scanned, so without the keyboard.
             if isNew, let source = ReceiptScanner.debugSource {
@@ -158,6 +186,9 @@ struct ExpenseEditorView: View {
                 }
                 return
             }
+            // `-KeaserExpenseFocus none` keeps the keyboard down, to see
+            // what sits under the card.
+            if DebugLaunch.string("KeaserExpenseFocus") == "none" { return }
             #endif
             focus = .title
             #if DEBUG
@@ -179,6 +210,16 @@ struct ExpenseEditorView: View {
         .onDisappear {
             modelTask?.cancel()
             receiptTask?.cancel()
+            receiptPrepareTask?.cancel()
+        }
+        .receiptCapture($capture) { request, source in
+            switch request.purpose {
+            case .scan: readReceipt(source)
+            case .attach: attachReceipt(from: source)
+            }
+        }
+        .fullScreenCover(item: $viewingReceipt) { source in
+            ReceiptViewer(source: source, title: title)
         }
         .sensoryFeedback(.selection, trigger: suggestionTaken)
         .sensoryFeedback(.success, trigger: finished)
@@ -192,6 +233,11 @@ struct ExpenseEditorView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Keaser couldn't find a total or a date. Try again with the whole receipt flat and in view.")
+        }
+        .alert("Receipt Not Saved", isPresented: $receiptNotSaved) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Keaser couldn't keep the photo of the receipt, so nothing was saved. Try again, or remove the receipt to save the expense without it.")
         }
     }
 
@@ -238,7 +284,7 @@ struct ExpenseEditorView: View {
                 .textInputAutocapitalization(.sentences)
                 .onSubmit { focus = .amount }
             if isNew {
-                ReceiptScanButton(isReading: readingReceipt, onOpen: openReceiptScanner, onScan: readReceipt)
+                ReceiptScanButton(isReading: readingReceipt) { startCapture($0, for: .scan) }
             }
         }
         .editorRow(height: EditorMetrics.titleRowHeight)
@@ -463,13 +509,17 @@ struct ExpenseEditorView: View {
 
     // MARK: Receipt
 
-    private func openReceiptScanner() {
+    /// Opens the camera or the photo picker: to read a receipt into the
+    /// card (the title row's scanner) or only to keep its photo.
+    private func startCapture(_ source: ReceiptCaptureRequest.Source, for purpose: ReceiptCaptureRequest.Purpose) {
         focus = nil
-        ReceiptScanner.prewarm()
+        if purpose == .scan { ReceiptScanner.prewarm() }
+        capture = ReceiptCaptureRequest(source: source, purpose: purpose)
     }
 
-    /// Reads a scanned receipt, then fills in what it found. Nothing is
-    /// saved: the person checks the fields and taps Save.
+    /// Reads a scanned receipt, then fills in what it found and attaches
+    /// the photo. Nothing is saved: the person checks the fields and taps
+    /// Save.
     private func readReceipt(_ source: ReceiptScanner.Source) {
         receiptTask?.cancel()
         focus = nil
@@ -477,7 +527,11 @@ struct ExpenseEditorView: View {
         let before = (title: title, amount: amountDisplay, date: date)
         let calendar = store.preferences.calendar
         receiptTask = Task {
-            let draft = await ReceiptScanner.read(source, calendar: calendar)
+            let pages = await ReceiptScanner.pages(of: source)
+            // The photo is made ready to keep while the text is read.
+            async let jpeg = ReceiptImage.jpeg(of: pages)
+            let readable: ReceiptScanner.Source = if case .lines = source { source } else { .pages(pages) }
+            let draft = await ReceiptScanner.read(readable, calendar: calendar)
             guard !Task.isCancelled, finished == 0 else { return }
             readingReceipt = false
             guard draft.isReceipt else {
@@ -485,7 +539,43 @@ struct ExpenseEditorView: View {
                 return
             }
             fill(from: draft, over: before)
+            if let jpeg = await jpeg, !Task.isCancelled {
+                attach(jpeg)
+            }
         }
+    }
+
+    /// Keeps a photo with the expense without reading it.
+    private func attachReceipt(from source: ReceiptScanner.Source) {
+        receiptPrepareTask?.cancel()
+        let previous = receipt
+        withAnimation(.snappy(duration: 0.25)) { receipt = .preparing }
+        receiptPrepareTask = Task {
+            let jpeg = await ReceiptImage.jpeg(of: ReceiptScanner.pages(of: source))
+            guard !Task.isCancelled else { return }
+            if let jpeg {
+                attach(jpeg)
+            } else {
+                withAnimation(.snappy(duration: 0.25)) { receipt = previous }
+            }
+        }
+    }
+
+    private func attach(_ jpeg: Data) {
+        receiptPrepareTask?.cancel()
+        withAnimation(.snappy(duration: 0.25)) {
+            receipt = .attached(.unsaved(UnsavedReceipt(jpeg: jpeg)))
+        }
+        AccessibilityNotification.Announcement("Receipt attached").post()
+    }
+
+    /// Takes the photo off the expense. A kept photo stays on disk until the
+    /// clean-up at a later launch (`ReceiptFolder`); one attached here was
+    /// never written.
+    private func removeReceipt() {
+        receiptPrepareTask?.cancel()
+        withAnimation(.snappy(duration: 0.25)) { receipt = .none }
+        AccessibilityNotification.Announcement("Receipt removed").post()
     }
 
     /// Fills in the receipt's merchant, total and day, leaving any field
@@ -519,6 +609,19 @@ struct ExpenseEditorView: View {
         expense.categoryID = categoryID
         expense.paymentMethodID = paymentMethodID
         expense.date = date
+        switch receipt {
+        case .attached(.unsaved(let new)):
+            do {
+                expense.receipt = try AppEnvironment.receipts.add(new.jpeg)
+            } catch {
+                receiptNotSaved = true
+                return
+            }
+        case .attached(.saved(let photo)):
+            expense.receipt = photo
+        case .none, .preparing:
+            expense.receipt = nil
+        }
         focus = nil
         store.saveExpense(expense, in: accountID)
         if isNew { IntentDonations.addedInApp(expense, accountID: accountID, store: store) }

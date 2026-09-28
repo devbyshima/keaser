@@ -18,6 +18,7 @@ struct KeaserApp: App {
         store.addObserver { _ in WidgetCenter.shared.reloadAllTimelines() }
         WeeklySummaryScheduler.shared.attach(to: store)
         SpotlightIndexer.shared.attach(to: store)
+        AppEnvironment.removeOrphanedReceipts()
     }
 
     var body: some Scene {
