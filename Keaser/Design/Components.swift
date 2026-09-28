@@ -2,13 +2,17 @@ import SwiftUI
 
 /// The full-width ink capsule (white in dark mode, black in light mode):
 /// "Get Started", "Continue",
-/// "Enable Notifications".
+/// "Enable Notifications". The label is 18pt semibold, as measured in the
+/// reference.
 struct PrimaryButtonStyle: ButtonStyle {
+    /// The design height; the paywall's button is taller than the others.
+    var height: CGFloat = KeaserMetrics.primaryButtonHeight
+
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.body.weight(.semibold))
+            .keaserFont(18, weight: .semibold, relativeTo: .body)
             .foregroundStyle(Color.keaserOnInk)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)
@@ -16,7 +20,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             // The design height, growing only when a large text size makes
             // the label wrap, so the label is never cut off.
-            .frame(minHeight: KeaserMetrics.primaryButtonHeight)
+            .frame(minHeight: height)
             .background(Capsule().fill(Color.keaserInk.opacity(isEnabled ? 1 : 0.4)))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
