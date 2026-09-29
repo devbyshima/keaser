@@ -37,6 +37,8 @@ struct ResetTestDataIntent: AppIntent {
         var database = IntentTestFixture.database(pro: pro, confirmsDetails: confirmsDetails, accounts: accounts)
         database.preferences.smartSuggestionsEnabled = suggestions
         database.preferences.shortcutSmartSuggestionsEnabled = shortcutSuggestions
+        // The fixture replaces everything, which must never reach iCloud.
+        await CloudSync.shared.stopForTestData()
         try DatabaseFile.shared.save(database)
         store.reloadFromDisk()
         if store.loadError != nil { throw KeaserIntentError.dataUnavailable }

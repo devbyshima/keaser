@@ -43,8 +43,48 @@ schemes:
       targets:
         - KeaserIntentTests
 
+# How the Keaser app is signed, and so whether iCloud sync can run. The
+# Keaser target names one of these under `templates:`, and changing that one
+# word is the switch (AGENTS.md, "iCloud sync"). Either way the sync code is
+# compiled in; `CloudSyncSwitch` decides whether it runs.
+targetTemplates:
+  # The free personal team, which cannot use iCloud, CloudKit or push:
+  # the app group only. iCloud sync stays off.
+  FreeTeamSigning:
+    entitlements:
+      path: Keaser/App/Keaser.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.fulltimestudio.keaser
+  # The paid Apple Developer Program: CloudKit in the iCloud container
+  # (automatic signing creates it), push for CloudKit's silent notifications
+  # and the background mode that delivers them. Defines KEASER_CLOUD and sets
+  # the KeaserCloudSync flag, which together turn iCloud sync on. Set
+  # KeaserCloudSync to false to ship the entitlements with sync held back.
+  CloudSyncSigning:
+    entitlements:
+      path: Keaser/App/KeaserCloud.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.fulltimestudio.keaser
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.fulltimestudio.keaser
+        com.apple.developer.icloud-services:
+          - CloudKit
+        aps-environment: development
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) KEASER_CLOUD
+    info:
+      properties:
+        KeaserCloudSync: true
+        UIBackgroundModes:
+          - remote-notification
+
 targets:
   Keaser:
+    # FreeTeamSigning or CloudSyncSigning (see targetTemplates above).
+    templates: [FreeTeamSigning]
     type: application
     platform: iOS
     sources:
@@ -63,11 +103,6 @@ targets:
       - package: KeaserKit
         product: KeaserIntelligence
       - target: KeaserWidgets
-    entitlements:
-      path: Keaser/App/Keaser.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.com.fulltimestudio.keaser
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.keaser

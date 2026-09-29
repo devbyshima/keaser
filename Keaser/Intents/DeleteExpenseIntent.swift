@@ -102,5 +102,7 @@ extension IntentSupport {
         await WeeklySummaryScheduler.shared.refreshNow()
         SpotlightIndexer.shared.attach(to: store)
         await SpotlightIndexer.shared.flush()
+        CloudSync.shared.attach(to: store)
+        await CloudSync.shared.flush()
     }
 }
