@@ -134,7 +134,7 @@ targets:
         NSSupportsLiveActivities: false
         # Only receipts (scanning one into New Expense, or attaching a
         # photo of one to an expense) ask for the camera.
-        NSCameraUsageDescription: Keaser uses the camera to photograph receipts. The photo is read on your iPhone and, if you attach it, kept with the expense on this iPhone. Nothing is uploaded.
+        NSCameraUsageDescription: Keaser uses the camera to photograph receipts. The photo is read on your iPhone and, if you attach it, kept with the expense. Keaser has no servers and never sees it.
         CFBundleURLTypes:
           - CFBundleURLName: com.fulltimestudio.keaser
             CFBundleURLSchemes: [keaser]

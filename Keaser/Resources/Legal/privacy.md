@@ -22,7 +22,7 @@ Keaser also keeps the date your 7-day Pro pass began in the iOS Keychain on this
 Keaser adds your expenses (title, amount and date, with the category, payment method and account they are filed under) and your account names to your iPhone's on-device Spotlight index, so system search and Siri can find them.
 
 <!-- if icloud -->
-Keaser has no servers of its own, and the makers of Keaser never receive a copy of your data. To keep your devices signed in to the same Apple Account up to date, your accounts, expenses, categories, payment methods and shared settings also sync through your own private iCloud database, which Apple stores and the makers of Keaser cannot read.
+Keaser has no servers of its own, and the makers of Keaser never receive a copy of your data. To keep your devices signed in to the same Apple Account up to date, your accounts, expenses (with the photos of their receipts), categories, payment methods and shared settings also sync through your own private iCloud database, which Apple stores and the makers of Keaser cannot read.
 
 ## iCloud
 
@@ -47,9 +47,15 @@ On iPhones with Apple Intelligence turned on, Smart Suggestions can ask Apple's 
 
 ## Receipts
 
-When you scan a receipt or choose a photo of one in New Expense, Keaser reads it on your iPhone (with Apple's on-device model where Apple Intelligence is on) to fill in the expense for you to check. Choosing a photo gives Keaser only that photo, never your library.
+When you scan receipts or choose photos of them in New Expense, Keaser reads them on your iPhone (with Apple's on-device model where Apple Intelligence is on) to fill in what the expense is still missing, for you to check. Choosing photos gives Keaser only those photos, never your library.
 
-A scanned receipt is attached to the expense, and you can attach a photo of one to any expense yourself. If you save the expense with it attached, Keaser keeps a copy of the photo with the expense on this iPhone (and so in its backup): scaled down, with its location and other details removed. You can remove it at any time in Edit Expense. When you delete the expense, its photo is deleted too: Keaser clears it the next time it opens at least a day later, so Undo can still bring the expense back whole. A photo you do not save with an expense is not kept. Receipt photos are never uploaded or sent anywhere.
+Scanned receipts are attached to the expense, and you can attach photos of receipts to any expense yourself, up to ten. If you save the expense with them, Keaser keeps a copy of each photo with the expense on this iPhone (and so in its backup): scaled down, with its location and other details removed. You can remove any of them in Edit Expense; a removed photo is deleted when you save. When you delete the expense, its photos are deleted too: Keaser clears them the next time it opens at least a day later, so Undo can still bring the expense back whole. Photos you do not save with an expense are not kept.
+
+<!-- if icloud -->
+With iCloud sync, the photos kept with your expenses sync through your private iCloud database with the expenses, and are deleted there when you remove them or delete their expense.
+<!-- else -->
+Receipt photos are never uploaded or sent anywhere.
+<!-- end -->
 
 ## Notifications
 

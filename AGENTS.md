@@ -156,15 +156,29 @@ simulator GUI; add launch arguments instead.
   Edit and Delete), not Edit Expense as the recording does: the founder's
   choice. Edit turns the sheet into Edit Expense (`onClose` brings the
   details back); long press and swipe still edit or delete directly.
-- Receipts are Keaser's own addition to the reference: one card under the
-  editor's card (`ReceiptAttachmentSection`: "Attach Receipt" with a
-  paperclip, one menu for Scan Receipt and Choose Photo; once attached, the
-  thumbnail with View Receipt and a red Remove) and, when there is a photo,
-  one under the details' card (`ReceiptDetailRow`). The card, rows and
-  header above them stay as the reference has them. Both open
-  `ReceiptViewer` full screen (zoom, Close, Share). A scan from the title
-  row's glyph fills the card as before and attaches its photo; the receipt
-  card comes before the "Filled in from your receipt" note.
+- Receipts are Keaser's own addition to the reference, built only from the
+  shared pieces (`Keaser/Features/ExpenseEditor/ReceiptAttachment.swift`).
+  Under the editor's card (`ReceiptAttachmentSection`): one receipt is a
+  row drawn like the suggestion rows (a 30pt thumbnail with the
+  `SymbolTile` corner, View Receipt, a chevron), two or more are
+  `ReceiptGallery`, then Add Receipt in a card, drawn like Add Account (one
+  menu: Scan Receipt, Choose Photos), gone at `ReceiptList.maximum`. The
+  details show the same row or gallery under their card
+  (`ReceiptDetailSection`) and open at `.large` for two or more (`.medium`
+  otherwise); the editor keeps its one `.medium` detent and scrolls. The
+  gallery is two columns of equal 3:4 tiles at every text size, with the
+  card radius (26) and the cards' 16pt spacing and margins, an odd last
+  one in the left column; VoiceOver reads each as "Receipt 2 of 3". A tap
+  opens `ReceiptViewer` at that receipt: the sheet header (xmark
+  `KeaserCircleButton`, the title "Receipt 2 of 3", Share), swiping
+  between the receipts, pinch and double-tap zoom. Removing works as
+  deleting an expense does: in the editor a long press on a receipt offers
+  View and Remove, and the viewer opened from the editor has Remove
+  Receipt under the photo (`KeaserActionCard`, as Delete Expense); both
+  ask "Remove Receipt?" and name the receipt in quotes. `.smooth` 0.3 s
+  for receipts coming and going, `.success` haptics on removing. The card,
+  rows and header above stay as the reference has them; the receipts come
+  before the "Filled in from your receipt" note.
 - Settings > Tutorials lists Apple Wallet Automation alone. The Add Expense
   Shortcut tutorial (a home-made shortcut on Back Tap or a Run Shortcut
   control) was removed by the founder's choice: Keaser's own Add Expense
@@ -190,22 +204,34 @@ any recognised category, the model's included, brings the Cash fallback
 (`SmartSuggester.guessLabels`). Week maths must use
 `store.preferences.calendar` (it honours Start Week On).
 
-Receipt photos are files, never in the JSON: `Expense.receipt` is an optional
-`ReceiptPhoto` (just an ID, decoded tolerantly), and `ReceiptFolder`
+Receipt photos are files, never in the JSON: `Expense.receipts` is an ordered
+list (oldest first) of `ReceiptPhoto` (just a stable UUID), at most
+`ReceiptList.maximum` (10), written only when not empty. Decoding is
+tolerant: an entry that does not read loses only that photo, and the single
+`receipt` key of earlier builds becomes a list of one. `ReceiptFolder`
 (KeaserKit/Store) keeps one JPEG per photo, `receipt-<UUID>.jpg`, in
-`Keaser/Receipts/` next to the database (same app group and fallback), with
-complete file protection. A photo is written once, on Save
-(`ExpenseEditorView.save()`); until then an attached one is only in memory
-(`UnsavedReceipt`), so Cancel leaves nothing behind, and replacing or removing
-one never touches the old file. `ReceiptImage` (the app) makes the JPEG: pages
-stacked, each at most 2000 px on its long side, upright, sRGB, quality 0.8,
-no metadata. Deleting an expense or an account leaves its photos, so
-`KeaserStore.restore(_:)` (Delete Expense's undo) gets them back whole;
-`AppEnvironment.removeOrphanedReceipts()` runs once at launch and removes the
-photos no expense refers to that are older than `ReceiptFolder.gracePeriod`
-(a day), and nothing while the database is unreadable or has no account
-(`KeaserStore.receiptPhotosInUse`). Seeded launches use a temporary
-`SeededReceipts` folder (`AppEnvironment.receipts`), emptied at each launch.
+`Keaser/Receipts/` next to the database (same app group and fallback),
+written with `ReceiptFolder.writingOptions` (complete until first user
+authentication, as the database; iCloud sync writes its downloads the same
+way). The editor holds new photos in memory (`UnsavedReceipt`) and writes
+them on Save (`ExpenseEditorView.save()`), so Cancel leaves nothing behind;
+a receipt removed in Edit Expense has its file deleted once the edit is
+saved (`ReceiptList.released(from:inUse:)`), and Cancel keeps it. Each page
+of a document scan and each picked photo is a receipt of its own.
+`ReceiptImage` (the app) makes the JPEG: at most 2000 px on the long side,
+upright, sRGB, quality 0.8, no metadata. Captures are read only while the
+title or the amount is empty (`ReceiptFill.wantsReading`), a scan's pages
+together in order as one receipt (`ReceiptReading.read(pages:)`), and fill
+only what is still empty: the title, the amount, and the date while the
+person has not picked one (`ReceiptFill`). Deleting an expense or an account
+leaves its photos, so `KeaserStore.restore(_:)` (Delete Expense's undo) gets
+them back whole; `AppEnvironment.removeOrphanedReceipts()` runs once at
+launch and removes the photos no expense refers to that are older than
+`ReceiptFolder.gracePeriod` (a day), and nothing while the database is
+unreadable or has no account (`KeaserStore.receiptPhotosInUse`). Receipts
+change only through `KeaserStore.saveExpense`, which stamps `updatedAt` for
+sync. Seeded launches use a temporary `SeededReceipts` folder
+(`AppEnvironment.receipts`), emptied at each launch.
 
 `KeaserStore` stamps edit times on what each local edit changes
 (`SyncStamps`): `updatedAt` on accounts (name), categories, payment methods and
@@ -265,11 +291,13 @@ How it works (KeaserKit `Sync/`, pure and tested; app `Keaser/Cloud/`):
   on (`CloudSyncFootnote`). The privacy policy's `<!-- if icloud -->`
   sections (`MarkdownConditions`) show only then too; update their "Last
   updated" date when sync ships.
-- Receipt photos: `ReceiptSyncKind` is inert until `Expense` adopts
-  `ReceiptHolding` (`receiptPhotoIDs` in list order). The expense's own
-  record carries the list; each photo is its own record, uploaded once, never
+- Receipt photos: `Expense` adopts `ReceiptHolding` (`receiptPhotoIDs`, its
+  `receipts` in list order), so the expense's own record carries the list;
+  each photo is its own record (`ReceiptSyncKind`), uploaded once, never
   sent from a device without the file, and its deletion removes the file on
-  other devices (`FolderAttachmentFiles.receipts`, the Receipts folder).
+  other devices. `FolderAttachmentFiles.receipts` is the app's
+  `ReceiptFolder` (`AppEnvironment.receipts`), with its names
+  (`ReceiptPhoto.fileName`) and protection (`ReceiptFolder.writingOptions`).
 
 Turning it on (paid Apple Developer Program):
 
@@ -325,8 +353,9 @@ What to verify on two devices (A and B, same Apple Account):
 | `-KeaserSearch` | search text, with `-KeaserSheet search` | home |
 | `-KeaserExpenseTitle` | text typed into New Expense (shows Smart Suggestions) | home |
 | `-KeaserExpenseFocus` | `amount`: then moves on to Amount (shows the guessed category and payment); `none`: the keyboard stays down, to see the receipt card and Delete under the card | home |
-| `-KeaserReceiptAttached` | `1` (the grocery sample) or a `ReceiptSamples` name: that sample, printed onto paper by `ReceiptImageRenderer`, is kept with the selected account's newest expense (seeded folder), for `-KeaserSheet expense` and `editExpense`; with `newExpense` it starts New Expense with the sample attached, unsaved | home |
-| `-KeaserReceiptViewer` | `1`: with a receipt showing (`-KeaserReceiptAttached`), opens it full screen in the details or the editor | home |
+| `-KeaserReceiptAttached` | a count from `1` to `10`: that many sample receipts (each a different shop, printed onto paper by `ReceiptImageRenderer`) are kept with the selected account's newest expense (seeded folder), for `-KeaserSheet expense` and `editExpense`; with `newExpense` it starts New Expense with them attached, unsaved | home |
+| `-KeaserReceiptViewer` | `n` (from 1): with receipts showing (`-KeaserReceiptAttached`), opens the n-th full screen, in the details or the editor (`3` receipts and `2` shows "Receipt 2 of 3") | home |
+| `-KeaserExpenseScroll` | `receipts`: the editor scrolls down to its receipts, to see the gallery under the card (with `-KeaserExpenseFocus none`) | home |
 | `-KeaserOpenURL` | a deep link taken through `AppRouter` as if a widget or control opened it; `keaser://scan-receipt` with `-KeaserReceipt <sample> -KeaserReceiptImage 1` shows the Scan Receipt control's route reading and attaching that sample instead of opening the camera | home |
 | `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
@@ -409,8 +438,8 @@ Seeded launches keep the database in memory and never touch the real file.
   expense.") opens `keaser://scan-receipt` the same way: New Expense
   (`HomeSheet.scanReceipt`, `ExpenseEditorView(scansReceipt:)`) with the
   document camera up at once, or the photo picker without a camera; the scan
-  fills the card and attaches its photo, and the person saves. Closing the
-  camera leaves New Expense ready to type. The flow's rules (step order, skips, Go Back targets) live in
+  fills what is still empty, each page is attached as a receipt, and the
+  person saves. Closing the camera leaves New Expense ready to type. The flow's rules (step order, skips, Go Back targets) live in
   `ShortcutFlow` (KeaserKit/Platform); the confirmation card's draft lives in
   `AddExpenseDrafts`, keyed by session.
 - Writing intents (Add Expense, Log Wallet Transaction, Delete Expense) wait at
@@ -510,11 +539,10 @@ Seeded launches keep the database in memory and never touch the real file.
 | foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, `Keaser/Resources/AppIcon.icon` and `scripts/make_icon.swift` (app icon) |
 | platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), the widget families, `SpendingHeadlineMetrics` (each home screen size's caption and total) and `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, the lock screen texts in `Packages/KeaserKit/Sources/KeaserKit/Platform/SpendingSnapshot.swift`, `scripts/shots/platform.txt` |
-| home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/`; receipts kept with expenses: `ReceiptAttachment.swift` (the editor's receipt card, the details' row, thumbnails), `ReceiptViewer.swift` (full screen, zoom, share), `ReceiptImage.swift` (JPEG making, DEBUG samples) in `Keaser/Features/ExpenseEditor/`, `Packages/KeaserKit/Sources/KeaserKit/Models/ReceiptPhoto.swift`, `Store/ReceiptFolder.swift` (files, orphans) |
+| home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/`; receipts kept with expenses: `ReceiptAttachment.swift` (the editor's receipt section, the single row, `ReceiptGallery`, thumbnails), `ReceiptViewer.swift` (full screen, paging, zoom, share, Remove Receipt), `ReceiptImage.swift` (JPEG making, DEBUG samples) in `Keaser/Features/ExpenseEditor/`, `KeaserActionCard` in `Keaser/Design/SheetChrome.swift`, `Packages/KeaserKit/Sources/KeaserKit/Models/ReceiptPhoto.swift` (`ReceiptPhoto`, `ReceiptList`), `Store/ReceiptFolder.swift` (files, orphans), `Intelligence/ReceiptFill.swift` |
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `KeaserWidgets/ScanReceiptControl.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList,WalletAmount}.swift` (`WalletAmount` reads Log Wallet Transaction's text amount in any number style), the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph; `ReceiptCaptureRequest` and `receiptCapture`, the document camera and photo picker the editor presents for scanning and attaching), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
-| intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph, document camera, photo picker), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
 | sync | `Keaser/Cloud/` (`CloudSyncSwitch`, `CloudSync`, `CloudSyncEngine`, `CloudRecords` and `CloudAttachmentFiles`), `Keaser/Features/Settings/CloudSyncFootnote.swift`, `Keaser/App/KeaserCloud.entitlements` and the signing templates in `project.yml`, `Packages/KeaserKit/Sources/KeaserKit/Sync/`, the conditional sections of `Keaser/Resources/Legal/privacy.md`, `scripts/shots/sync.txt` |
 | intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/AccountEntity.swift` and `Keaser/Intents/ExpenseEntities.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
