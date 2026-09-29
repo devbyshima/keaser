@@ -177,7 +177,7 @@ struct WidgetsIllustration: View {
                         SpendingWidgetView(snapshot: snapshot, family: .systemMedium, inApp: true)
                             .transition(.opacity)
                     } else {
-                        SpendingWidgetView(snapshot: snapshot, family: .systemSmall, inApp: true)
+                        RecordingSmallWidget(snapshot: snapshot)
                             .transition(.opacity)
                     }
                 }
@@ -201,6 +201,31 @@ struct WidgetsIllustration: View {
             try? await Task.sleep(for: .milliseconds(950))
             withAnimation(.spring(duration: 0.55, bounce: 0.15)) { animatedStage = .smallTrailing }
         }
+    }
+}
+
+/// The small widget from the reference recording: the period ("This Month")
+/// over the total. The real small widget shows "Spent This Month" like every
+/// other size; the illustration keeps the recording's.
+private struct RecordingSmallWidget: View {
+    let snapshot: SpendingSnapshot
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(snapshot.caption)
+                .font(.subheadline)
+                .foregroundStyle(WidgetPalette.secondaryText)
+                .lineLimit(1)
+            Text(snapshot.formattedTotal)
+                .font(.system(size: 31, weight: .bold))
+                .foregroundStyle(WidgetPalette.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.45)
+        }
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // As the widget caps it: beyond this the text no longer fits.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 }
 

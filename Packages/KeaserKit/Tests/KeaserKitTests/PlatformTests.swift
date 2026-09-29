@@ -388,12 +388,70 @@ struct HalfOpenSpendingTests {
 }
 
 struct SpendingSnapshotTextTests {
-    private func snapshot(_ total: String, period: Period = .thisMonth) -> SpendingSnapshot {
-        SpendingSnapshot(state: .ready, period: period, accountName: "Personal", total: Decimal(string: total)!, currencyCode: "USD")
+    private let us = Locale(identifier: "en_US")
+
+    private func snapshot(_ total: String, period: Period = .thisMonth, currency: String = "USD") -> SpendingSnapshot {
+        SpendingSnapshot(state: .ready, period: period, accountName: "Personal", total: Decimal(string: total)!, currencyCode: currency)
     }
 
     @Test func captions() {
         #expect(snapshot("1", period: .today).caption == "Today")
+    }
+
+    @Test(arguments: [
+        (Period.today, "Today"),
+        (.thisWeek, "Week"),
+        (.thisMonth, "Month"),
+        (.thisYear, "Year"),
+        (.allTime, "All Time"),
+    ])
+    func shortCaptions(_ example: (period: Period, caption: String)) {
+        #expect(snapshot("1", period: example.period).shortCaption == example.caption)
+    }
+
+    /// Amounts in the currency's own style; U+00A0 is the no-break space
+    /// Foundation puts between a currency code and the number.
+    @Test(arguments: [
+        ("USD", "148.13", "$148"),
+        ("USD", "0", "$0"),
+        ("USD", "999.49", "$999"),
+        ("USD", "999.50", "$1K"),
+        ("USD", "1400", "$1.4K"),
+        ("USD", "1246.50", "$1.2K"),
+        ("USD", "18900", "$19K"),
+        ("USD", "150000", "$150K"),
+        ("USD", "2340000", "$2.3M"),
+        ("EUR", "86.40", "€86"),
+        ("GBP", "4210", "£4.2K"),
+        ("JPY", "980", "¥980"),
+        ("JPY", "15800", "¥16K"),
+        ("RWF", "12345678", "RWF\u{00A0}12M"),
+        ("RWF", "650", "RWF\u{00A0}650"),
+    ])
+    func compactTotals(_ example: (currency: String, total: String, compact: String)) {
+        #expect(snapshot(example.total, currency: example.currency).compactTotal(locale: us) == example.compact)
+    }
+
+    @Test func compactTotalsKeepTheSign() {
+        #expect(snapshot("-148.13").compactTotal(locale: us) == "-$148")
+        #expect(snapshot("-1400").compactTotal(locale: us) == "-$1.4K")
+    }
+
+    @Test(arguments: [
+        (Period.thisWeek, "USD", "148.13", "Spent This Week: $148.13"),
+        (.today, "EUR", "6.5", "Spent Today: €6.50"),
+        (.thisMonth, "JPY", "15800", "Spent This Month: ¥15,800"),
+        (.thisYear, "RWF", "12345678", "Spent This Year: RWF\u{00A0}12,345,678"),
+    ])
+    func inlineTexts(_ example: (period: Period, currency: String, total: String, text: String)) {
+        let snapshot = snapshot(example.total, period: example.period, currency: example.currency)
+        #expect(snapshot.inlineText(locale: us) == example.text)
+    }
+
+    @Test func shortInlineTexts() {
+        #expect(snapshot("148.13", period: .thisWeek).shortInlineText(locale: us) == "Week: $148")
+        #expect(snapshot("12345678", period: .thisYear, currency: "RWF").shortInlineText(locale: us) == "Year: RWF\u{00A0}12M")
+        #expect(snapshot("15800", period: .today, currency: "JPY").shortInlineText(locale: us) == "Today: ¥16K")
     }
 
     @Test(arguments: [
