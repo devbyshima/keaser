@@ -12,9 +12,10 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
     public var date: Date
     public var createdAt: Date
     public var updatedAt: Date
-    /// The photo of the receipt kept with the expense, if one was attached.
-    /// The image is a file in the Receipts folder, never in the database.
-    public var receipt: ReceiptPhoto?
+    /// The photos of receipts kept with the expense, oldest first, at most
+    /// `ReceiptList.maximum`. The images are files in the Receipts folder,
+    /// never in the database.
+    public var receipts: [ReceiptPhoto]
 
     public init(
         id: UUID = UUID(),
@@ -25,7 +26,7 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         date: Date = .now,
         createdAt: Date = .now,
         updatedAt: Date = .now,
-        receipt: ReceiptPhoto? = nil
+        receipts: [ReceiptPhoto] = []
     ) {
         self.id = id
         self.title = title
@@ -35,7 +36,7 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         self.date = date
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-        self.receipt = receipt
+        self.receipts = receipts
     }
 
     // Tolerant decoding: a field added in a later version must not make an
@@ -50,8 +51,46 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? .now
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? date
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
-        // A reference that does not read loses only the photo, never the
-        // expense.
-        receipt = (try? c.decodeIfPresent(ReceiptPhoto.self, forKey: .receipt)) ?? nil
+        // A reference that does not read loses only that photo, never the
+        // expense or its other photos. An expense from before the list
+        // (a single `receipt`) keeps its one photo.
+        if let list = try? c.decodeIfPresent([LossyReceipt].self, forKey: .receipts) {
+            receipts = list.compactMap(\.photo)
+        } else if let single = try? c.decodeIfPresent(ReceiptPhoto.self, forKey: .receipt) {
+            receipts = [single]
+        } else {
+            receipts = []
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encode(amount, forKey: .amount)
+        try c.encodeIfPresent(categoryID, forKey: .categoryID)
+        try c.encodeIfPresent(paymentMethodID, forKey: .paymentMethodID)
+        try c.encode(date, forKey: .date)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        // Left out when empty, so an expense without receipts is written
+        // exactly as before.
+        if !receipts.isEmpty { try c.encode(receipts, forKey: .receipts) }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, amount, categoryID, paymentMethodID, date, createdAt, updatedAt, receipts
+        /// The single photo an expense could carry before the list; read,
+        /// never written.
+        case receipt
+    }
+
+    /// One entry of the list, or nil when it does not read.
+    private struct LossyReceipt: Decodable {
+        let photo: ReceiptPhoto?
+
+        init(from decoder: any Decoder) throws {
+            photo = try? ReceiptPhoto(from: decoder)
+        }
     }
 }

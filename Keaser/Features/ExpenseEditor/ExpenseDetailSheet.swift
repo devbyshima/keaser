@@ -3,7 +3,7 @@ import SwiftUI
 
 /// What tapping an expense shows: its details, read only, on the same card
 /// the Add Expense shortcut confirms with (the amount, then title, account,
-/// category, payment method and date), and the receipt's photo under it
+/// category, payment method and date), and the photos of its receipts under it
 /// when one was kept, opening full screen. Edit turns the sheet into Edit
 /// Expense, and Cancel or Save there comes back to the details.
 ///
@@ -20,7 +20,7 @@ struct ExpenseDetailSheet: View {
     @State private var isEditing = false
     @State private var confirmingDelete = false
     @State private var deletedCount = 0
-    @State private var viewingReceipt: ReceiptImageSource?
+    @State private var viewing: ReceiptViewing?
 
     private var account: Account? { store.account(id: accountID) }
     private var expense: Expense? { account?.expenses.first { $0.id == expenseID } }
@@ -65,8 +65,8 @@ struct ExpenseDetailSheet: View {
                             ExpenseCardView(card: IntentSupport.card(for: expense, in: account, store: store))
                                 .padding(.bottom, 8)
                         }
-                        if let photo = expense.receipt {
-                            ReceiptDetailRow(photo: photo) { viewingReceipt = .saved(photo) }
+                        ReceiptDetailSection(receipts: expense.receipts) { index in
+                            viewing = ReceiptViewing(receipts: expense.receipts.map(ReceiptImageSource.saved), start: index)
                         }
                         deleteButton
                     }
@@ -79,20 +79,23 @@ struct ExpenseDetailSheet: View {
             .scrollBounceBehavior(.basedOnSize)
             .keaserReadableScrollContent()
         }
-        .presentationDetents([.medium])
+        // Two or more receipts make a gallery that needs the whole height.
+        .presentationDetents((expense?.receipts.count ?? 0) > 1 ? [.large] : [.medium])
         .presentationDragIndicator(.hidden)
         .keaserSheetChrome()
         // The details tell Siri which expense is open, as Edit Expense does.
         .keaserEntity(expense: expenseID)
-        .fullScreenCover(item: $viewingReceipt) { source in
-            ReceiptViewer(source: source, title: expense?.title ?? "")
+        .fullScreenCover(item: $viewing) { shown in
+            ReceiptViewer(shown, title: expense?.title ?? "")
         }
         #if DEBUG
-        // `-KeaserReceiptViewer 1` opens the receipt, for screenshots.
+        // `-KeaserReceiptViewer <i>` opens the i-th receipt, for screenshots.
         .task {
-            guard DebugLaunch.int("KeaserReceiptViewer") == 1, let photo = expense?.receipt else { return }
+            guard let number = DebugLaunch.int("KeaserReceiptViewer"), let receipts = expense?.receipts,
+                  receipts.indices.contains(number - 1)
+            else { return }
             try? await Task.sleep(for: .milliseconds(700))
-            viewingReceipt = .saved(photo)
+            viewing = ReceiptViewing(receipts: receipts.map(ReceiptImageSource.saved), start: number - 1)
         }
         #endif
         .confirmationDialog("Delete Expense?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -106,20 +109,8 @@ struct ExpenseDetailSheet: View {
     }
 
     private var deleteButton: some View {
-        KeaserCard(fill: .homeSheetCard) {
-            Button {
-                confirmingDelete = true
-            } label: {
-                Text("Delete Expense")
-                    .font(.body)
-                    .foregroundStyle(Color.keaserDestructive)
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 50)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(HighlightRowButtonStyle())
+        KeaserActionCard("Delete Expense", role: .destructive) {
+            confirmingDelete = true
         }
     }
 

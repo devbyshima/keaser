@@ -111,6 +111,20 @@ public enum ReceiptReading {
         return merged(checked(answer, lines: lines, today: today), over: heuristic)
     }
 
+    /// A receipt photographed in pages, read as one: the lines of every
+    /// page in order, top of the first to the bottom of the last, so a
+    /// total at the foot of the last page is found under the shop's name
+    /// on the first.
+    public static func read(
+        pages: [[String]],
+        model: (any ReceiptModel)?,
+        budget: Duration = ReceiptReading.budget,
+        today: ReceiptDay,
+        prefersMonthFirst: Bool
+    ) async -> ReceiptDraft {
+        await read(pages.flatMap { $0 }, model: model, budget: budget, today: today, prefersMonthFirst: prefersMonthFirst)
+    }
+
     /// The model's checked details where the receipt did not settle them:
     ///
     /// - Merchant: the model's, which tells a shop's name from a slogan or

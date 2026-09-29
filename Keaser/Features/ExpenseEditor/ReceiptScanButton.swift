@@ -4,21 +4,27 @@ import SwiftUI
 import UIKit
 import VisionKit
 
-/// Where a receipt photo comes from and what it is for. The expense editor
-/// presents the camera or the photo picker for it (`receiptCapture`),
-/// whether the title row's scanner asked or the receipt area under the card.
+/// Where receipt photos come from and what they are for. The expense
+/// editor presents the camera or the photo picker for it
+/// (`receiptCapture`), whether the title row's scanner asked or the receipt
+/// area under the card.
 struct ReceiptCaptureRequest: Equatable {
     enum Source { case camera, library }
 
     enum Purpose {
-        /// Read into the fields, and kept with the expense if it is a receipt.
+        /// The title row's scanner or the Scan Receipt control: read into
+        /// the empty fields, and kept with the expense if it is a receipt.
         case scan
-        /// Only kept with the expense.
+        /// The receipt area: kept with the expense, and read into the empty
+        /// fields when it turns out to be a receipt.
         case attach
     }
 
     let source: Source
     let purpose: Purpose
+    /// How many photos the picker lets the person choose: the room left
+    /// under `ReceiptList.maximum`.
+    var limit = ReceiptList.maximum
 
     /// The document camera, where there is one; otherwise only the library.
     @MainActor static var hasCamera: Bool { VNDocumentCameraViewController.isSupported }
@@ -43,7 +49,7 @@ struct ReceiptScanButton: View {
             } else if ReceiptCaptureRequest.hasCamera {
                 Menu {
                     Button("Scan Receipt", systemImage: "camera") { onChoose(.camera) }
-                    Button("Choose Photo", systemImage: "photo.on.rectangle") { onChoose(.library) }
+                    Button("Choose Photos", systemImage: "photo.on.rectangle") { onChoose(.library) }
                 } label: {
                     glyph
                 }
@@ -93,7 +99,7 @@ private struct ReceiptCapturePresenter: ViewModifier {
     let onCancel: (ReceiptCaptureRequest) -> Void
     let onCapture: (ReceiptCaptureRequest, ReceiptScanner.Source) -> Void
 
-    @State private var photo: PhotosPickerItem?
+    @State private var photos: [PhotosPickerItem] = []
     /// The request the photo picker answers: the picker clears `request`
     /// as it closes, before the chosen photo arrives.
     @State private var photoRequest: ReceiptCaptureRequest?
@@ -112,14 +118,21 @@ private struct ReceiptCapturePresenter: ViewModifier {
                 }
                 .ignoresSafeArea()
             }
-            .photosPicker(isPresented: presented(.library), selection: $photo, matching: .images, preferredItemEncoding: .current)
+            .photosPicker(
+                isPresented: presented(.library),
+                selection: $photos,
+                maxSelectionCount: max(1, request?.limit ?? photoRequest?.limit ?? 1),
+                selectionBehavior: .ordered,
+                matching: .images,
+                preferredItemEncoding: .current
+            )
             .onChange(of: request) { _, new in
                 if new?.source == .library { photoRequest = new }
             }
-            .onChange(of: photo) { _, item in
-                guard let item else { return }
-                photo = nil
-                onCapture(photoRequest ?? ReceiptCaptureRequest(source: .library, purpose: .attach), .photo(item))
+            .onChange(of: photos) { _, items in
+                guard !items.isEmpty else { return }
+                photos = []
+                onCapture(photoRequest ?? ReceiptCaptureRequest(source: .library, purpose: .attach), .photos(items))
             }
     }
 
@@ -139,8 +152,9 @@ private struct DocumentCamera: UIViewControllerRepresentable {
     /// The pages captured, upright; none when the person cancels.
     let onFinish: ([CGImage]) -> Void
 
-    /// A long receipt can take a few pages; more is not a receipt.
-    static let maximumPages = 4
+    /// Each page becomes a receipt of its own, so no more than an expense
+    /// keeps.
+    static let maximumPages = ReceiptList.maximum
 
     func makeUIViewController(context: Context) -> VNDocumentCameraViewController {
         let controller = VNDocumentCameraViewController()

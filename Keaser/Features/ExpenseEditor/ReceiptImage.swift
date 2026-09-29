@@ -5,22 +5,23 @@ import KeaserIntelligence
 import KeaserKit
 import UniformTypeIdentifiers
 
-/// Receipt photos as Keaser keeps them: one JPEG per receipt, the pages
-/// stacked top to bottom, each page at most `maximumPixelSize` on its long
-/// side, in sRGB and upright. Only the pixels are kept: the photo's
-/// metadata (location, time, camera) never reaches the file.
+/// Receipt photos as Keaser keeps them: one JPEG per photo (each page of a
+/// scan is its own), at most `maximumPixelSize` on its long side, in sRGB
+/// and upright. Only the pixels are kept: the photo's metadata (location,
+/// time, camera) never reaches the file.
 ///
 /// Everything here runs away from the main actor.
 enum ReceiptImage {
-    /// A page's long side, in pixels: the print stays sharp when zoomed,
+    /// A photo's long side, in pixels: the print stays sharp when zoomed,
     /// and a receipt is a few hundred kilobytes.
     static let maximumPixelSize = 2000
     static let quality = 0.8
 
-    /// The JPEG to keep for `pages`, or nil when there is nothing to keep.
+    /// The JPEGs to keep for `pages`, one each, in order; a page that
+    /// cannot be drawn is left out.
     @concurrent
-    static func jpeg(of pages: [CGImage]) async -> Data? {
-        makeJPEG(of: pages)
+    static func jpegs(of pages: [CGImage]) async -> [Data] {
+        pages.compactMap(makeJPEG(of:))
     }
 
     /// A thumbnail at most `pixelSize` on its long side, upright.
@@ -49,11 +50,17 @@ enum ReceiptImage {
         folder.data(for: photo)
     }
 
+    /// Deletes kept photos' files (receipts taken off an expense whose edit
+    /// was saved).
+    @concurrent
+    static func remove(_ photos: [ReceiptPhoto], from folder: ReceiptFolder) async {
+        folder.remove(photos)
+    }
+
     // MARK: Encoding
 
-    nonisolated static func makeJPEG(of pages: [CGImage]) -> Data? {
-        let scaled = pages.compactMap { redraw($0, longSide: maximumPixelSize) }
-        guard let image = stacked(scaled) else { return nil }
+    nonisolated static func makeJPEG(of page: CGImage) -> Data? {
+        guard let image = redraw(page, longSide: maximumPixelSize) else { return nil }
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
         // No properties besides the quality: nothing of the original
@@ -69,30 +76,6 @@ enum ReceiptImage {
         let scale = min(1, CGFloat(longSide) / CGFloat(max(page.width, page.height)))
         let width = max(1, Int((CGFloat(page.width) * scale).rounded()))
         let height = max(1, Int((CGFloat(page.height) * scale).rounded()))
-        return draw(width: width, height: height) { context in
-            context.draw(page, in: CGRect(x: 0, y: 0, width: width, height: height))
-        }
-    }
-
-    /// The pages one under the other at the first page's width, as one
-    /// long receipt.
-    private nonisolated static func stacked(_ pages: [CGImage]) -> CGImage? {
-        guard let first = pages.first else { return nil }
-        guard pages.count > 1 else { return first }
-        let width = first.width
-        let heights = pages.map { Int((CGFloat($0.height) * CGFloat(width) / CGFloat($0.width)).rounded()) }
-        let total = heights.reduce(0, +)
-        return draw(width: width, height: total) { context in
-            // Core Graphics counts from the bottom: the first page goes on top.
-            var top = total
-            for (page, height) in zip(pages, heights) {
-                top -= height
-                context.draw(page, in: CGRect(x: 0, y: top, width: width, height: height))
-            }
-        }
-    }
-
-    private nonisolated static func draw(width: Int, height: Int, _ body: (CGContext) -> Void) -> CGImage? {
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(
                   data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
@@ -102,20 +85,31 @@ enum ReceiptImage {
         context.interpolationQuality = .high
         context.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        body(context)
+        context.draw(page, in: CGRect(x: 0, y: 0, width: width, height: height))
         return context.makeImage()
     }
 }
 
 #if DEBUG
 extension ReceiptImage {
-    /// `-KeaserReceiptAttached`: a sample receipt printed onto paper, kept as
-    /// a scanned one would be. `1` is the grocery receipt; any other value
-    /// names a `ReceiptSamples` sample.
-    static func debugSample(_ value: String) -> Data? {
-        let sample = ReceiptSamples.named(value) ?? ReceiptSamples.named("grocery")
-        guard let sample, let image = ReceiptImageRenderer.image(of: sample.lines, width: 620) else { return nil }
-        return makeJPEG(of: [image])
+    /// The samples `-KeaserReceiptAttached <n>` keeps, in order, each a
+    /// different shop.
+    private static let debugSampleNames = [
+        "grocery", "coffee", "cafe-paris", "tip-suggestions", "cash-change",
+        "gross-net", "cable", "supermarket-kigali",
+    ]
+
+    /// `-KeaserReceiptAttached <n>`: `n` sample receipts (at most
+    /// `ReceiptList.maximum`) printed onto paper, kept as scanned ones
+    /// would be.
+    static func debugSamples(_ value: String) -> [Data] {
+        let count = min(max(Int(value) ?? 1, 0), ReceiptList.maximum)
+        let samples = debugSampleNames.compactMap(ReceiptSamples.named)
+        guard !samples.isEmpty else { return [] }
+        return (0..<count).compactMap { index in
+            let sample = samples[index % samples.count]
+            return ReceiptImageRenderer.image(of: sample.lines, width: 620).flatMap(makeJPEG(of:))
+        }
     }
 }
 #endif

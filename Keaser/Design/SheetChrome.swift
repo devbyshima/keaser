@@ -162,6 +162,39 @@ struct KeaserRowSeparator: View {
     }
 }
 
+/// An action on a sheet's content, such as Delete Expense: a full-width row
+/// at least 50pt tall, centred, in a card of its own below the content.
+struct KeaserActionCard: View {
+    let title: String
+    var role: ButtonRole?
+    /// `.homeSheetCard` on a sheet, `.keaserCard` on a full screen.
+    var fill: Color = .homeSheetCard
+    let action: () -> Void
+
+    init(_ title: String, role: ButtonRole? = nil, fill: Color = .homeSheetCard, action: @escaping () -> Void) {
+        self.title = title
+        self.role = role
+        self.fill = fill
+        self.action = action
+    }
+
+    var body: some View {
+        KeaserCard(fill: fill) {
+            Button(action: action) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(role == .destructive ? Color.keaserDestructive : Color.keaserPrimaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 50)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(HighlightRowButtonStyle())
+        }
+    }
+}
+
 /// A tappable card row that highlights while pressed, like a list cell.
 struct HighlightRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {

@@ -6,8 +6,10 @@ import os
 /// like `DatabaseFile`). Like the database it is part of the iPhone's
 /// backup. The app writes the files; nothing else reads them.
 ///
-/// Deleting an expense leaves its photo in place, so undo (Delete Expense
-/// from Siri or Shortcuts) can bring the expense back whole. At launch the
+/// A receipt taken off an expense in Edit Expense is deleted once that edit
+/// is saved (`remove(_:)`, `ReceiptList.released(from:inUse:)`). Deleting an
+/// expense leaves all its photos in place, so undo (Delete Expense from
+/// Siri or Shortcuts) can bring the expense back whole. At launch the
 /// app removes the photos no expense refers to any more, once they are older
 /// than `gracePeriod` (`orphans(among:keeping:now:gracePeriod:)`). Undo
 /// lives only as long as the process that deleted, and a launch starts a new
@@ -49,6 +51,15 @@ public struct ReceiptFolder: Sendable {
     /// The photo's JPEG, or nil when its file is missing or locked.
     public func data(for photo: ReceiptPhoto) -> Data? {
         try? Data(contentsOf: fileURL(for: photo))
+    }
+
+    /// Deletes the photos' files now (a receipt taken off an expense whose
+    /// edit was saved) and returns the ones that were there.
+    @discardableResult
+    public func remove(_ photos: [ReceiptPhoto]) -> [ReceiptPhoto] {
+        photos.filter { photo in
+            (try? FileManager.default.removeItem(at: fileURL(for: photo))) != nil
+        }
     }
 
     // MARK: Clean-up

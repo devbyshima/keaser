@@ -28,14 +28,13 @@ enum AppEnvironment {
                     }
                 }
             }
-            // `-KeaserReceiptAttached 1` keeps a sample receipt with the
+            // `-KeaserReceiptAttached <n>` keeps n sample receipts with the
             // selected account's newest expense (in the seeded folder).
-            if let sample = DebugLaunch.string("KeaserReceiptAttached"),
+            if let count = DebugLaunch.string("KeaserReceiptAttached"),
                let a = database.accounts.firstIndex(where: { $0.id == database.selectedAccount?.id }),
                let newest = database.accounts[a].expensesNewestFirst.first,
-               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == newest.id }),
-               let jpeg = ReceiptImage.debugSample(sample) {
-                database.accounts[a].expenses[e].receipt = try? receipts.add(jpeg)
+               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == newest.id }) {
+                database.accounts[a].expenses[e].receipts = ReceiptImage.debugSamples(count).compactMap { try? receipts.add($0) }
             }
             return KeaserStore(database: database, file: nil)
         }
