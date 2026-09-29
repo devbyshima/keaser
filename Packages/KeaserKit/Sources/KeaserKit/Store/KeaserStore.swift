@@ -14,6 +14,20 @@ public enum StoreChange: Sendable, Equatable {
     case preferencesChanged
     /// The whole database was replaced (reload from disk).
     case reloaded
+    /// Changes made on the person's other devices arrived through iCloud
+    /// and were merged in: anything may have changed.
+    case mergedFromCloud
+}
+
+/// What became of a merge from iCloud handed to the store.
+public enum CloudMergeOutcome: Equatable, Sendable {
+    /// In the database and on disk (or nothing needed changing).
+    case saved
+    /// The database changed while the merge was worked out; merge again.
+    case stale
+    /// Not written: the file cannot be read or written right now. Keep what
+    /// iCloud sent and try again later.
+    case notSaved
 }
 
 /// The single source of truth. Every mutation goes through here, is saved to
@@ -30,6 +44,10 @@ public final class KeaserStore {
     /// to disk, so the real file cannot be overwritten by an empty database;
     /// `reloadFromDisk()` retries the read.
     public private(set) var loadError: String?
+    /// Moves on with every change to `database`, so work done away from
+    /// the main actor on a copy can tell whether the copy is still current
+    /// (see `applyCloudChanges(_:ifRevision:)`).
+    @ObservationIgnored public private(set) var revision = 0
 
     @ObservationIgnored private let file: DatabaseFile?
     @ObservationIgnored private var observers: [@MainActor (StoreChange) -> Void] = []
@@ -77,10 +95,10 @@ public final class KeaserStore {
     // MARK: Preferences
 
     public func updatePreferences(_ body: (inout Preferences) -> Void) {
-        let before = database.preferences
+        let before = database
         body(&database.preferences)
-        guard database.preferences != before else { return }
-        commit(.preferencesChanged)
+        guard database.preferences != before.preferences else { return }
+        commit(.preferencesChanged, since: before)
     }
 
     public func selectAccount(_ id: UUID) {
@@ -96,9 +114,10 @@ public final class KeaserStore {
     public func createAccount(name: String) -> Account {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let account = Account(name: trimmed.isEmpty ? "Personal" : trimmed)
+        let before = database
         database.accounts.append(account)
         database.preferences.selectedAccountID = account.id
-        commit(.accountCreated(accountID: account.id))
+        commit(.accountCreated(accountID: account.id), since: before)
         return account
     }
 
@@ -111,25 +130,27 @@ public final class KeaserStore {
     /// General-purpose edit of one account.
     public func updateAccount(_ id: UUID, _ body: (inout Account) -> Void) {
         guard let index = database.accounts.firstIndex(where: { $0.id == id }) else { return }
-        let before = database.accounts[index]
+        let before = database
         body(&database.accounts[index])
-        guard database.accounts[index] != before else { return }
-        commit(.accountUpdated(accountID: id))
+        guard database.accounts[index] != before.accounts[index] else { return }
+        commit(.accountUpdated(accountID: id), since: before)
     }
 
     /// Removes the account and everything in it. Selects the next account.
     public func deleteAccount(_ id: UUID) {
         guard let index = database.accounts.firstIndex(where: { $0.id == id }) else { return }
+        let before = database
         database.accounts.remove(at: index)
         if database.preferences.selectedAccountID == id {
             database.preferences.selectedAccountID = database.accounts.first?.id
         }
-        commit(.accountDeleted(accountID: id))
+        commit(.accountDeleted(accountID: id), since: before)
     }
 
     public func moveAccounts(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let before = database
         database.accounts.keaserMove(fromOffsets: source, toOffset: destination)
-        commit(.accountsReordered)
+        commit(.accountsReordered, since: before)
     }
 
     // MARK: Expenses
@@ -140,20 +161,22 @@ public final class KeaserStore {
         var expense = expense
         expense.title = expense.title.trimmingCharacters(in: .whitespacesAndNewlines)
         expense.updatedAt = now
+        let before = database
         if let e = database.accounts[a].expenses.firstIndex(where: { $0.id == expense.id }) {
             database.accounts[a].expenses[e] = expense
         } else {
             database.accounts[a].expenses.append(expense)
         }
-        commit(.expenseSaved(accountID: accountID, expenseID: expense.id))
+        commit(.expenseSaved(accountID: accountID, expenseID: expense.id), since: before, now: now)
     }
 
     public func deleteExpense(_ expenseID: UUID, in accountID: UUID) {
         guard let a = database.accounts.firstIndex(where: { $0.id == accountID }),
               let e = database.accounts[a].expenses.firstIndex(where: { $0.id == expenseID })
         else { return }
+        let before = database
         database.accounts[a].expenses.remove(at: e)
-        commit(.expenseDeleted(accountID: accountID, expenseID: expenseID))
+        commit(.expenseDeleted(accountID: accountID, expenseID: expenseID), since: before)
     }
 
     // MARK: Categories
@@ -232,12 +255,37 @@ public final class KeaserStore {
         loadError = nil
         guard fresh != database else { return }
         database = fresh
+        revision += 1
         announce(.reloaded)
+    }
+
+    /// Replaces the database with `merged`, the result of merging changes
+    /// from iCloud into it (`SyncMerge`), unless the database changed since
+    /// `revision` was read, in which case the caller merges again from the
+    /// current one. Nothing is stamped: the merge carries the edit times of
+    /// the devices that made the changes. Announced as `.mergedFromCloud`,
+    /// so widgets, Spotlight and the weekly summary catch up in one go.
+    public func applyCloudChanges(_ merged: Database, ifRevision expected: Int) -> CloudMergeOutcome {
+        guard revision == expected else { return .stale }
+        // Never while the file is unreadable (memory holds an empty
+        // stand-in) or an earlier change is still unsaved (the merge would
+        // be saved on top of a file that lacks it).
+        guard loadError == nil, lastSaveError == nil else { return .notSaved }
+        guard merged != database else { return .saved }
+        database = merged
+        revision += 1
+        persist()
+        announce(.mergedFromCloud)
+        return lastSaveError == nil ? .saved : .notSaved
     }
 
     // MARK: Private
 
-    private func commit(_ change: StoreChange) {
+    /// Stamps the records the edit changed with `now` (`SyncStamps`), then
+    /// saves and announces it.
+    private func commit(_ change: StoreChange, since before: Database, now: Date = .now) {
+        SyncStamps.stamp(&database, since: before, now: now)
+        revision += 1
         persist()
         announce(change)
     }

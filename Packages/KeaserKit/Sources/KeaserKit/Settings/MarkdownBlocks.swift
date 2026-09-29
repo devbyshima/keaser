@@ -81,3 +81,31 @@ public enum MarkdownBlocks {
         return String(rest.dropFirst(2)).trimmingCharacters(in: .whitespaces)
     }
 }
+
+/// Keeps the parts of a bundled document that fit this build: lines
+/// between `<!-- if <flag> -->` and `<!-- else -->` (or `<!-- end -->`) stay
+/// only when `flag` is on, lines between `<!-- else -->` and `<!-- end -->`
+/// only when it is off. The privacy policy words iCloud sync this way
+/// (`icloud`), so what it says about sync shows only in builds that sync.
+/// Any other comment line is dropped. Sections do not nest.
+public enum MarkdownConditions {
+    public static func resolve(_ source: String, flags: Set<String>) -> String {
+        var kept: [String] = []
+        var including = true
+        for line in source.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("<!--"), trimmed.hasSuffix("-->") else {
+                if including { kept.append(line) }
+                continue
+            }
+            let words = trimmed.dropFirst(4).dropLast(3).split(separator: " ").map(String.init)
+            switch words.first {
+            case "if": including = words.count > 1 && flags.contains(words[1])
+            case "else": including.toggle()
+            case "end": including = true
+            default: break
+            }
+        }
+        return kept.joined(separator: "\n")
+    }
+}

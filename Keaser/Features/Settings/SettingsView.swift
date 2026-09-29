@@ -55,12 +55,19 @@ private struct SettingsRootList: View {
                 }
 
                 if let account = store.selectedAccount {
-                    Section {
-                        NavigationLink(value: SettingsPage.account(account.id)) {
-                            AccountSummary(account: account)
-                        }
-                        .cardRow(.single, insets: .settingsTextRow)
+                    let card = NavigationLink(value: SettingsPage.account(account.id)) {
+                        AccountSummary(account: account)
                     }
+                    .cardRow(.single, insets: .settingsTextRow)
+                    // iCloud sync's status as the card's small print, only
+                    // while sync is on.
+                    if let status = CloudSync.shared.displayedStatus {
+                        Section { card } footer: { CloudSyncFootnote(status: status) }
+                    } else {
+                        Section { card }
+                    }
+                } else if let status = CloudSync.shared.displayedStatus {
+                    Section {} footer: { CloudSyncFootnote(status: status) }
                 }
 
                 Section {

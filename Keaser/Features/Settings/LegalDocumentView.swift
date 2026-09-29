@@ -15,12 +15,15 @@ enum LegalDocument: String, Identifiable {
         }
     }
 
-    /// Parsed blocks, or nil if the file is missing from the bundle.
+    /// Parsed blocks, or nil if the file is missing from the bundle. What
+    /// the privacy policy says about iCloud sync is kept only in builds that
+    /// sync (`MarkdownConditions`).
+    @MainActor
     var blocks: [MarkdownBlock]? {
         guard let url = Bundle.main.url(forResource: rawValue, withExtension: "md"),
               let text = try? String(contentsOf: url, encoding: .utf8)
         else { return nil }
-        return MarkdownBlocks.parse(text)
+        return MarkdownBlocks.parse(MarkdownConditions.resolve(text, flags: CloudSync.shared.documentFlags))
     }
 }
 

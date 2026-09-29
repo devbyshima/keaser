@@ -19,6 +19,8 @@ struct KeaserApp: App {
         WeeklySummaryScheduler.shared.attach(to: store)
         SpotlightIndexer.shared.attach(to: store)
         AppEnvironment.removeOrphanedReceipts()
+        // Off unless the build is signed for iCloud (CloudSyncSwitch).
+        CloudSync.shared.attach(to: store)
     }
 
     var body: some Scene {
