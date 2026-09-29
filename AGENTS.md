@@ -67,6 +67,17 @@ simulator GUI; add launch arguments instead.
     button opens a sheet, typing starts in the first field, Return moves
     to the next, Save closes the sheet and the item appears in place,
     animated). Options live in Settings as a row that pushes a page.
+  - Buttons, placement, size and spacing: header controls sit at the
+    header's two ends, as 44pt circles (`KeaserCircleButton`,
+    `KeaserConfirmButton`) or 44pt glass capsules with 16pt either side of
+    the label (`homeSheetHeaderButton`, semibold when it confirms). A
+    screen's main action is the full-width ink capsule (`.keaserPrimary`,
+    58pt, 18pt semibold) at the bottom (`keaserBottomBar`). An action on a
+    sheet's content, such as Delete Expense, is a full-width row at least
+    50pt tall in its own card below the content. Margins are 16pt
+    (`KeaserMetrics.screenPadding`), cards 16pt apart with radius 26 (rows
+    24), sheet content starts at `HomeSheetMetrics.contentTop`, and nothing
+    tappable is under 44pt. Reuse these numbers; never eyeball new ones.
   - Gestures: tap opens details, long press opens the Edit and Delete
     menu, and the same gesture never means two things in two places.
   - Feedback: the result shows at once (the list, the totals and the widget
