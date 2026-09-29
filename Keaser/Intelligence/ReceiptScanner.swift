@@ -5,8 +5,9 @@ import SwiftUI
 
 /// Receipt scanning for New Expense: reads the pages the document camera
 /// captured, or the photo the person picked, into a `ReceiptDraft` for them
-/// to check. Everything happens on the iPhone; nothing is saved, and the
-/// images are let go as soon as they are read.
+/// to check. Everything happens on the iPhone and reading saves nothing:
+/// New Expense keeps the photo with the expense (`ReceiptImage`) only when
+/// the person saves it.
 ///
 /// Vision reads the text on every system. On iOS 26 and later, with Apple
 /// Intelligence ready, the on-device model reads it too, and its answers are
@@ -15,10 +16,11 @@ import SwiftUI
 /// Intelligence here as well.
 @MainActor
 enum ReceiptScanner {
-    /// What was scanned.
+    /// What was scanned: the document camera's pages, or the photos picked
+    /// from the library, in order.
     enum Source {
         case pages([CGImage])
-        case photo(PhotosPickerItem)
+        case photos([PhotosPickerItem])
         /// Text already read, for DEBUG samples.
         case lines([String])
     }
@@ -37,24 +39,47 @@ enum ReceiptScanner {
         model.prewarm()
     }
 
-    /// The receipt's details. Dates are read the way this iPhone's region
-    /// writes them unless the receipt settles it, and none after `now`.
-    static func read(_ source: Source, calendar: Calendar, now: Date = .now) async -> ReceiptDraft {
-        let lines: [String]
+    /// The pages of what was scanned, upright and in order: the camera's
+    /// pages as they are, or each picked photo scaled down
+    /// (`ReceiptTextRecognizer.image(from:)`). A photo that is not an image
+    /// is left out; text-only DEBUG samples have none.
+    static func pages(of source: Source) async -> [CGImage] {
         switch source {
         case .pages(let pages):
-            lines = await ReceiptTextRecognizer.lines(in: pages)
-        case .photo(let item):
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                lines = await ReceiptTextRecognizer.lines(inPhoto: data)
-            } else {
-                lines = []
+            return pages
+        case .photos(let items):
+            var pages: [CGImage] = []
+            for item in items {
+                guard let data = try? await item.loadTransferable(type: Data.self), let page = await upright(data) else { continue }
+                pages.append(page)
             }
-        case .lines(let text):
-            lines = text
+            return pages
+        case .lines:
+            return []
         }
-        return await ReceiptReading.read(
-            lines,
+    }
+
+    @concurrent
+    private nonisolated static func upright(_ photo: Data) async -> CGImage? {
+        ReceiptTextRecognizer.image(from: photo)
+    }
+
+    /// The receipt's details, its pages read together in order as one
+    /// receipt (`ReceiptReading.read(pages:)`). Dates are read the way this
+    /// iPhone's region writes them unless the receipt settles it, and none
+    /// after `now`.
+    static func read(_ pages: [CGImage], calendar: Calendar, now: Date = .now) async -> ReceiptDraft {
+        var lines: [[String]] = []
+        for page in pages {
+            lines.append((try? await ReceiptTextRecognizer.lines(in: page)) ?? [])
+        }
+        return await read(lines: lines, calendar: calendar, now: now)
+    }
+
+    /// Text already read (DEBUG samples), as one page.
+    static func read(lines: [[String]], calendar: Calendar, now: Date = .now) async -> ReceiptDraft {
+        await ReceiptReading.read(
+            pages: lines,
             model: model,
             today: ReceiptDay(now, calendar: calendar),
             prefersMonthFirst: ReceiptParser.prefersMonthFirst()

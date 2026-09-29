@@ -6,5 +6,6 @@ struct KeaserWidgetsBundle: WidgetBundle {
     var body: some Widget {
         SpendingWidget()
         AddExpenseControl()
+        ScanReceiptControl()
     }
 }

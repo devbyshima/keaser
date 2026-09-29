@@ -24,20 +24,30 @@ struct KeaserCircleButton: View {
         self.action = action
     }
 
-    private var isClose: Bool { symbol == "xmark" }
-
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: isClose ? .medium : .semibold))
-                .keaserHeaderGlyphScale()
-                .foregroundStyle(isClose ? Color.keaserCloseGlyph : Color.keaserPrimaryText)
-                .keaserCircleButton()
+            KeaserCircleGlyph(symbol: symbol)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         // A checkmark glyph would otherwise make VoiceOver say "selected".
         .accessibilityRemoveTraits(.isSelected)
+    }
+}
+
+/// The look of `KeaserCircleButton`, for controls that bring their own
+/// action, such as a `ShareLink`.
+struct KeaserCircleGlyph: View {
+    let symbol: String
+
+    private var isClose: Bool { symbol == "xmark" }
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 17, weight: isClose ? .medium : .semibold))
+            .keaserHeaderGlyphScale()
+            .foregroundStyle(isClose ? Color.keaserCloseGlyph : Color.keaserPrimaryText)
+            .keaserCircleButton()
     }
 }
 
@@ -149,6 +159,39 @@ struct KeaserRowSeparator: View {
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .accessibilityHidden(true)
+    }
+}
+
+/// An action on a sheet's content, such as Delete Expense: a full-width row
+/// at least 50pt tall, centred, in a card of its own below the content.
+struct KeaserActionCard: View {
+    let title: String
+    var role: ButtonRole?
+    /// `.homeSheetCard` on a sheet, `.keaserCard` on a full screen.
+    var fill: Color = .homeSheetCard
+    let action: () -> Void
+
+    init(_ title: String, role: ButtonRole? = nil, fill: Color = .homeSheetCard, action: @escaping () -> Void) {
+        self.title = title
+        self.role = role
+        self.fill = fill
+        self.action = action
+    }
+
+    var body: some View {
+        KeaserCard(fill: fill) {
+            Button(action: action) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(role == .destructive ? Color.keaserDestructive : Color.keaserPrimaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 50)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(HighlightRowButtonStyle())
+        }
     }
 }
 

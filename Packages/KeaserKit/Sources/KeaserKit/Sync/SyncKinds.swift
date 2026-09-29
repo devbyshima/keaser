@@ -513,10 +513,10 @@ public enum ReceiptSyncKind: SyncKind {
         var expenseID: UUID?
     }
 
-    /// "receipt-<UUID>.jpg", as `ReceiptPhoto.fileName` names the file in
-    /// the Receipts folder.
+    /// "receipt-<UUID>.jpg": `ReceiptPhoto.fileName`, the file in the
+    /// Receipts folder.
     public static func fileName(for photoID: UUID) -> String {
-        "receipt-\(photoID.uuidString).jpg"
+        ReceiptPhoto(id: photoID).fileName
     }
 
     public static func records(in database: Database) -> [SyncRecord] {

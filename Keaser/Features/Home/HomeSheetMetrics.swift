@@ -15,6 +15,9 @@ enum HomeSheetMetrics {
 
     static var headerTop: CGFloat { isFloatingSheet ? 16 : 14 }
     static var contentTop: CGFloat { isFloatingSheet ? 45 : 42 }
+    /// A card row: the expense editor's Amount, Category and Payment, and
+    /// Add Account.
+    static var rowHeight: CGFloat { isFloatingSheet ? 52 : 50 }
 }
 
 // Home's floating sheets (Accounts, Add Account, the expense editor) sit

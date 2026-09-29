@@ -40,3 +40,26 @@ receipt-reading | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt cof
 receipt-currency | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt cafe-paris -KeaserCategoryModel off
 receipt-image | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
 receipt-not-found | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt not-a-receipt -KeaserCategoryModel off
+# Receipts kept with an expense. The details with 1 receipt (a row), then 2,
+# 3 and 5 (the two-column gallery, the sheet at full height); the photo full
+# screen, alone, on the second of three, and from the editor (with Remove
+# Receipt under it); New Expense and Edit Expense with none, 1, 2, 3 and 5
+# (keyboard down, and scrolled to the gallery); the gallery at a large text
+# size; and the Scan Receipt control's route reading a sample printed onto an
+# image, which it then attaches.
+expense-receipt | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 1
+expense-receipts-2 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 2
+expense-receipts-3 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 3
+expense-receipts-5 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 5
+receipt-viewer | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 1 -KeaserReceiptViewer 1
+receipt-viewer-2-of-3 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 3 -KeaserReceiptViewer 2
+edit-receipt-viewer | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 3 -KeaserReceiptViewer 2 -KeaserExpenseFocus none
+new-expense-receipt | -KeaserSeed single -KeaserSheet newExpense -KeaserReceiptAttached 1 -KeaserExpenseFocus none
+new-expense-receipts-3 | -KeaserSeed single -KeaserSheet newExpense -KeaserReceiptAttached 3 -KeaserExpenseFocus none -KeaserExpenseScroll receipts
+edit-expense-no-receipt | -KeaserSeed single -KeaserSheet editExpense -KeaserExpenseFocus none
+edit-expense-receipt | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 1 -KeaserExpenseFocus none
+edit-expense-receipts-2 | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 2 -KeaserExpenseFocus none -KeaserExpenseScroll receipts
+edit-expense-receipts-3 | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 3 -KeaserExpenseFocus none -KeaserExpenseScroll receipts
+edit-expense-receipts-5 | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 5 -KeaserExpenseFocus none -KeaserExpenseScroll receipts
+expense-receipts-3-large-text | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 3 -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+scan-receipt | -KeaserSeed account -KeaserOpenURL keaser://scan-receipt -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off

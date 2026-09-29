@@ -44,8 +44,12 @@ enum DebugLaunch {
     /// launch, taken through `AppRouter` like the real thing:
     /// `-KeaserOpenExpense first` (the newest expense in any account) or an
     /// index into every expense newest first, `-KeaserOpenAccount <index>`,
-    /// `-KeaserOpenSearch <text>`.
+    /// `-KeaserOpenSearch <text>`; and `-KeaserOpenURL <url>`, a deep link
+    /// as a widget or control opens it (`keaser://scan-receipt`).
     static func route(in database: Database) -> AppRouter.Route? {
+        if let link = string("KeaserOpenURL").flatMap(URL.init(string:)) {
+            return AppRouter.route(for: link)
+        }
         if let value = string("KeaserOpenExpense") {
             let expenses = EntityCatalog.allExpenses(in: database)
             let index = value == "first" ? 0 : Int(value) ?? -1

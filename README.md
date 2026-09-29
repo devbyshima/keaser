@@ -9,7 +9,7 @@
 Native iOS · SwiftUI · iOS 18 and later · no third-party packages
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-457%20in%2060%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
+[![Tests](https://img.shields.io/badge/tests-490%20in%2069%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
 </div>
@@ -24,8 +24,9 @@ widget. Everything stays on your iPhone.
 - **Expenses**: title, amount, category, payment method and date. Smart
   Suggestions offer past expenses as you type a title and guess a category and
   payment method for new titles; with Apple Intelligence, an on-device model
-  helps pick the category. Scan a receipt or pick a photo of one to fill in
-  the merchant, total and date, read on device.
+  helps pick the category. Scan receipts or pick photos of them to fill in
+  the merchant, total and date, read on device, and keep up to ten receipt
+  photos with any expense, shown as a gallery, zoomable and shareable.
 - **Accounts**: separate ledgers (Personal, Business), each with its own
   categories and payment methods, fully editable with 40+ icons.
 - **Insights**: a spending total and bar chart for Today, This Week, This
@@ -36,8 +37,9 @@ widget. Everything stays on your iPhone.
   rectangular, circular and inline on the lock screen), each showing what
   you spent Today, This Week, This Month or This Year the same way ("Spent
   This Month" over the total), for any account.
-  The "Add Expense" control (Control Center, lock screen, Action button) opens
-  Keaser straight on New Expense.
+  Two controls (Control Center, lock screen, Action button): "Add Expense"
+  opens Keaser straight on New Expense, and "Scan Receipt" opens it with the
+  camera up, to photograph receipts into one.
 - **Shortcuts**: "Add Expense" and "Log Wallet Transaction" App Intents, with
   Siri phrases, for lock screen logging and Apple Wallet automations. Add
   Expense guides you one detail at a time, with Go Back and a confirmation
