@@ -45,6 +45,63 @@ simulator GUI; add launch arguments instead.
   single accent: black in light mode, white in dark). Never hard-code white
   or black; add a token with `Color(light:dark:)` instead. Screenshot both:
   `APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh`.
+- One visual language (founder rule): every new feature must look like
+  everything built before it, even where no reference exists. Build it from
+  the existing pieces: `KeaserSheetHeader` with `homeSheetHeader()` and
+  `homeSheetHeaderButton`, `KeaserCircleButton`, `KeaserCard(fill:)` (sheets
+  use `.homeSheetCard`), `KeaserRowSeparator`, `HighlightRowButtonStyle`,
+  `KeaserConfirmButton`, `PrimaryButtonStyle`, `.keaserCapsule`,
+  `SymbolTile`, `EmptyStateView`, `keaserSheetChrome()`, `keaserBottomBar`,
+  `settingsListStyle` for list pages, `keaserGlass` for glass, and the
+  Theme tokens, fonts, corner radii and spacing those already use
+  (`HomeSheetMetrics` for sheet margins). Never invent a new card, button,
+  header, colour, radius or type size when an existing one fits. If one
+  genuinely does not fit, say so and extend the shared component in
+  `Keaser/Design/` rather than styling a one-off. Before calling a UI
+  change done, screenshot it beside an existing screen of the same kind
+  (a sheet beside Edit Expense, a list page beside Settings) and compare
+  margins, radii, fonts and colours.
+- UX and the design language are shared too, not only the UI. A new
+  feature flows, behaves, moves and talks like the rest of Keaser:
+  - Flows: new things are added the way expenses and accounts are (an Add
+    button opens a sheet, typing starts in the first field, Return moves
+    to the next, Save closes the sheet and the item appears in place,
+    animated). Options live in Settings as a row that pushes a page.
+  - Buttons, placement, size and spacing: header controls sit at the
+    header's two ends, as 44pt circles (`KeaserCircleButton`,
+    `KeaserConfirmButton`) or 44pt glass capsules with 16pt either side of
+    the label (`homeSheetHeaderButton`, semibold when it confirms). A
+    screen's main action is the full-width ink capsule (`.keaserPrimary`,
+    58pt, 18pt semibold) at the bottom (`keaserBottomBar`). An action on a
+    sheet's content, such as Delete Expense, is a full-width row at least
+    50pt tall in its own card below the content. Margins are 16pt
+    (`KeaserMetrics.screenPadding`), cards 16pt apart with radius 26 (rows
+    24), sheet content starts at `HomeSheetMetrics.contentTop`, and nothing
+    tappable is under 44pt. Reuse these numbers; never eyeball new ones.
+  - Gestures: tap opens details, long press opens the Edit and Delete
+    menu, and the same gesture never means two things in two places.
+  - Feedback: the result shows at once (the list, the totals and the widget
+    update); problems appear inline in plain words, never as a dead end.
+  - Sheets: the title centred, the confirming action on the right, and on
+    the left the xmark `KeaserCircleButton` for a sheet that shows
+    things (Accounts, Expense) or Cancel for an edit form (Edit Expense).
+    Details before editing, as with expenses.
+  - Destructive actions: a confirmation dialog ("Delete Expense?", a
+    destructive button with the item's name in quotes, and Cancel). On
+    iOS 27, swipe offers Edit and Delete as well.
+  - Motion and haptics: `.smooth` animations at about 0.3 s, `.success`
+    feedback on saves and deletes, `.selection` on picks.
+  - Copy: Title Case for buttons, titles and rows ("Add Account", "Delete
+    Expense"), short sentence-case footnotes, plain words, and the same
+    name for a thing everywhere (Expense, Account, Category, Payment
+    Method).
+  - Pro gating follows `ProFeature` and the paywall, empty states use
+    `EmptyStateView`, and every control has an accessibility label and
+    works at the largest text sizes.
+
+  When a feature needs a pattern Keaser does not have yet, pick the
+  closest existing one and say so in the report rather than inventing a
+  new one quietly.
 
 - The Spending widget is the only widget, in every iPhone size: small,
   medium, large, extra large portrait (iOS 27 only) and the rectangular,
