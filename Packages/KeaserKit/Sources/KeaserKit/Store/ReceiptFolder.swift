@@ -33,6 +33,12 @@ public struct ReceiptFolder: Sendable {
     /// How long a photo no expense refers to is kept before it is removed.
     public static let gracePeriod: TimeInterval = 24 * 60 * 60
 
+    /// How every photo is written, here and by iCloud sync: atomically, and
+    /// protected as the database is, readable from the first unlock after a
+    /// restart, so a sync woken while the iPhone is locked can both save a
+    /// downloaded photo and upload a new one.
+    public static let writingOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+
     private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "ReceiptFolder")
 
     public func fileURL(for photo: ReceiptPhoto) -> URL {
@@ -40,11 +46,11 @@ public struct ReceiptFolder: Sendable {
     }
 
     /// Writes a new photo and returns the reference to keep with the
-    /// expense. The file is only readable while the iPhone is unlocked.
+    /// expense.
     public func add(_ jpeg: Data) throws -> ReceiptPhoto {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         let photo = ReceiptPhoto()
-        try jpeg.write(to: fileURL(for: photo), options: [.atomic, .completeFileProtection])
+        try jpeg.write(to: fileURL(for: photo), options: Self.writingOptions)
         return photo
     }
 

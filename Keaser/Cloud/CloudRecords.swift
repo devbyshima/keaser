@@ -99,14 +99,16 @@ protocol CloudAttachmentFiles: Sendable {
     func remove(_ asset: SyncAsset)
 }
 
-/// Files kept by name in one folder. `receipts` is the Receipts folder
-/// beside the database, the one `ReceiptFolder` writes photos to, which
-/// names them as `ReceiptSyncKind.fileName(for:)` does.
+/// Files kept by name in one folder. `receipts` is the app's
+/// `ReceiptFolder` (`AppEnvironment.receipts`), whose photos
+/// `ReceiptSyncKind.fileName(for:)` names as `ReceiptPhoto.fileName` does,
+/// written with its protection.
 struct FolderAttachmentFiles: CloudAttachmentFiles {
     let folder: URL
+    var writingOptions: Data.WritingOptions = ReceiptFolder.writingOptions
 
     static var receipts: FolderAttachmentFiles {
-        FolderAttachmentFiles(folder: DatabaseFile.shared.url.deletingLastPathComponent().appending(path: "Receipts", directoryHint: .isDirectory))
+        FolderAttachmentFiles(folder: AppEnvironment.receipts.url, writingOptions: ReceiptFolder.writingOptions)
     }
 
     func fileURL(for asset: SyncAsset) -> URL? {
@@ -114,15 +116,16 @@ struct FolderAttachmentFiles: CloudAttachmentFiles {
         return FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) ? url : nil
     }
 
-    /// A photo never changes, so one already here is kept. Written so it
-    /// can be created while the iPhone is locked (a sync woken by a push)
-    /// and read only while it is unlocked.
+    /// A photo never changes, so one already here is kept. Written with
+    /// the folder's protection (`ReceiptFolder.writingOptions`), so it can
+    /// be saved while the iPhone is locked (a sync woken by a push) after
+    /// the first unlock.
     func store(_ downloaded: URL, for asset: SyncAsset) throws {
         let target = folder.appending(path: asset.fileName)
         guard !FileManager.default.fileExists(atPath: target.path(percentEncoded: false)) else { return }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let data = try Data(contentsOf: downloaded)
-        try data.write(to: target, options: [.atomic, .completeFileProtectionUnlessOpen])
+        try data.write(to: target, options: writingOptions)
     }
 
     func remove(_ asset: SyncAsset) {

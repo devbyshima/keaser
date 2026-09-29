@@ -58,6 +58,13 @@ public enum ReceiptList {
     }
 }
 
+/// iCloud sync keeps each photo as a record of its own, keyed by the
+/// photo's ID, and the expense's list of IDs in its order
+/// (`ReceiptSyncKind`).
+extension Expense: ReceiptHolding {
+    public var receiptPhotoIDs: [UUID] { receipts.map(\.id) }
+}
+
 extension Database {
     /// Every receipt photo an expense refers to, in every account.
     public var receiptPhotos: Set<ReceiptPhoto> {

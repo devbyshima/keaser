@@ -9,7 +9,7 @@
 Native iOS · SwiftUI · iOS 18 and later · no third-party packages
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-487%20in%2068%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
+[![Tests](https://img.shields.io/badge/tests-490%20in%2069%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
 </div>

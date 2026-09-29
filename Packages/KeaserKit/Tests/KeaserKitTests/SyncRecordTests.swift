@@ -230,7 +230,7 @@ struct SyncSchemaToleranceTests {
         device.state.receiveDeletion(of: name, type: ReceiptSyncKind.type)
         device.merge()
         #expect(device.lastRemovedAssets == ReceiptSyncKind.assets(named: name))
-        // No expense keeps photos until `Expense` adopts `ReceiptHolding`.
+        // An expense without photos has no photo records.
         #expect(ReceiptSyncKind.records(in: Database(accounts: [Account(name: "A", expenses: [Expense(title: "x", amount: 1)])])).isEmpty)
     }
 }
