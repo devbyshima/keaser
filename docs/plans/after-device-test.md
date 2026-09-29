@@ -11,6 +11,8 @@ The founder approved these four extras on 2026-09-28, to be built after testing 
 
 ## Answer these while testing
 
+Answered on 2026-09-29 on Serein: tapping the Add Expense control did nothing, because iOS gives a control's action no way to ask questions. The control now opens New Expense instead (`keaser://new-expense`). So the Quick Expense plan below must never prompt: it can only log a fully saved preset, or open the app. Re-check the rest of its questions with that in mind.
+
 The device test decides details in every plan. Record the answers here before building.
 
 ### Wallet currency warning

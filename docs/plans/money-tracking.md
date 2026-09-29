@@ -1,6 +1,6 @@
 # Money tracking: plan for review
 
-Status: plan only, nothing is built. The founder decided the direction on 2026-09-29; this plan turns it into screens, data and build phases, and lists the questions to settle before building. Written against main at 6f9a2af (receipts, iCloud sync and every widget size merged).
+Status: APPROVED, not built yet. The founder decided the direction on 2026-09-29 and, the same day, accepted every recommendation in "Decisions" below ("do what you recommend"). Next: build phase 1, then phase 2. Written against main at 6f9a2af (receipts, iCloud sync and every widget size merged).
 
 Every screen here follows the rule in AGENTS.md: it is built from Keaser's existing pieces and looks, flows, moves and talks like what is already there. Each screen below names the existing screen it copies.
 
@@ -17,9 +17,9 @@ Every screen here follows the rule in AGENTS.md: it is built from Keaser's exist
 - A native bottom tab bar: **Home, Wallets, Summary, Settings**. Settings moves from the gear sheet into its tab.
 - Home stays spending-first, with balances added.
 
-## Questions to settle first
+## Decisions
 
-Each has a recommendation. Answers change the data model, so they come before any code.
+Each question had a recommendation, and the founder accepted all of them on 2026-09-29. Treat every "Recommendation" below as decided.
 
 1. **The word "Wallet".** Keaser already says "Wallet" for Apple Wallet (the Apple Wallet Automation tutorial, Log Wallet Transaction). Recommendation:
    - Call the new things wallets (the Wallets tab, Add Wallet).
@@ -142,7 +142,7 @@ Each phase ends with a build on Serein and screenshots checked against the scree
 | 7 | Summary tab: numbers, envelopes, the on-device AI summary and its fallback | about 20 h | The Summary tab |
 | 8 | Siri "What's My Balance", Add Expense wallets, weekly summary wording, What's New, docs | about 12 h | Siri answers and release notes |
 
-About 130 hours in all. Phases 1 and 2 can start once questions 1 to 5 are answered. The rest need all eleven.
+About 130 hours in all. Every decision is made, so build in this order, starting with phase 1.
 
 ## Risks
 
