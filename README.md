@@ -85,6 +85,10 @@ and `com.fulltimestudio.keaser.pro.lifetime`. The paywall's struck-through
   profiles). Until then, Help & Feedback and Follow Us stay hidden.
 - Create the products in App Store Connect and add the privacy policy URL
   there (the in-app policy is `Keaser/Resources/Legal/privacy.md`).
+- iCloud sync is built but off, because the free personal team cannot sign
+  iCloud. With the paid Apple Developer Program, switch it on as AGENTS.md
+  describes under "iCloud sync" (one word in `project.yml`), and deploy the
+  CloudKit schema to Production before shipping.
 
 ## Layout
 

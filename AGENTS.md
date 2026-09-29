@@ -19,6 +19,7 @@ The Xcode project is generated. After editing `project.yml`, run
 ## Commands
 
     ./scripts/build.sh           # xcodegen + simulator build; prints errors only
+    CLOUD=1 ./scripts/build.sh   # the same with iCloud sync switched on (see "iCloud sync")
     ./scripts/test.sh            # KeaserKit tests on the Mac
     ./scripts/screenshots.sh     # headless screenshots from scripts/shots/*.txt
     ./scripts/screenshots.sh home   # one area only
@@ -180,6 +181,107 @@ any recognised category, the model's included, brings the Cash fallback
 (`SmartSuggester.guessLabels`). Week maths must use
 `store.preferences.calendar` (it honours Start Week On).
 
+`KeaserStore` stamps edit times on what each local edit changes
+(`SyncStamps`): `updatedAt` on accounts (name), categories, payment methods and
+expenses, `categoriesOrderedAt` / `paymentMethodsOrderedAt` on accounts,
+`Database.accountsOrderedAt`, and `Preferences.settingsUpdatedAt` for the
+shared settings. iCloud sync decides between two devices' edits by them, so a
+new way of changing data must go through the store (or stamp the same way).
+All decode with defaults, so files from before them load unchanged.
+
+## iCloud sync
+
+Built, tested and switched off: the Apple Developer account is a free
+personal team, which cannot sign iCloud, CloudKit or push. Every build
+compiles the sync code; it runs only when the build has the iCloud
+entitlements and the `KeaserCloudSync` Info.plist flag is true
+(`CloudSyncSwitch`). Seeded DEBUG launches never sync, nor does an install the
+App Intents tests wrote their fixture into.
+
+How it works (KeaserKit `Sync/`, pure and tested; app `Keaser/Cloud/`):
+
+- Records in one custom zone (`SyncSchema.zoneName` "Keaser") of the private
+  database of `iCloud.com.fulltimestudio.keaser`. Each has one encrypted
+  field, `payload`: a JSON envelope `{body, modifiedAt, parent,
+  readerVersion}` where `body` is the model's own JSON. Types and names:
+  `Account.<id>` (name, created, updated; what it holds are records of their
+  own), `Category.<id>`, `PaymentMethod.<id>`, `Expense.<id>` (parent: the
+  account), `Settings` (`SyncedSettings`), `Order.Accounts`,
+  `Order.Categories.<account>`, `Order.PaymentMethods.<account>` (ID lists),
+  and `Receipt.<photo id>` (a receipt photo's JPEG as the CKAsset `file`).
+  A new kind of data syncs by adding a `SyncKind` to `SyncKinds.all` and a
+  `SyncStamps` rule.
+- Stays on the device: onboarding and the welcome letter, the weekly
+  summary switch, the Pro purchase cache and the selected account. The 7-day
+  pass start syncs, earliest wins (one pass per person).
+- `SyncPlan` diffs the database against what iCloud holds (`SyncState.known`,
+  fingerprints) into saves and tombstoned deletions; `SyncMerge` applies what
+  iCloud sent: unchanged here takes iCloud's, both changed takes the later
+  edit (ties decided by payload, the same on every device), an edit made
+  after a local delete brings the record back, an edit here outlives a delete
+  elsewhere, a deleted account takes everything in it along, an item whose
+  account has not arrived waits, and same-named labels in an account become
+  one. On a device's first sync nothing is sent until iCloud's data has been
+  fetched and merged: a never-synced account named like one in iCloud merges
+  into it, an empty placeholder account made within the hour gives way, and
+  iCloud's settings and orders win.
+- Records from later versions are never lost: unknown fields ride along on
+  edits, unknown types, a higher `readerVersion` or an unreadable payload are
+  parked untouched (`SyncState.parked`).
+- `CloudSyncEngine` (an actor, CKSyncEngine) saves fetched changes to the
+  state before merging them off the main actor into a copy the store takes
+  only if unchanged (`KeaserStore.applyCloudChanges`, one save, one
+  `.mergedFromCloud`, so widgets, Spotlight and the weekly summary follow).
+  Conflicts and gone records go through the same merge. Signed out or another
+  Apple Account: sync stops, local data stays. A lost zone is uploaded again.
+  State lives in `Application Support/Keaser/cloud-sync.plist`.
+- The status is the account card's footnote in Settings, only while sync is
+  on (`CloudSyncFootnote`). The privacy policy's `<!-- if icloud -->`
+  sections (`MarkdownConditions`) show only then too; update their "Last
+  updated" date when sync ships.
+- Receipt photos: `ReceiptSyncKind` is inert until `Expense` adopts
+  `ReceiptHolding` (`receiptPhotoIDs` in list order). The expense's own
+  record carries the list; each photo is its own record, uploaded once, never
+  sent from a device without the file, and its deletion removes the file on
+  other devices (`FolderAttachmentFiles.receipts`, the Receipts folder).
+
+Turning it on (paid Apple Developer Program):
+
+1. In project.yml change the Keaser target's `templates: [FreeTeamSigning]`
+   to `templates: [CloudSyncSigning]` (entitlements
+   `Keaser/App/KeaserCloud.entitlements`, remote-notification background
+   mode, `KEASER_CLOUD`, `KeaserCloudSync`), then `xcodegen generate`.
+2. Open the project in Xcode with the paid team selected and build to a
+   device once: automatic signing registers the iCloud container
+   `iCloud.com.fulltimestudio.keaser` and push for the App ID.
+3. Run on two devices signed in to the same Apple Account, then deploy the
+   CloudKit schema from the Development to the Production environment in
+   the CloudKit Console before any TestFlight or App Store build.
+4. Update the privacy policy's "Last updated" date and the App Store privacy
+   answers (data is stored in the person's iCloud, not collected).
+
+What to verify on two devices (A and B, same Apple Account):
+
+1. A with data: launch; Settings shows "Synced with iCloud just now".
+2. B fresh install: onboard; A's accounts, expenses, labels, currency and
+   week start arrive; one Personal account, no duplicate categories. Repeat
+   with B offline first creating Personal and an expense: after going online
+   both appear once, merged.
+3. Edit on A, see it on B within a minute (B in the foreground), and the
+   reverse. Delete an expense, a category (its expenses show no category)
+   and an account on one; they go on the other.
+4. Airplane mode on both, edit the same expense on each, the later edit
+   wins after both reconnect; delete on one and edit on the other: the edit
+   survives.
+5. Reorder categories and accounts on A; B shows the order.
+6. Sign out of iCloud on B: the footnote says iCloud is off, data stays.
+   Sign in with another Apple Account: "Paused: a different iCloud account
+   is signed in", nothing uploads. Sign back in with the first: sync resumes.
+7. Widgets, Spotlight and the weekly summary on B update after a change
+   from A. Add Expense from Siri on A reaches B.
+8. Delete Keaser's data from iCloud storage in the Settings app: the next
+   launch uploads the device's data again, and the other device merges it.
+
 ## Launch arguments (DEBUG only)
 
 | Argument | Values | Area |
@@ -223,6 +325,8 @@ any recognised category, the model's included, brings the Cash fallback
 | `-KeaserOpenSearch` | search text: the route `SearchExpensesIntent` leaves (Search with the results, keyboard down) | intents |
 | `-KeaserSelectAccount` | an account index selected at launch, with a seed; `1` with seed `demo` starts on Business, to see an opened Personal expense switch back | intents |
 | `-KeaserSpotlight` | `index`: a seeded launch writes its data to Spotlight too (seeded launches normally never index) | intents |
+| `-KeaserCloudStatus` | `synced`, `syncing`, `offline`, `off`, `restricted`, `otherAccount`, `full`, `unavailable`, `failed`: the iCloud sync footnote in that state, in any build, with the privacy policy's iCloud wording | sync |
+| `-KeaserCloudSync` | `off`: no iCloud sync this launch, in a build that has it | sync |
 
 Seeded launches keep the database in memory and never touch the real file.
 
@@ -374,9 +478,10 @@ Seeded launches keep the database in memory and never touch the real file.
 | shortcuts | `Keaser/Intents/`, `KeaserWidgets/AddExpenseControl.swift`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{QuickLog,ShortcutFlow,ShortcutCardList,WalletAmount}.swift` (`WalletAmount` reads Log Wallet Transaction's text amount in any number style), the Shortcut page in `Keaser/Features/Settings/PreferencePages.swift` |
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph, document camera, photo picker), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
+| sync | `Keaser/Cloud/` (`CloudSyncSwitch`, `CloudSync`, `CloudSyncEngine`, `CloudRecords` and `CloudAttachmentFiles`), `Keaser/Features/Settings/CloudSyncFootnote.swift`, `Keaser/App/KeaserCloud.entitlements` and the signing templates in `project.yml`, `Packages/KeaserKit/Sources/KeaserKit/Sync/`, the conditional sections of `Keaser/Resources/Legal/privacy.md`, `scripts/shots/sync.txt` |
 | intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/AccountEntity.swift` and `Keaser/Intents/ExpenseEntities.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
-(`Home`, `Settings`, `Platform`) with tests in
+(`Home`, `Settings`, `Platform`, `Sync`) with tests in
 `Packages/KeaserKit/Tests/KeaserKitTests/<Area>*Tests.swift`, and its
 screenshot list in `scripts/shots/<area>.txt`.
