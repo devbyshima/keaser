@@ -8,11 +8,15 @@ public struct Database: Codable, Hashable, Sendable {
     public var version: Int
     public var accounts: [Account]
     public var preferences: Preferences
+    /// When the order of `accounts` last changed: one moved, added or
+    /// deleted. iCloud sync keeps the later arrangement.
+    public var accountsOrderedAt: Date
 
-    public init(accounts: [Account] = [], preferences: Preferences = Preferences()) {
+    public init(accounts: [Account] = [], preferences: Preferences = Preferences(), accountsOrderedAt: Date = .distantPast) {
         self.version = Self.currentVersion
         self.accounts = accounts
         self.preferences = preferences
+        self.accountsOrderedAt = accountsOrderedAt
     }
 
     public init(from decoder: any Decoder) throws {
@@ -20,6 +24,7 @@ public struct Database: Codable, Hashable, Sendable {
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
         accounts = try c.decodeIfPresent([Account].self, forKey: .accounts) ?? []
         preferences = try c.decodeIfPresent(Preferences.self, forKey: .preferences) ?? Preferences()
+        accountsOrderedAt = try c.decodeIfPresent(Date.self, forKey: .accountsOrderedAt) ?? .distantPast
     }
 
     /// The account the user is looking at: the stored selection when it still
@@ -73,6 +78,10 @@ public struct Preferences: Codable, Hashable, Sendable {
     /// before treating the subscription as lapsed.
     public var proExpirationDate: Date?
     public var selectedAccountID: UUID?
+    /// When a setting iCloud sync shares between devices last changed (the
+    /// fields of `SyncedSettings`). `KeaserStore` stamps it; the later edit
+    /// wins. `.distantPast` until one changes.
+    public var settingsUpdatedAt: Date
 
     public init(
         currencyCode: String = Preferences.defaultCurrencyCode,
@@ -87,7 +96,8 @@ public struct Preferences: Codable, Hashable, Sendable {
         trialStartDate: Date? = nil,
         hasProPurchase: Bool = false,
         proExpirationDate: Date? = nil,
-        selectedAccountID: UUID? = nil
+        selectedAccountID: UUID? = nil,
+        settingsUpdatedAt: Date = .distantPast
     ) {
         self.currencyCode = currencyCode
         self.firstWeekday = firstWeekday
@@ -102,6 +112,7 @@ public struct Preferences: Codable, Hashable, Sendable {
         self.hasProPurchase = hasProPurchase
         self.proExpirationDate = proExpirationDate
         self.selectedAccountID = selectedAccountID
+        self.settingsUpdatedAt = settingsUpdatedAt
     }
 
     public init(from decoder: any Decoder) throws {
@@ -120,6 +131,7 @@ public struct Preferences: Codable, Hashable, Sendable {
         hasProPurchase = try c.decodeIfPresent(Bool.self, forKey: .hasProPurchase) ?? d.hasProPurchase
         proExpirationDate = try c.decodeIfPresent(Date.self, forKey: .proExpirationDate)
         selectedAccountID = try c.decodeIfPresent(UUID.self, forKey: .selectedAccountID)
+        settingsUpdatedAt = try c.decodeIfPresent(Date.self, forKey: .settingsUpdatedAt) ?? d.settingsUpdatedAt
     }
 
     public static var defaultCurrencyCode: String {

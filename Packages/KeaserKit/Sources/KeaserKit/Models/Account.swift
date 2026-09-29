@@ -9,6 +9,15 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
     public var categories: [ExpenseCategory]
     public var paymentMethods: [PaymentMethod]
     public var expenses: [Expense]
+    /// When the name last changed. `KeaserStore` stamps it, and iCloud sync
+    /// keeps the later of two renames. The creation time for accounts saved
+    /// before it existed.
+    public var updatedAt: Date
+    /// When the order of `categories` last changed: one moved, added or
+    /// deleted. iCloud sync keeps the later arrangement.
+    public var categoriesOrderedAt: Date
+    /// When the order of `paymentMethods` last changed.
+    public var paymentMethodsOrderedAt: Date
 
     public init(
         id: UUID = UUID(),
@@ -16,7 +25,8 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         createdAt: Date = .now,
         categories: [ExpenseCategory] = ExpenseCategory.defaults(),
         paymentMethods: [PaymentMethod] = PaymentMethod.defaults(),
-        expenses: [Expense] = []
+        expenses: [Expense] = [],
+        updatedAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -24,6 +34,9 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         self.categories = categories
         self.paymentMethods = paymentMethods
         self.expenses = expenses
+        self.updatedAt = updatedAt ?? createdAt
+        self.categoriesOrderedAt = createdAt
+        self.paymentMethodsOrderedAt = createdAt
     }
 
     public init(from decoder: any Decoder) throws {
@@ -34,6 +47,9 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         categories = try c.decodeIfPresent([ExpenseCategory].self, forKey: .categories) ?? []
         paymentMethods = try c.decodeIfPresent([PaymentMethod].self, forKey: .paymentMethods) ?? []
         expenses = try c.decodeIfPresent([Expense].self, forKey: .expenses) ?? []
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
+        categoriesOrderedAt = try c.decodeIfPresent(Date.self, forKey: .categoriesOrderedAt) ?? .distantPast
+        paymentMethodsOrderedAt = try c.decodeIfPresent(Date.self, forKey: .paymentMethodsOrderedAt) ?? .distantPast
     }
 
     /// First letter of the name, for the monogram tile in Settings.

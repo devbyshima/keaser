@@ -63,6 +63,8 @@ enum IntentSupport {
         await WeeklySummaryScheduler.shared.refreshNow()
         SpotlightIndexer.shared.attach(to: store)
         await SpotlightIndexer.shared.flush()
+        CloudSync.shared.attach(to: store)
+        await CloudSync.shared.flush()
     }
 
     /// Above the card of an expense a shortcut or automation just added.
