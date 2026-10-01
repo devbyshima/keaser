@@ -72,9 +72,10 @@ struct ExpenseDetailSheet: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, HomeSheetMetrics.contentTop)
+                .padding(.top, HomeSheetMetrics.contentTop - KeaserMetrics.sheetScrollEdge)
                 .padding(.bottom, 24)
             }
+            .keaserSheetScrollEdge()
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
             .keaserReadableScrollContent()

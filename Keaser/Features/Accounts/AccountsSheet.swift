@@ -129,7 +129,8 @@ struct AccountsSheet: View {
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
         .environment(\.editMode, $editMode)
-        .contentMargins(.top, HomeSheetMetrics.contentTop, for: .scrollContent)
+        .contentMargins(.top, HomeSheetMetrics.contentTop - KeaserMetrics.sheetScrollEdge, for: .scrollContent)
+        .keaserSheetScrollEdge()
         .keaserReadableScrollContent()
     }
 

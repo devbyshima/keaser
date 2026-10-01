@@ -166,9 +166,10 @@ struct ExpenseEditorView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, EditorMetrics.contentTop)
+                    .padding(.top, EditorMetrics.contentTop - KeaserMetrics.sheetScrollEdge)
                     .padding(.bottom, 24)
                 }
+                .keaserSheetScrollEdge()
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
                 .keaserReadableScrollContent()
