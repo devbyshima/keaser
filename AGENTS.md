@@ -233,9 +233,55 @@ change only through `KeaserStore.saveExpense`, which stamps `updatedAt` for
 sync. Seeded launches use a temporary `SeededReceipts` folder
 (`AppEnvironment.receipts`), emptied at each launch.
 
+Money tracking (`docs/plans/money-tracking.md`) has its data and maths in
+KeaserKit (phase 1); no screen shows it yet. Payment methods are the wallets:
+`PaymentMethod` keeps its name, IDs, intents and sync records and gains
+`kind` (`WalletKind`: cash, bank, mobile money, credit card, other; guessed
+from the name for older ones and always written, so a rename never changes
+it), `currencyCode`, `trackingSince` and `openingBalance` (no
+`trackingSince`: Not Tracking), `creditLimit`, `isSavings` and `isHidden`. A
+balance is the money in the wallet, so a card that owes 500 is -500 and counts
+against the total with no special case. Each `ExpenseCategory` has a `role`
+(Expenses or Free Money, guessed and written the same way). An account also
+holds `incomeCategories` (Salary, Business, Gifts, Refunds; an account saved
+before them gets them when it loads, with IDs derived from the account's, so
+two devices never make two sets), `incomes`, `transfers`,
+`balanceAdjustments` and its `splitRule`. `WalletKind`, `CategoryRole` and
+`TransferKind` are open sets of strings, so a value a later version writes
+survives.
+
+A nil `currencyCode` on a wallet means the display currency
+(`Preferences.currencyCode`, so the Currency setting still relabels as it
+always has); on an expense, income, transfer side or balance adjustment it
+means its wallet's. Changing a wallet's currency, or deleting the wallet,
+first writes the old currency into what followed it
+(`KeaserStore.savePaymentMethod`, `deletePaymentMethod`). Converting goes
+through `CurrencyConverter.convert`: the rate saved on the transaction
+(`ExchangeRate`), else today's table (`ExchangeRates`, never synced), rounded
+to the target currency's places (`CurrencyMath`); what cannot be converted is
+left out and counted (`unconverted`), never guessed. A wallet's balance
+(`WalletBalances`) starts from the latest balance the person stated (the
+opening one, or a `BalanceAdjustment` from Set Balance) and counts only
+entries dated after that day, or that day and logged after it, so history is
+never edited. Envelopes (`MonthEnvelopes.envelopes`) are per calendar month:
+income times each percentage, minus that month's spending by category role
+(no category counts as Expenses); Savings progress is the month's `.savings`
+transfers. Saving an income makes, keeps or removes its savings transfer in
+the same save (`SavingsSplit`): the rule applies to a new income or one no
+longer skipped, an income keeps the percentage it was logged with, money that
+already moved is never re-rated, and the transfer's ID is derived from the
+income's. The label editor saves through `KeaserStore.saveLabel(id:name:symbol:kind:in:)`,
+which changes only the name and icon. The store's money methods:
+`saveIncome`, `deleteIncome`, `saveTransfer`, `deleteTransfer` (deleting a
+savings transfer skips it), `saveIncomeCategory`, `deleteIncomeCategory`,
+`moveIncomeCategories`, `setBalance`, `deleteBalanceAdjustment` and
+`updateSplitRule`.
+
 `KeaserStore` stamps edit times on what each local edit changes
-(`SyncStamps`): `updatedAt` on accounts (name), categories, payment methods and
-expenses, `categoriesOrderedAt` / `paymentMethodsOrderedAt` on accounts,
+(`SyncStamps`): `updatedAt` on accounts (name), categories, payment methods,
+expenses, income categories, incomes, transfers and balance adjustments,
+`categoriesOrderedAt` / `paymentMethodsOrderedAt` /
+`incomeCategoriesOrderedAt` on accounts, `SplitRule.updatedAt`,
 `Database.accountsOrderedAt`, and `Preferences.settingsUpdatedAt` for the
 shared settings. iCloud sync decides between two devices' edits by them, so a
 new way of changing data must go through the store (or stamp the same way).
@@ -257,10 +303,14 @@ How it works (KeaserKit `Sync/`, pure and tested; app `Keaser/Cloud/`):
   field, `payload`: a JSON envelope `{body, modifiedAt, parent,
   readerVersion}` where `body` is the model's own JSON. Types and names:
   `Account.<id>` (name, created, updated; what it holds are records of their
-  own), `Category.<id>`, `PaymentMethod.<id>`, `Expense.<id>` (parent: the
-  account), `Settings` (`SyncedSettings`), `Order.Accounts`,
-  `Order.Categories.<account>`, `Order.PaymentMethods.<account>` (ID lists),
-  and `Receipt.<photo id>` (a receipt photo's JPEG as the CKAsset `file`).
+  own), `Category.<id>`, `PaymentMethod.<id>` (the wallets), `Expense.<id>`,
+  `IncomeCategory.<id>`, `Income.<id>`, `Transfer.<id>`,
+  `BalanceAdjustment.<id>` (parent: the account), `SplitRule.<account>` (one
+  per account; iCloud's wins on a device's first meeting, as the settings
+  do), `Settings` (`SyncedSettings`), `Order.Accounts`,
+  `Order.Categories.<account>`, `Order.PaymentMethods.<account>`,
+  `Order.IncomeCategories.<account>` (ID lists), and `Receipt.<photo id>` (a
+  receipt photo's JPEG as the CKAsset `file`).
   A new kind of data syncs by adding a `SyncKind` to `SyncKinds.all` and a
   `SyncStamps` rule.
 - Stays on the device: onboarding and the welcome letter, the weekly
