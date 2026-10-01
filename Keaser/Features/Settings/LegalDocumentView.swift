@@ -27,14 +27,14 @@ enum LegalDocument: String, Identifiable {
     }
 }
 
-/// A legal document pushed inside Settings, on the canvas of the other
-/// settings pages.
+/// A legal document pushed inside Settings: white in light mode, as the
+/// reference draws it, and black like the other pages in dark mode.
 struct LegalDocumentView: View {
     let document: LegalDocument
 
     var body: some View {
         LegalDocumentBody(document: document)
-            .background(Color.settingsCanvas.ignoresSafeArea())
+            .background(Color.settingsDocumentCanvas.ignoresSafeArea())
             .settingsPage(document.title)
     }
 }
@@ -95,6 +95,7 @@ private struct LegalDocumentBody: View {
                 }
                 #endif
             }
+            .keaserSoftBottomEdge()
             .keaserReadableScrollContent()
         } else {
             EmptyStateView(symbol: "doc.text", title: "Not Available", message: "This document could not be loaded.")
