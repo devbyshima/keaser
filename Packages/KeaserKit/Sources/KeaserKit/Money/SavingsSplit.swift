@@ -7,7 +7,7 @@ public enum SavingsSplit {
     /// The savings transfer `income` makes, and the percentage applied, or
     /// (nil, nil) for none:
     /// 1. None when the income skips it (Skip This Time) or went into no
-    ///    wallet.
+    ///    wallet of the account (none, or one deleted on another device).
     /// 2. The percentage is the income's own when it has one (an income
     ///    keeps the split it was logged with), else the rule's while the
     ///    rule is on and valid. 0 is none.
@@ -32,7 +32,8 @@ public enum SavingsSplit {
         newID: () -> UUID = UUID.init
     ) -> (transfer: Transfer?, percent: Int?) {
         let none: (transfer: Transfer?, percent: Int?) = (nil, nil)
-        guard !income.savingsSkipped, let from = income.walletID else { return none }
+        guard !income.savingsSkipped, let wallet = account.paymentMethod(id: income.walletID) else { return none }
+        let from = wallet.id
         let percent: Int
         if let own = income.savingsPercent {
             percent = own
@@ -50,7 +51,7 @@ public enum SavingsSplit {
         guard amountOut > 0,
               let amountIn = converter.convert(amountOut, from: currency, to: target.effectiveCurrency(display: display), saved: nil)
         else { return none }
-        let walletCurrency = account.effectiveCurrency(ofWallet: from, display: display) ?? display
+        let walletCurrency = wallet.effectiveCurrency(display: display)
         let transfer = Transfer(
             id: existing?.id ?? newID(),
             kind: .savings,

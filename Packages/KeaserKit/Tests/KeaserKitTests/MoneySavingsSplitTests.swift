@@ -46,6 +46,11 @@ struct MoneySavingsSplitTests {
         walletless.walletID = nil
         let result = split(walletless)
         #expect(result.transfer == nil && result.percent == nil)
+        // A wallet the account no longer has (deleted on another device)
+        // reads as none.
+        var gone = income()
+        gone.walletID = UUID()
+        #expect(split(gone).transfer == nil)
     }
 
     @Test func rule2TheIncomesOwnPercentWinsOverTheRule() {
