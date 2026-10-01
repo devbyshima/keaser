@@ -19,6 +19,10 @@ struct ExpenseCardView: View {
     var session: String?
     /// The detail open on its options, on the interactive card only.
     var options: ShortcutCardList.Source?
+    /// At the accessibility text sizes, each value under its label
+    /// (`ExpenseCardRow`): the expense's details only. The system's card
+    /// keeps one line per detail at every size, to stay within its height.
+    var stacksAtAccessibilitySizes = false
 
     var body: some View {
         if let session, let options {
@@ -54,17 +58,23 @@ struct ExpenseCardView: View {
     private func row(symbol: String, label: String, value: String, detail: ExpenseCardDetail? = nil) -> some View {
         if let detail, let session {
             Button(intent: ShowExpenseCardOptionsIntent(session: session, detail: detail)) {
-                ExpenseCardRow(symbol: symbol, label: label, value: value, changes: true, hint: "Shows the \(detail.pluralName)")
+                ExpenseCardRow(symbol: symbol, label: label, value: value, changes: true, hint: "Shows the \(detail.pluralName)", stacks: stacksAtAccessibilitySizes)
             }
             .buttonStyle(.plain)
         } else {
-            ExpenseCardRow(symbol: symbol, label: label, value: value, changes: false)
+            ExpenseCardRow(symbol: symbol, label: label, value: value, changes: false, stacks: stacksAtAccessibilitySizes)
         }
     }
 }
 
 /// Symbol and label in grey on the leading side, the value trailing, in
 /// medium.
+///
+/// `stacks` (the expense's details): at the accessibility text sizes the
+/// value goes under the label, still trailing, as in Edit Expense, and wraps
+/// there rather than being cut short; a value with nowhere to break
+/// ("Entertainment") shrinks instead of breaking in the middle
+/// (`ShortcutCard.isUnbreakable`), and so does the label.
 ///
 /// `yieldsLabel` (the open list's header): when the label and the whole
 /// value do not both fit on the line, as at the accessibility text sizes,
@@ -79,8 +89,12 @@ private struct ExpenseCardRow: View {
     let changes: Bool
     var hint: String = ""
     var yieldsLabel = false
+    var stacks = false
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .callout) private var symbolWidth: CGFloat = 23
+
+    private var stacked: Bool { stacks && dynamicTypeSize.isAccessibilitySize }
 
     var body: some View {
         Group {
@@ -93,6 +107,20 @@ private struct ExpenseCardRow: View {
                             .minimumScaleFactor(0.8)
                         Spacer(minLength: 0)
                     }
+                }
+            } else if stacked {
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack(spacing: 8) {
+                        icon
+                        Text(label)
+                            .font(.callout)
+                            .foregroundStyle(Color.keaserSnippetLabel)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    valueText
+                        .minimumScaleFactor(0.6)
                 }
             } else {
                 labelled
@@ -129,7 +157,9 @@ private struct ExpenseCardRow: View {
             Text(value)
                 .font(.callout.weight(.medium))
                 .foregroundStyle(Color.keaserPrimaryText)
-                .lineLimit(1)
+                .lineLimit(stacked && !ShortcutCard.isUnbreakable(value) ? nil : 1)
+                .multilineTextAlignment(stacked ? .trailing : .leading)
+                .fixedSize(horizontal: false, vertical: stacked)
             if changes {
                 Image(systemName: "chevron.up.chevron.down")
                     .keaserFont(10, weight: .semibold, relativeTo: .caption2)

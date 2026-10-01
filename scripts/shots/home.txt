@@ -65,3 +65,5 @@ edit-expense-receipts-3 | -KeaserSeed single -KeaserSheet editExpense -KeaserRec
 edit-expense-receipts-5 | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 5 -KeaserExpenseFocus none -KeaserExpenseScroll receipts
 expense-receipts-3-large-text | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 3 -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
 scan-receipt | -KeaserSeed account -KeaserOpenURL keaser://scan-receipt -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
+# The details at the largest text size: each value under its label, wrapping.
+expense-details-largest-text | -KeaserSeed demo -KeaserSheet expense -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL

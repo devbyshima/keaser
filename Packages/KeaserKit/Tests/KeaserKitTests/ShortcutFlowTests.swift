@@ -470,6 +470,16 @@ struct ShortcutCardTests {
         #expect(ShortcutCard.dateText(date(2026, 4, 8), locale: Locale(identifier: locale), timeZone: utc) == expected)
     }
 
+    @Test(arguments: ["Entertainment", "Transportation", "Uniqlo", "Café", "Food&Drinks", "04/08/2026", "08.04.2026", ""])
+    func aDetailWithNowhereToBreakShrinksRatherThanWraps(value: String) {
+        #expect(ShortcutCard.isUnbreakable(value))
+    }
+
+    @Test(arguments: ["Credit Card", "Food & Drinks", "Weekly groceries and household supplies", "星巴克咖啡店", "スターバックスコーヒー渋谷店", "커피 한잔"])
+    func aDetailWithBreaksMayWrap(value: String) {
+        #expect(!ShortcutCard.isUnbreakable(value))
+    }
+
     @Test func amountsFollowTheCurrency() {
         let account = Account(name: "Personal")
         let us = Locale(identifier: "en_US")
