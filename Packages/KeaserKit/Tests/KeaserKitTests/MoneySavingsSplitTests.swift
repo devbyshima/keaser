@@ -24,14 +24,16 @@ struct MoneySavingsSplitTests {
         SplitRule(isEnabled: true, savingsWalletID: savings.id)
     }
 
+    /// `stored`: the income as the account has it; nil, a new income.
     private func split(
         _ income: Income,
+        stored: Income? = nil,
         existing: Transfer? = nil,
         rule: SplitRule? = nil,
         rates: ExchangeRates? = nil
     ) -> (transfer: Transfer?, percent: Int?) {
         SavingsSplit.transfer(
-            for: income, existing: existing, in: account, rule: rule ?? self.rule, display: "RWF",
+            for: income, stored: stored, existing: existing, in: account, rule: rule ?? self.rule, display: "RWF",
             converter: CurrencyConverter(displayCurrency: "RWF", rates: rates), now: now, newID: { fixedID }
         )
     }
@@ -73,6 +75,26 @@ struct MoneySavingsSplitTests {
         #expect(split(income(percent: 0)).transfer == nil)
         let zero = SplitRule(isEnabled: true, savingsPercent: 0, expensesPercent: 70, freeMoneyPercent: 30, savingsWalletID: savings.id)
         #expect(split(income(), rule: zero).transfer == nil)
+    }
+
+    @Test func rule2TheRuleSplitsOnlyANewOrUnskippedIncome() {
+        // Logged without a split (the rule was off): saved again with the
+        // rule on, it stays without one.
+        let logged = income()
+        #expect(split(logged, stored: logged).transfer == nil)
+        var bigger = logged
+        bigger.amount = 300_000
+        #expect(split(bigger, stored: logged).transfer == nil)
+        // Its Skip This Time turned off: the rule splits it.
+        var skipped = logged
+        skipped.savingsSkipped = true
+        #expect(split(logged, stored: skipped).percent == 20)
+        // Its own percentage splits it either way; the stored one counts
+        // when the copy saved has none.
+        #expect(split(income(percent: 10), stored: logged).percent == 10)
+        #expect(split(logged, stored: income(percent: 10)).percent == 10)
+        // 0 on the copy saved takes the split away.
+        #expect(split(income(percent: 0), stored: income(percent: 10)).transfer == nil)
     }
 
     @Test func rule3ItGoesToAnotherWalletOfTheAccount() {

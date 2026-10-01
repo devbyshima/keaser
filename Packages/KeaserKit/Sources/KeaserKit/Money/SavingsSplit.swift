@@ -5,13 +5,18 @@ import Foundation
 /// same save.
 public enum SavingsSplit {
     /// The savings transfer `income` makes, and the percentage applied, or
-    /// (nil, nil) for none. `existing` is the one it made before: money
+    /// (nil, nil) for none. `stored` is the income as the account has it,
+    /// nil for a new one. `existing` is the transfer it made before: money
     /// that already moved, so it changes only with what the income
     /// changed, never with today's rates or a wallet deleted since.
     /// 1. None when the income skips it (Skip This Time).
     /// 2. The percentage is the income's own when it has one (an income
-    ///    keeps the split it was logged with), else the rule's while the
-    ///    rule is on and valid. 0 is none.
+    ///    keeps the split it was logged with; nil on the copy saved keeps
+    ///    the stored one's). Without one, the rule's, while the rule is on
+    ///    and valid, but only for a new income or one whose Skip This
+    ///    Time was just turned off: any other income was logged without a
+    ///    split and stays so, whatever the rule says now, so editing an
+    ///    old income never makes a transfer back then. 0 is none.
     /// 3. It goes from the income's wallet to `existing`'s wallet, or for a
     ///    new one, the rule's savings wallet: two wallets of the account.
     ///    None when the income went into no wallet, or into that wallet.
@@ -31,6 +36,7 @@ public enum SavingsSplit {
     ///    `updatedAt` is `now` only when something changed.
     public static func transfer(
         for income: Income,
+        stored: Income?,
         existing: Transfer?,
         in account: Account,
         rule: SplitRule,
@@ -42,9 +48,11 @@ public enum SavingsSplit {
         let none: (transfer: Transfer?, percent: Int?) = (nil, nil)
         guard !income.savingsSkipped else { return none }
         let percent: Int
-        if let own = income.savingsPercent {
+        // New, or skipped until now (this copy is not).
+        let takesTheRule = stored?.savingsSkipped ?? true
+        if let own = income.savingsPercent ?? stored?.savingsPercent {
             percent = own
-        } else if rule.isEnabled, rule.isValid {
+        } else if takesTheRule, rule.isEnabled, rule.isValid {
             percent = rule.savingsPercent
         } else {
             return none

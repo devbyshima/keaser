@@ -309,8 +309,10 @@ public final class KeaserStore {
     /// Inserts or replaces an income (matched by ID) and stamps `updatedAt`.
     /// In the same save, its savings transfer is made, updated or removed
     /// as the split rule says (`SavingsSplit`), at `rates` when the savings
-    /// wallet is in another currency. One already made stays as it is
-    /// unless what leaves the income's wallet changed.
+    /// wallet is in another currency. The rule applies to a new income or
+    /// one whose Skip This Time was just turned off; any other keeps the
+    /// split it was logged with. One already made stays as it is unless
+    /// what leaves the income's wallet changed.
     public func saveIncome(_ income: Income, in accountID: UUID, rates: ExchangeRates? = nil, now: Date = .now) {
         guard let a = database.accounts.firstIndex(where: { $0.id == accountID }) else { return }
         var income = income
@@ -319,11 +321,12 @@ public final class KeaserStore {
         let before = database
         var account = database.accounts[a]
         let display = database.preferences.currencyCode
-        let linked = income.savingsTransferID ?? account.income(id: income.id)?.savingsTransferID
+        let stored = account.income(id: income.id)
+        let linked = income.savingsTransferID ?? stored?.savingsTransferID
         let existing = account.transfer(id: linked)
             ?? account.transfers.first { $0.kind == .savings && $0.incomeID == income.id }
         let split = SavingsSplit.transfer(
-            for: income, existing: existing, in: account, rule: account.splitRule, display: display,
+            for: income, stored: stored, existing: existing, in: account, rule: account.splitRule, display: display,
             converter: CurrencyConverter(displayCurrency: display, rates: rates), now: now
         )
         if let transfer = split.transfer {

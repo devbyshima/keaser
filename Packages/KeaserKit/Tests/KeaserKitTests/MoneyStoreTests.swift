@@ -88,9 +88,11 @@ struct MoneyStoreTests {
     @Test func savingAnIncomeTrimsStampsUpsertsAndAnnouncesIt() throws {
         let store = KeaserStore(file: nil)
         let account = store.createAccount(name: "Personal")
+        // A savings wallet is picked but the rule is off.
+        store.updateSplitRule(in: account.id) { $0.savingsWalletID = account.paymentMethods[3].id }
         var changes: [StoreChange] = []
         store.addObserver { changes.append($0) }
-        var income = Income(title: "  Salary ", amount: 900, createdAt: then, updatedAt: then)
+        var income = Income(title: "  Salary ", amount: 900, walletID: account.paymentMethods[2].id, createdAt: then, updatedAt: then)
         store.saveIncome(income, in: account.id, now: later)
         let saved = try #require(store.account(id: account.id)?.incomes.first)
         #expect(saved.title == "Salary")
@@ -194,6 +196,33 @@ struct MoneyStoreTests {
         store.saveIncome(Income(title: "Gift", amount: 10_000, walletID: wallet("Cash", in: account).id), in: account.id)
         #expect(store.account(id: account.id)?.transfers.count == 1)
         #expect(store.account(id: account.id)?.incomes.last?.savingsPercent == nil)
+    }
+
+    @Test func anIncomeLoggedWithoutASplitStaysWithoutOne() throws {
+        let (store, account) = storeWithRule()
+        store.updateSplitRule(in: account.id) { $0.isEnabled = false }
+        store.saveIncome(Income(title: "Salary", amount: 500_000, walletID: wallet("Cash", in: account).id, date: then), in: account.id)
+        store.updateSplitRule(in: account.id) { $0.isEnabled = true }
+
+        // A typo fixed months later, then the amount: no savings transfer
+        // made back then.
+        var income = try #require(store.account(id: account.id)?.incomes.first)
+        income.title = "July salary"
+        store.saveIncome(income, in: account.id)
+        income.amount = 520_000
+        store.saveIncome(income, in: account.id)
+        var stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.isEmpty)
+        #expect(stored.incomes.first?.savingsPercent == nil)
+
+        // Skipped and then not: the rule splits it like a new one.
+        income.savingsSkipped = true
+        store.saveIncome(income, in: account.id)
+        income.savingsSkipped = false
+        store.saveIncome(income, in: account.id)
+        stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.map(\.amountOut) == [104_000])
+        #expect(stored.incomes.first?.savingsPercent == 20)
     }
 
     @Test func savingAnIncomeAgainLeavesItsSavingsTransferAsItWas() throws {
