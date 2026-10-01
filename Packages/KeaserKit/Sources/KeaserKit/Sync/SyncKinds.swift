@@ -13,10 +13,10 @@ public enum SyncApplyOutcome: Equatable, Sendable {
 /// it is written as a record and applied back.
 ///
 /// The diff (`SyncPlan`), the merge (`SyncMerge`) and the CloudKit mapping
-/// in the app all work from `SyncKinds.all`, so a new kind of data (wallets,
-/// transfers, exchange rates) syncs by adding one conforming type there and
-/// a `SyncStamps` rule for its edit time; nothing else changes. Builds that
-/// predate a kind keep its records aside, untouched, until they are updated.
+/// in the app all work from `SyncKinds.all`, so a new kind of data syncs by
+/// adding one conforming type there and a `SyncStamps` rule for its edit
+/// time; nothing else changes. Builds that predate a kind keep its records
+/// aside, untouched, until they are updated.
 public protocol SyncKind: Sendable {
     static var type: SyncRecordType { get }
     /// Records apply in rank order, so an account exists before anything
@@ -72,7 +72,12 @@ public enum SyncKinds {
         AccountSyncKind.self,
         CategorySyncKind.self,
         PaymentMethodSyncKind.self,
+        IncomeCategorySyncKind.self,
+        SplitRuleSyncKind.self,
         ExpenseSyncKind.self,
+        IncomeSyncKind.self,
+        TransferSyncKind.self,
+        BalanceAdjustmentSyncKind.self,
         OrderSyncKind.self,
         ReceiptSyncKind.self,
     ]
@@ -184,14 +189,17 @@ public enum AccountSyncKind: SyncKind {
             database.accounts[index].createdAt = fields.createdAt
             database.accounts[index].updatedAt = fields.updatedAt
         } else {
-            // Empty: its categories, payment methods and expenses arrive as
-            // records of their own, and so do their orders.
+            // Empty: its labels, expenses, income, transfers and balance
+            // adjustments arrive as records of their own, and so do their
+            // orders and its split rule, which wins over this default.
             var account = Account(
                 id: fields.id, name: fields.name, createdAt: fields.createdAt,
-                categories: [], paymentMethods: [], expenses: [], updatedAt: fields.updatedAt
+                categories: [], paymentMethods: [], expenses: [], updatedAt: fields.updatedAt,
+                incomeCategories: [], splitRule: SplitRule()
             )
             account.categoriesOrderedAt = .distantPast
             account.paymentMethodsOrderedAt = .distantPast
+            account.incomeCategoriesOrderedAt = .distantPast
             database.accounts.append(account)
         }
         return .applied
@@ -302,10 +310,21 @@ public enum CategorySyncKind: AccountItemSyncKind {
     public static var list: WritableKeyPath<Account, [ExpenseCategory]> { \.categories }
 }
 
+/// Payment methods, which are also the wallets: the wallet fields (kind,
+/// currency, balance, credit limit) travel in the same record.
 public enum PaymentMethodSyncKind: AccountItemSyncKind {
     public static let type = SyncRecordType.paymentMethod
     public static let rank = 2
     public static var list: WritableKeyPath<Account, [PaymentMethod]> { \.paymentMethods }
+}
+
+/// Income categories. The built-in ones have IDs derived from their
+/// account's (`IncomeCategory.defaults(for:)`), so two devices that give
+/// the same account its defaults make the same records.
+public enum IncomeCategorySyncKind: AccountItemSyncKind {
+    public static let type = SyncRecordType.incomeCategory
+    public static let rank = 2
+    public static var list: WritableKeyPath<Account, [IncomeCategory]> { \.incomeCategories }
 }
 
 /// Expenses. The body is the whole `Expense`, so whatever it holds syncs
@@ -317,10 +336,84 @@ public enum ExpenseSyncKind: AccountItemSyncKind {
     public static var list: WritableKeyPath<Account, [Expense]> { \.expenses }
 }
 
+/// Income. Its savings transfer is a `TransferSyncKind` record of its own,
+/// linked both ways by ID (`savingsTransferID`, `Transfer.incomeID`).
+public enum IncomeSyncKind: AccountItemSyncKind {
+    public static let type = SyncRecordType.income
+    public static let rank = 3
+    public static var list: WritableKeyPath<Account, [Income]> { \.incomes }
+}
+
+public enum TransferSyncKind: AccountItemSyncKind {
+    public static let type = SyncRecordType.transfer
+    public static let rank = 3
+    public static var list: WritableKeyPath<Account, [Transfer]> { \.transfers }
+}
+
+public enum BalanceAdjustmentSyncKind: AccountItemSyncKind {
+    public static let type = SyncRecordType.balanceAdjustment
+    public static let rank = 3
+    public static var list: WritableKeyPath<Account, [BalanceAdjustment]> { \.balanceAdjustments }
+}
+
+// MARK: - Split rule
+
+/// One record per account, `SplitRule.<account ID>`, whose body is the
+/// account's `SplitRule` and whose edit time is the rule's `updatedAt`.
+///
+/// Every account has a rule from the start, so like the settings, iCloud's
+/// copy wins when a device that has never synced it meets it: a new device
+/// takes on the person's rule instead of imposing the default. Nothing
+/// deletes a rule on its own; it goes with its account.
+public enum SplitRuleSyncKind: SyncKind {
+    public static let type = SyncRecordType.splitRule
+    public static let rank = 2
+    public static let remoteWinsFirstMeeting = true
+
+    public static func records(in database: Database) -> [SyncRecord] {
+        database.accounts.map { record($0.splitRule, in: $0.id) }
+    }
+
+    public static func record(named name: String, in database: Database) -> SyncRecord? {
+        guard let id = accountID(in: name), let account = database.accounts.first(where: { $0.id == id }) else { return nil }
+        return record(account.splitRule, in: account.id)
+    }
+
+    public static func canonical(_ record: SyncRecord) -> SyncRecord? {
+        guard let id = accountID(in: record.name), let rule = SyncCoding.value(SplitRule.self, from: record.body) else { return nil }
+        return self.record(rule, in: id)
+    }
+
+    public static func apply(_ record: SyncRecord, to database: inout Database) -> SyncApplyOutcome {
+        guard let id = accountID(in: record.name), let rule = SyncCoding.value(SplitRule.self, from: record.body) else { return .unreadable }
+        guard let a = database.accounts.firstIndex(where: { $0.id == id }) else { return .needsAccount(id) }
+        database.accounts[a].splitRule = rule
+        return .applied
+    }
+
+    public static func remove(named name: String, from database: inout Database) {
+        // A rule goes when its account goes; on its own it stays.
+    }
+
+    static func record(_ rule: SplitRule, in accountID: UUID) -> SyncRecord {
+        SyncRecord(
+            name: SyncRecordName.make(type, accountID), type: type,
+            modifiedAt: rule.updatedAt, parent: accountID, body: SyncCoding.body(rule)
+        )
+    }
+
+    /// The account a rule's record name stands for.
+    private static func accountID(in name: String) -> UUID? {
+        guard name.hasPrefix(type.rawValue + ".") else { return nil }
+        return SyncRecordName.id(in: name)
+    }
+}
+
 // MARK: - Orders
 
-/// The order of the accounts, and of each account's categories and payment
-/// methods: the IDs in order, stamped with the container's `...OrderedAt`.
+/// The order of the accounts, and of each account's categories, payment
+/// methods and income categories: the IDs in order, stamped with the
+/// container's `...OrderedAt`.
 ///
 /// An order is sent only when this device rearranged the list (its stamp
 /// is newer than iCloud's), never merely because items arrived from another
@@ -348,6 +441,7 @@ public enum OrderSyncKind: SyncKind {
         case accounts
         case categories(UUID)
         case paymentMethods(UUID)
+        case incomeCategories(UUID)
 
         init?(name: String) {
             if name == SyncRecordName.accountsOrder {
@@ -356,6 +450,8 @@ public enum OrderSyncKind: SyncKind {
                 self = .categories(id)
             } else if name.hasPrefix("Order.PaymentMethods."), let id = SyncRecordName.id(in: name) {
                 self = .paymentMethods(id)
+            } else if name.hasPrefix("Order.IncomeCategories."), let id = SyncRecordName.id(in: name) {
+                self = .incomeCategories(id)
             } else {
                 return nil
             }
@@ -366,21 +462,27 @@ public enum OrderSyncKind: SyncKind {
             case .accounts: SyncRecordName.accountsOrder
             case .categories(let id): SyncRecordName.categoriesOrder(id)
             case .paymentMethods(let id): SyncRecordName.paymentMethodsOrder(id)
+            case .incomeCategories(let id): SyncRecordName.incomeCategoriesOrder(id)
             }
         }
 
         var accountID: UUID? {
             switch self {
             case .accounts: nil
-            case .categories(let id), .paymentMethods(let id): id
+            case .categories(let id), .paymentMethods(let id), .incomeCategories(let id): id
             }
+        }
+
+        /// The ordered lists each account has.
+        static func lists(of accountID: UUID) -> [List] {
+            [.categories(accountID), .paymentMethods(accountID), .incomeCategories(accountID)]
         }
     }
 
     public static func records(in database: Database) -> [SyncRecord] {
         var records = [record(.accounts, in: database)].compactMap { $0 }
         for account in database.accounts {
-            records += [record(.categories(account.id), in: database), record(.paymentMethods(account.id), in: database)].compactMap { $0 }
+            records += List.lists(of: account.id).compactMap { record($0, in: database) }
         }
         return records
     }
@@ -409,6 +511,10 @@ public enum OrderSyncKind: SyncKind {
             guard let a = database.accounts.firstIndex(where: { $0.id == id }) else { return .needsAccount(id) }
             database.accounts[a].paymentMethodsOrderedAt = record.modifiedAt
             database.accounts[a].paymentMethods = arranged(database.accounts[a].paymentMethods, by: body.ids)
+        case .incomeCategories(let id):
+            guard let a = database.accounts.firstIndex(where: { $0.id == id }) else { return .needsAccount(id) }
+            database.accounts[a].incomeCategoriesOrderedAt = record.modifiedAt
+            database.accounts[a].incomeCategories = arranged(database.accounts[a].incomeCategories, by: body.ids)
         }
         return .applied
     }
@@ -442,6 +548,9 @@ public enum OrderSyncKind: SyncKind {
             if let entry = order(.paymentMethods(id)), database.accounts[a].paymentMethodsOrderedAt <= entry.modifiedAt {
                 database.accounts[a].paymentMethods = arranged(database.accounts[a].paymentMethods, by: entry.orderIDs ?? [])
             }
+            if let entry = order(.incomeCategories(id)), database.accounts[a].incomeCategoriesOrderedAt <= entry.modifiedAt {
+                database.accounts[a].incomeCategories = arranged(database.accounts[a].incomeCategories, by: entry.orderIDs ?? [])
+            }
         }
     }
 
@@ -467,6 +576,9 @@ public enum OrderSyncKind: SyncKind {
         case .paymentMethods(let id):
             guard let account = database.accounts.first(where: { $0.id == id }) else { return nil }
             return make(list, ids: account.paymentMethods.map(\.id), modifiedAt: account.paymentMethodsOrderedAt)
+        case .incomeCategories(let id):
+            guard let account = database.accounts.first(where: { $0.id == id }) else { return nil }
+            return make(list, ids: account.incomeCategories.map(\.id), modifiedAt: account.incomeCategoriesOrderedAt)
         }
     }
 
