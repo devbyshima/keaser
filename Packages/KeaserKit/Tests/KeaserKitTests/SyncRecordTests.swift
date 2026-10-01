@@ -233,7 +233,7 @@ struct SyncSchemaToleranceTests {
         a.store.saveExpense(expense, in: personal.id)
         a.sync(cloud)
         let name = SyncRecordName.make(.expense, expense.id)
-        var newer = try #require(SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload))
+        var newer = try SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload)
         newer.body["tip"] = .number(Decimal(string: "4.5")!)
         newer.body["tags"] = .array([.string("work"), .null])
         newer.modifiedAt = later(by: 5)
@@ -283,7 +283,7 @@ struct SyncSchemaToleranceTests {
         a.store.saveExpense(expense, in: personal.id)
         a.sync(cloud)
         let name = SyncRecordName.make(.expense, expense.id)
-        var future = try #require(SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload))
+        var future = try SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload)
         future.readerVersion = SyncSchema.readerVersion + 1
         future.body["amount"] = .object(["value": .number(30), "currency": .string("EUR")])
         cloud.put(name: name, type: .expense, payload: future.payload)
