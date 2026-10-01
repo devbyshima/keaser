@@ -6,8 +6,8 @@ import Foundation
 /// - Unchanged here since iCloud last had it: iCloud's version is taken.
 /// - Changed on both sides: the later edit wins (`SyncRecord.wins(over:)`;
 ///   equal times are decided by the payloads, the same way on every
-///   device). The settings and the list orders are the exception on a
-///   device that has never synced them: iCloud's copy wins
+///   device). The settings, the list orders and the split rules are the
+///   exception on a device that has never synced them: iCloud's copy wins
 ///   (`SyncKind.remoteWinsFirstMeeting`). Either way the pass start stays
 ///   the earliest of the two.
 /// - Deleted here, edited in iCloud: the edit wins only when it is later
@@ -21,12 +21,16 @@ import Foundation
 ///
 /// Integrity: an item whose account has not arrived waits (`parked`) and is
 /// applied when the account comes; one whose account was deleted here is
-/// deleted too. An expense keeps working when its category or payment
-/// method is deleted elsewhere: an ID that matches no label reads as none.
-/// Two labels of the same name in one account (made independently on two
-/// devices) become one, and on a device's first sync an account it made
-/// that has the name of an account already in iCloud merges into it, so a
-/// second device adds to the person's data instead of duplicating it.
+/// deleted too. An expense, income or transfer keeps working when its
+/// category, income category or wallet is deleted elsewhere: an ID that
+/// matches no label reads as none. Two labels of the same name in one
+/// account (made independently on two devices) become one, and on a
+/// device's first sync an account it made that has the name of an account
+/// already in iCloud merges into it, so a second device adds to the
+/// person's data instead of duplicating it. Either way everything that
+/// pointed at a label that went (expenses, income, transfers, balance
+/// adjustments, the split rule's savings wallet) points at the one that
+/// stays (`LabelRedirects`).
 /// The database and sync state after a merge, and the files it let go.
 public struct SyncMergeResult: Sendable {
     public var database: Database
@@ -61,9 +65,13 @@ public enum SyncMerge {
             mergeNewAccounts(&db, state: st, now: now, redirects: &redirects)
             dropPlaceholderAccounts(&db, state: st, now: now, redirects: &redirects)
         }
+        let display = db.preferences.currencyCode
         for index in db.accounts.indices {
-            mergeSameNamedLabels(in: &db.accounts[index], list: \.categories, type: .category, reference: \.categoryID, state: st, now: now)
-            mergeSameNamedLabels(in: &db.accounts[index], list: \.paymentMethods, type: .paymentMethod, reference: \.paymentMethodID, state: st, now: now)
+            mergeSameNamedLabels(in: &db.accounts[index], list: \.categories, type: .category, state: st, now: now) { $0.merge($1, into: $2) }
+            mergeSameNamedLabels(in: &db.accounts[index], list: \.paymentMethods, type: .paymentMethod, state: st, now: now) {
+                $0.merge($1, into: $2, display: display)
+            }
+            mergeSameNamedLabels(in: &db.accounts[index], list: \.incomeCategories, type: .incomeCategory, state: st, now: now) { $0.merge($1, into: $2) }
         }
         OrderSyncKind.arrangeByKnownOrders(&db, known: st.known)
 
@@ -193,8 +201,10 @@ public enum SyncMerge {
 
     /// On a first sync: each account this device made that iCloud does not
     /// have yet, named like one iCloud has, merges into that one. Its
-    /// categories and payment methods join the account's (a label of the
-    /// same name becomes the existing one) and its expenses move over.
+    /// categories, payment methods and income categories join the
+    /// account's (a label of the same name becomes the existing one), and
+    /// its expenses, income, transfers and balance adjustments move over.
+    /// The split rule is the account's own: this device's goes.
     private static func mergeNewAccounts(_ db: inout Database, state st: SyncState, now: Date, redirects: inout [UUID: UUID]) {
         let inCloud = db.accounts.filter { isKnown(.account, $0.id, st) }
         guard !inCloud.isEmpty else { return }
@@ -213,48 +223,62 @@ public enum SyncMerge {
         else { return }
         let source = db.accounts[s]
         var target = db.accounts[t]
-        var categories: [UUID: UUID] = [:]
-        for category in source.categories {
-            if let same = target.categories.first(where: { labelKey($0.name) == labelKey(category.name) }) {
-                categories[category.id] = same.id
-            } else {
-                target.categories.append(category)
-                target.categoriesOrderedAt = now
+        let display = db.preferences.currencyCode
+        var redirects = LabelRedirects()
+
+        func join<Label: AccountItem & Named>(
+            _ list: WritableKeyPath<Account, [Label]>,
+            orderedAt: WritableKeyPath<Account, Date>,
+            redirect: (inout LabelRedirects, _ label: Label, _ same: Label) -> Void
+        ) {
+            for label in source[keyPath: list] {
+                if let same = target[keyPath: list].first(where: { labelKey($0.name) == labelKey(label.name) }) {
+                    redirect(&redirects, label, same)
+                } else {
+                    target[keyPath: list].append(label)
+                    target[keyPath: orderedAt] = now
+                }
             }
         }
-        var methods: [UUID: UUID] = [:]
-        for method in source.paymentMethods {
-            if let same = target.paymentMethods.first(where: { labelKey($0.name) == labelKey(method.name) }) {
-                methods[method.id] = same.id
-            } else {
-                target.paymentMethods.append(method)
-                target.paymentMethodsOrderedAt = now
+        func move<Item: AccountItem>(_ list: WritableKeyPath<Account, [Item]>, _ type: SyncRecordType, redirect: (inout Item) -> Bool) {
+            for var item in source[keyPath: list] {
+                _ = redirect(&item)
+                // One already in iCloud under the old account must win there.
+                if isKnown(type, item.id, st) { item.updatedAt = max(item.updatedAt, now) }
+                target[keyPath: list].append(item)
             }
         }
-        for var expense in source.expenses {
-            if let id = expense.categoryID, let same = categories[id] { expense.categoryID = same }
-            if let id = expense.paymentMethodID, let same = methods[id] { expense.paymentMethodID = same }
-            // One already in iCloud under the old account must win there.
-            if isKnown(.expense, expense.id, st) { expense.updatedAt = max(expense.updatedAt, now) }
-            target.expenses.append(expense)
-        }
+
+        join(\.categories, orderedAt: \.categoriesOrderedAt) { $0.merge($1, into: $2) }
+        join(\.paymentMethods, orderedAt: \.paymentMethodsOrderedAt) { $0.merge($1, into: $2, display: display) }
+        join(\.incomeCategories, orderedAt: \.incomeCategoriesOrderedAt) { $0.merge($1, into: $2) }
+        move(\.expenses, .expense) { redirects.redirect(&$0) }
+        move(\.incomes, .income) { redirects.redirect(&$0) }
+        move(\.transfers, .transfer) { redirects.redirect(&$0) }
+        move(\.balanceAdjustments, .balanceAdjustment) { redirects.redirect(&$0) }
         db.accounts[t] = target
         db.accounts.remove(at: s)
     }
 
     /// On a first sync that brought accounts from iCloud: an account this
     /// device made within the hour, with nothing in it but the built-in
-    /// labels, is the placeholder of a new device's setup and goes.
+    /// labels (no expenses, income, transfers or balances), is the
+    /// placeholder of a new device's setup and goes.
     private static func dropPlaceholderAccounts(_ db: inout Database, state st: SyncState, now: Date, redirects: inout [UUID: UUID]) {
         guard let first = db.accounts.first(where: { isKnown(.account, $0.id, st) }) else { return }
         let defaultCategories = Set(ExpenseCategory.defaults().map { labelKey($0.name) })
         let defaultMethods = Set(PaymentMethod.defaults().map { labelKey($0.name) })
+        let defaultIncomeCategories = Set(IncomeCategory.defaults(for: first.id).map { labelKey($0.name) })
         db.accounts.removeAll { account in
             let isPlaceholder = !isKnown(.account, account.id, st)
                 && account.expenses.isEmpty
+                && account.incomes.isEmpty
+                && account.transfers.isEmpty
+                && account.balanceAdjustments.isEmpty
                 && now.timeIntervalSince(account.createdAt) < placeholderAccountAge
                 && account.categories.allSatisfy { defaultCategories.contains(labelKey($0.name)) }
-                && account.paymentMethods.allSatisfy { defaultMethods.contains(labelKey($0.name)) }
+                && account.paymentMethods.allSatisfy { defaultMethods.contains(labelKey($0.name)) && !$0.isTracking }
+                && account.incomeCategories.allSatisfy { defaultIncomeCategories.contains(labelKey($0.name)) }
             if isPlaceholder { redirects[account.id] = first.id }
             return isPlaceholder
         }
@@ -262,39 +286,136 @@ public enum SyncMerge {
 
     /// Labels of one name in one account are one label (the editors never
     /// allow two). The one iCloud has wins, or of two it has, the smaller
-    /// ID, so every device picks the same; expenses filed under the others
-    /// move to it. Only runs when iCloud has one of them: two local labels
-    /// of one name are left for the person.
+    /// ID, so every device picks the same; whatever pointed at the others
+    /// points at it (`redirect` says which references a label of this list
+    /// has). Only runs when iCloud has one of them: two local labels of one
+    /// name are left for the person.
     private static func mergeSameNamedLabels<Label: AccountItem & Named>(
         in account: inout Account,
         list: WritableKeyPath<Account, [Label]>,
         type: SyncRecordType,
-        reference: WritableKeyPath<Expense, UUID?>,
         state st: SyncState,
-        now: Date
+        now: Date,
+        redirect: (inout LabelRedirects, _ label: Label, _ winner: Label) -> Void
     ) {
         let labels = account[keyPath: list]
         let groups = Dictionary(grouping: labels, by: { labelKey($0.name) }).values.filter { $0.count > 1 }
         guard !groups.isEmpty else { return }
-        var replaced: [UUID: UUID] = [:]
+        var redirects = LabelRedirects()
+        var replaced = Set<UUID>()
         for group in groups {
             let inCloud = group.filter { isKnown(type, $0.id, st) }
             guard let winner = inCloud.min(by: { $0.id.uuidString < $1.id.uuidString }) else { continue }
             for label in group where label.id != winner.id {
-                replaced[label.id] = winner.id
+                redirect(&redirects, label, winner)
+                replaced.insert(label.id)
             }
         }
         guard !replaced.isEmpty else { return }
-        account[keyPath: list].removeAll { replaced[$0.id] != nil }
-        for index in account.expenses.indices {
-            guard let id = account.expenses[index][keyPath: reference], let winner = replaced[id] else { continue }
-            account.expenses[index][keyPath: reference] = winner
-            account.expenses[index].updatedAt = max(account.expenses[index].updatedAt, now)
-        }
+        account[keyPath: list].removeAll { replaced.contains($0.id) }
+        redirects.apply(to: &account, now: now)
     }
 
     private static func isKnown(_ type: SyncRecordType, _ id: UUID, _ st: SyncState) -> Bool {
         st.known[SyncRecordName.make(type, id)] != nil
+    }
+}
+
+/// Where the references to labels that merged into others now point: each
+/// label's ID to the ID of the one that stays, by kind of label.
+struct LabelRedirects {
+    var categories: [UUID: UUID] = [:]
+    var wallets: [UUID: UUID] = [:]
+    var incomeCategories: [UUID: UUID] = [:]
+    /// The currency of a wallet that merged into one in another currency.
+    /// What followed it (no currency of its own) is given it, so an amount
+    /// keeps the currency it was typed in.
+    var walletCurrencies: [UUID: String] = [:]
+
+    mutating func merge(_ category: ExpenseCategory, into other: ExpenseCategory) {
+        categories[category.id] = other.id
+    }
+
+    mutating func merge(_ category: IncomeCategory, into other: IncomeCategory) {
+        incomeCategories[category.id] = other.id
+    }
+
+    /// `display`: the display currency, which a wallet without a currency
+    /// of its own is in.
+    mutating func merge(_ wallet: PaymentMethod, into other: PaymentMethod, display: String) {
+        wallets[wallet.id] = other.id
+        let currency = wallet.effectiveCurrency(display: display)
+        if currency != other.effectiveCurrency(display: display) {
+            walletCurrencies[wallet.id] = currency
+        }
+    }
+
+    // Each points one item at the labels that stay; true when that changed
+    // it.
+
+    func redirect(_ expense: inout Expense) -> Bool {
+        let before = expense
+        expense.categoryID = redirected(expense.categoryID, by: categories)
+        redirectWallet(&expense, \.paymentMethodID, currency: \.currencyCode)
+        return expense != before
+    }
+
+    func redirect(_ income: inout Income) -> Bool {
+        let before = income
+        income.categoryID = redirected(income.categoryID, by: incomeCategories)
+        redirectWallet(&income, \.walletID, currency: \.currencyCode)
+        return income != before
+    }
+
+    func redirect(_ transfer: inout Transfer) -> Bool {
+        let before = transfer
+        redirectWallet(&transfer, \.fromWalletID, currency: \.currencyOut)
+        redirectWallet(&transfer, \.toWalletID, currency: \.currencyIn)
+        return transfer != before
+    }
+
+    func redirect(_ adjustment: inout BalanceAdjustment) -> Bool {
+        let before = adjustment
+        adjustment.walletID = redirected(adjustment.walletID, by: wallets)
+        return adjustment != before
+    }
+
+    func redirect(_ rule: inout SplitRule) -> Bool {
+        let before = rule
+        rule.savingsWalletID = redirected(rule.savingsWalletID, by: wallets)
+        return rule != before
+    }
+
+    /// Points everything in `account` at the labels that stay. What changed
+    /// is stamped `now` (or keeps a later stamp), so it goes out and wins.
+    func apply(to account: inout Account, now: Date) {
+        Self.stamp(&account.expenses, now: now) { redirect(&$0) }
+        Self.stamp(&account.incomes, now: now) { redirect(&$0) }
+        Self.stamp(&account.transfers, now: now) { redirect(&$0) }
+        Self.stamp(&account.balanceAdjustments, now: now) { redirect(&$0) }
+        if redirect(&account.splitRule) {
+            account.splitRule.updatedAt = max(account.splitRule.updatedAt, now)
+        }
+    }
+
+    private static func stamp<Item: AccountItem>(_ items: inout [Item], now: Date, redirect: (inout Item) -> Bool) {
+        for index in items.indices {
+            guard redirect(&items[index]) else { continue }
+            items[index].updatedAt = max(items[index].updatedAt, now)
+        }
+    }
+
+    private func redirected(_ id: UUID?, by map: [UUID: UUID]) -> UUID? {
+        guard let id else { return nil }
+        return map[id] ?? id
+    }
+
+    private func redirectWallet<Item>(_ item: inout Item, _ wallet: WritableKeyPath<Item, UUID?>, currency: WritableKeyPath<Item, String?>) {
+        guard let id = item[keyPath: wallet], let other = wallets[id] else { return }
+        if item[keyPath: currency] == nil {
+            item[keyPath: currency] = walletCurrencies[id]
+        }
+        item[keyPath: wallet] = other
     }
 }
 

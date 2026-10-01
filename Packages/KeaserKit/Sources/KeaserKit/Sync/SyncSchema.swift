@@ -6,9 +6,11 @@ import Foundation
 ///
 /// iCloud sync (see AGENTS.md, "iCloud sync") keeps every record in one
 /// custom zone of the person's private CloudKit database. A record is one
-/// account's details, one category, payment method or expense, the shared
-/// settings, or one list order. Its content is a single encrypted field,
-/// `payload`: the JSON of a `SyncRecord` envelope (see `SyncRecord`).
+/// account's details, one category, payment method (wallet), expense,
+/// income category, income, transfer or balance adjustment, one account's
+/// split rule, the shared settings, one list order, or one receipt photo.
+/// Its content is a single encrypted field, `payload`: the JSON of a
+/// `SyncRecord` envelope (see `SyncRecord`).
 public enum SyncSchema {
     /// The iCloud container. Automatic signing creates it the first time
     /// the app is built with `Keaser/App/KeaserCloud.entitlements` under the
