@@ -1,6 +1,6 @@
 # Money tracking: plan for review
 
-Status: APPROVED; phase 1 BUILT on 2026-10-01 (see "Phase 1 as built" at the end). The founder decided the direction on 2026-09-29 and, the same day, accepted every recommendation in "Decisions" below ("do what you recommend"). Next: phase 2. Written against main at 6f9a2af (receipts, iCloud sync and every widget size merged).
+Status: APPROVED; phases 1 and 2 BUILT on 2026-10-01 (see "Phase 1 as built" and "Phase 2 as built" at the end). The founder decided the direction on 2026-09-29 and, the same day, accepted every recommendation in "Decisions" below ("do what you recommend"). Next: phase 3. Written against main at 6f9a2af (receipts, iCloud sync and every widget size merged).
 
 Every screen here follows the rule in AGENTS.md: it is built from Keaser's existing pieces and looks, flows, moves and talks like what is already there. Each screen below names the existing screen it copies.
 
@@ -134,7 +134,7 @@ Each phase ends with a build on Serein and screenshots checked against the scree
 | # | Phase | Effort | Shows on screen |
 |---|---|---|---|
 | 1 | Data model, migration, balance and envelope maths, sync kinds, tests (built) | about 16 h | Nothing (existing data loads unchanged) |
-| 2 | Tab bar; Settings moves into its tab; Home without the gear | about 8 h | The four tabs, Wallets and Summary still empty |
+| 2 | Tab bar; Settings moves into its tab; Home without the gear (built) | about 8 h | The four tabs, Wallets and Summary still empty |
 | 3 | Wallets: list, details, add and edit, Set Balance, transfers, credit cards, first-time setup card | about 24 h | The Wallets tab and Home's Balance card |
 | 4 | Currencies: the daily rates service, wallet currencies, converted totals, rate override, privacy policy | about 20 h | Wallets and expenses in other currencies |
 | 5 | Income: Add Income, income categories, Siri "Add Income" | about 16 h | Income in Wallets and wallet details |
@@ -176,3 +176,37 @@ Notes for the next phases:
 - Phase 5: Add Income must work with an empty income category list (the person can delete them all); an income with no category is valid.
 - Phase 6, optional hardening: on a device's first meeting iCloud's split rule wins, as the settings do. A rule in iCloud that nobody ever edited should not beat one edited on this device before its first sync.
 - Repeat the two-device test (AGENTS.md, item 9) once wallets, income and transfers have screens.
+
+## Phase 2 as built
+
+Built on 2026-10-01 on `feat/tab-bar`: the tab bar, Settings in its tab, Home without the gear, and the empty Wallets and Summary tabs. AGENTS.md (the tab bar under "Platform", the deep links, the launch arguments and the foundation and money rows) describes it; this section keeps what the plan above did not say.
+
+Decisions made while building:
+
+- The selected tab is never remembered: every launch starts on Home, which routes and the App Intents tests expect. The bar has no extras (no style, no minimizing on scroll, no bottom accessory, no search in the bar (the `.search` role only gives Add Expense its detached place on iOS 26)).
+- Add Expense is part of the tab bar, set apart at its trailing end and coloured (an ink disc with the +, as Home's floating button was, inside the glass circle), by the founder's choice (2026-10-01): the prominent tab on iOS 27, the search tab's place on iOS 26 (the only detached place there) and a plain last tab before. It is never selected; it opens New Expense on Home from any tab, as `keaser://new-expense` does. Home's floating + is gone, and its list ends 16pt above the bar. Search hides the tab bar while Home shows, so it keeps the whole screen with its field at the bottom, as in the reference.
+- Scrolled sheet content (the receipt gallery in New Expense, Edit Expense and the details, and the Accounts list) stays 32pt below the header's buttons, fading out over the lower 16pt, instead of running into them (`keaserSheetScrollEdge()`); the founder asked for more room than the first 16pt. Nothing moves before scrolling.
+- Settings keeps its inline title, with no xmark. Its cards sit exactly as far under the title as they did in the sheet (measured on the screenshots), so the iOS 27 4pt correction still holds.
+- In dark mode Settings takes Home's page look (a black canvas with 28,28,30 cards) instead of the sheet's charcoal; light mode is unchanged. The row symbol tile keeps its faint veil, 3 levels above the card as before. Sheets presented from Settings keep the sheet look.
+- Every route goes through `AppRouter.open`. `keaser://settings` lands on the Settings root, where Upgrade is, and closes a Home sheet; every other route selects Home. Each route closes what Settings presents. A route that changes tabs waits (up to 2 s) until nothing is presented: in testing, a sheet whose tab left the screen while it was up stayed stuck, and a sheet cannot come up while another is leaving.
+- An account deleted from Home's Accounts sheet (or on another device) takes its Settings pages off the stack.
+- The Pro banner's starfield holds still while Settings is off screen (another tab, or a page pushed over it), and it has the cards' hairline so its near-black sky keeps an edge on the black dark mode canvas.
+- Wallets and Summary are an inline title over Home's `.large` empty state, centred, until phases 3 and 7.
+- What scrolls under the tab bar (Home, every settings page, the tutorials and legal pages) fades into it on iOS 26+ (`keaserSoftBottomEdge()`), as under any system bar; before, a row's amount showed sharp in the gap beside Add Expense.
+- The legal pages pushed in Settings stay white in light mode, as the reference draws them (`settingsDocumentCanvas`), and are black in dark mode.
+- `paywall-over-settings` is now one sheet over the Settings tab; the reference's sheet over a sheet no longer applies.
+
+- Checked on the iOS 18.6 simulator too (a runtime on this Mac, though AGENTS.md says only iOS 27 is local): the standard bar shows five items with Add Expense last as a small ink disc, Search hides it, and Home, Settings and Wallets read as on iOS 27, light and dark.
+
+Left to check on a device:
+
+- Tapping the selected Settings tab again pops it to its root, and tapping Home again scrolls it to the top. Both are the system's, and the simulator is not driven by hand.
+- A route that arrives while the welcome letter is up changes the tab under the letter after 2 s, and a Home sheet cannot show over it (as before the tab bar).
+- Tapping Add Expense opens New Expense without the bar flashing to a fifth tab: on iOS 27 (prominent tab), on iOS 26 (the search tab's place, which must not turn into a search field) and on iOS 18 to 25 (a plain last tab). Tap it on Home, then Cancel: Home must still be selected and showing (from Home the route changes no tab, so nothing would put the bar back if the system had moved it). No local iOS 26 simulator exists, and taps cannot be screenshotted.
+
+Noticed while checking phase 2, not caused by it (left as they are):
+
+- The chart callout for a wide total (RWF 100,000) covers the top of the "100K" axis label and sits about 2pt under the total.
+- In New Expense at `.medium`, a receipt's "Filled in from your receipt" note (and the other-currency warning) sits below the fold under Add Receipt, so it needs a scroll.
+- At accessibility text sizes the details card truncates long values ("Enterta...", "Credit...").
+- A DEBUG `-KeaserSheet newExpense` launch now and then draws Home without the sheet, on main as well (1 or 2 launches in 10); retake such a shot.
