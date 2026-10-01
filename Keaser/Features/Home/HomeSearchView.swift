@@ -58,7 +58,7 @@ struct HomeSearchView: View {
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.immediately)
-            .softBottomEdge()
+            .keaserSoftBottomEdge()
             .keaserSwipeActionsContainer()
             .keaserReadableScrollContent()
             .transition(.opacity)
@@ -178,18 +178,5 @@ private struct HomeSearchMessage: View {
         // (not the status bar) and the search bar.
         .ignoresSafeArea(.container, edges: .top)
         .accessibilityElement(children: .combine)
-    }
-}
-
-private extension View {
-    /// Rows scrolling under the search bar fade and blur into it on iOS 26
-    /// and later, as under any system bar.
-    @ViewBuilder
-    func softBottomEdge() -> some View {
-        if #available(iOS 26.0, *) {
-            scrollEdgeEffectStyle(.soft, for: .bottom)
-        } else {
-            self
-        }
     }
 }

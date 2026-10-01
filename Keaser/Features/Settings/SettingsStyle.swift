@@ -29,6 +29,10 @@ extension Color {
     /// grey in light mode, and clear in dark mode, which keeps the sheet's
     /// own background.
     static let settingsSheetCanvas = Color(light: .init(red: 242 / 255, green: 242 / 255, blue: 247 / 255), dark: .clear)
+    /// Behind a legal document pushed in Settings: white in light mode, as
+    /// the reference draws the page, and black in dark mode like the other
+    /// pages.
+    static let settingsDocumentCanvas = Color(light: .white, dark: .black)
 }
 
 /// Where a row sits in its card, so its background rounds the right corners.
@@ -104,6 +108,7 @@ extension View {
             .keaserReadableScrollContent(base: KeaserMetrics.screenPadding)
             .contentMargins(.top, SettingsListInset.top(topMargin), for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
+            .keaserSoftBottomEdge()
             // Card rows set their own heights (52, 68 or 74pt); this floor
             // is for title rows and for sections other features embed.
             .environment(\.defaultMinListRowHeight, 44)

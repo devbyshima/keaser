@@ -105,4 +105,17 @@ extension View {
             self.safeAreaInset(edge: .bottom, content: content)
         }
     }
+
+    /// For a scroll view that runs under a bar at the bottom (the tab bar,
+    /// Search's bar): on iOS 26 and later what scrolls beneath fades and
+    /// blurs into the bar, as under any system bar, instead of showing
+    /// sharp beside the glass.
+    @ViewBuilder
+    func keaserSoftBottomEdge() -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectStyle(.soft, for: .bottom)
+        } else {
+            self
+        }
+    }
 }

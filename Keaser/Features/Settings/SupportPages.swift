@@ -46,6 +46,7 @@ struct TutorialDetailView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 40)
             }
+            .keaserSoftBottomEdge()
             .background(Color.settingsCanvas.ignoresSafeArea())
             .task {
                 #if DEBUG
