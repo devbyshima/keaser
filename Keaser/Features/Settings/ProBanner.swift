@@ -55,6 +55,14 @@ struct ProBanner: View {
         .clipShape(RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
         .accessibilityElement(children: .contain)
         .environment(\.colorScheme, .dark)
+        // The hairline other cards on dark photos and drawings have, so the
+        // near-black sky keeps its edge on the black dark mode canvas. Drawn
+        // outside the forced dark scheme, it follows the appearance.
+        .overlay(
+            RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous)
+                .strokeBorder(Color.keaserSeparator, lineWidth: 0.5)
+                .accessibilityHidden(true)
+        )
     }
 }
 
