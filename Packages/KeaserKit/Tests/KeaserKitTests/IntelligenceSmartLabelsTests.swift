@@ -33,6 +33,13 @@ final class FakeCategoryModel: CategoryModel {
     }
 }
 
+extension Duration {
+    /// A budget an instant answer from a fake model always meets. The answer
+    /// and the deadline both wait for the main actor, so a short budget can
+    /// lose to the clock while other tests keep the main actor busy.
+    static let ample = Duration.seconds(30)
+}
+
 @MainActor
 struct IntelligenceSmartLabelsTests {
     private let account = Account(name: "Personal")
@@ -41,7 +48,7 @@ struct IntelligenceSmartLabelsTests {
 
     @Test func anUnknownTitleTakesTheModelsCategory() async {
         let model = FakeCategoryModel("Health")
-        let guess = await SmartLabels.guess(for: "Watsons", in: account, model: model, budget: .seconds(1))
+        let guess = await SmartLabels.guess(for: "Watsons", in: account, model: model, budget: .ample)
         #expect(guess == .init(categoryID: category("Health"), paymentMethodID: method("Cash")))
         #expect(model.asked == ["Watsons"])
         #expect(model.prompts == [CategoryPrompt(categories: account.categories)])
@@ -49,11 +56,11 @@ struct IntelligenceSmartLabelsTests {
 
     @Test func aTitleTheRulesOrHistoryKnowNeverAsks() async {
         let model = FakeCategoryModel("Health")
-        #expect(await SmartLabels.guess(for: "Lunch", in: account, model: model, budget: .seconds(1)).categoryID == category("Food & Drinks"))
+        #expect(await SmartLabels.guess(for: "Lunch", in: account, model: model, budget: .ample).categoryID == category("Food & Drinks"))
 
         var known = account
         known.expenses = [Expense(title: "Watsons", amount: 4, categoryID: category("Shopping"))]
-        #expect(await SmartLabels.guess(for: "watsons", in: known, model: model, budget: .seconds(1)).categoryID == category("Shopping"))
+        #expect(await SmartLabels.guess(for: "watsons", in: known, model: model, budget: .ample).categoryID == category("Shopping"))
         #expect(model.asked.isEmpty)
     }
 
@@ -62,7 +69,7 @@ struct IntelligenceSmartLabelsTests {
         let own = Expense(title: "Watsons", amount: 4, categoryID: category("Shopping"))
         edited.expenses = [own]
         let model = FakeCategoryModel("Health")
-        let guess = await SmartLabels.guess(for: "Watsons", in: edited, excluding: own.id, model: model, budget: .seconds(1))
+        let guess = await SmartLabels.guess(for: "Watsons", in: edited, excluding: own.id, model: model, budget: .ample)
         #expect(guess.categoryID == category("Health"))
         #expect(model.asked == ["Watsons"])
     }
@@ -89,16 +96,16 @@ struct IntelligenceSmartLabelsTests {
     @Test func theModelBeatsARuleOnACategoryThePersonMade() async {
         let mine = Account(name: "Family", categories: ["Fun", "Subscriptions"].map { ExpenseCategory(name: $0, symbol: "tag") })
         let model = FakeCategoryModel("Subscriptions")
-        let guess = await SmartLabels.guess(for: "Netflix", in: mine, model: model, budget: .seconds(1))
+        let guess = await SmartLabels.guess(for: "Netflix", in: mine, model: model, budget: .ample)
         #expect(guess.categoryID == mine.categories[1].id)
         #expect(model.asked == ["Netflix"])
     }
 
     @Test func modelCategoryNameIsAskedOnlyWhenWanted() async {
         let model = FakeCategoryModel("Health")
-        #expect(await SmartLabels.modelCategoryName(for: "Watsons", in: account, model: model, budget: .seconds(1)) == "Health")
-        #expect(await SmartLabels.modelCategoryName(for: "Taxi", in: account, model: model, budget: .seconds(1)) == nil)
-        #expect(await SmartLabels.modelCategoryName(for: "Watsons", in: Account(name: "Empty", categories: []), model: model, budget: .seconds(1)) == nil)
+        #expect(await SmartLabels.modelCategoryName(for: "Watsons", in: account, model: model, budget: .ample) == "Health")
+        #expect(await SmartLabels.modelCategoryName(for: "Taxi", in: account, model: model, budget: .ample) == nil)
+        #expect(await SmartLabels.modelCategoryName(for: "Watsons", in: Account(name: "Empty", categories: []), model: model, budget: .ample) == nil)
         #expect(model.asked == ["Watsons"])
     }
 
@@ -129,11 +136,12 @@ struct IntelligenceWalletTests {
         card: String? = nil,
         in account: Account? = nil,
         suggestions: Bool = true,
-        model: FakeCategoryModel?
+        model: FakeCategoryModel?,
+        budget: Duration = .ample
     ) async -> Expense {
         await QuickLog.walletExpense(
             merchant: merchant, amount: 5, card: card, in: account ?? self.account,
-            suggestionsEnabled: suggestions, model: model, budget: .milliseconds(200)
+            suggestionsEnabled: suggestions, model: model, budget: budget
         )
     }
 
@@ -167,7 +175,7 @@ struct IntelligenceWalletTests {
 
     @Test func noHelpLeavesTheCategoryEmpty() async {
         #expect(await wallet("Watsons", model: nil).categoryID == nil)
-        #expect(await wallet("Watsons", model: FakeCategoryModel("Health", delay: .seconds(5))).categoryID == nil)
+        #expect(await wallet("Watsons", model: FakeCategoryModel("Health", delay: .seconds(5)), budget: .milliseconds(100)).categoryID == nil)
         #expect(await wallet("Watsons", model: FakeCategoryModel(nil)).categoryID == nil)
     }
 
@@ -185,7 +193,7 @@ struct IntelligenceWalletTests {
 @MainActor
 struct IntelligenceDeadlineTests {
     @Test func aFastResultArrives() async {
-        #expect(await Deadline.value(within: .seconds(1)) { "done" } == "done")
+        #expect(await Deadline.value(within: .ample) { "done" } == "done")
         #expect(await Deadline.value(within: .seconds(1)) { () -> String? in nil } == nil)
     }
 
