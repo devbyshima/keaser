@@ -61,16 +61,24 @@ struct ProBanner: View {
 /// A near-black sky whose glow drifts between deep teal and violet, with
 /// a fixed, seeded star field that slides and twinkles. Stands still when
 /// Reduce Motion is on, and holds still where it is while iOS 27 asks apps
-/// to use fewer resources.
+/// to use fewer resources, or while the card is off screen: Settings is a
+/// tab that stays alive behind the others and under the pages pushed over
+/// it.
 struct StarfieldBackground: View {
+    @State private var isOnScreen = false
+
     var body: some View {
-        if #available(iOS 27.0, *) {
-            ReducedResourceReader { reduced in
-                StarfieldSky(isHeld: reduced)
+        Group {
+            if #available(iOS 27.0, *) {
+                ReducedResourceReader { reduced in
+                    StarfieldSky(isHeld: reduced || !isOnScreen)
+                }
+            } else {
+                StarfieldSky(isHeld: !isOnScreen)
             }
-        } else {
-            StarfieldSky(isHeld: false)
         }
+        .onAppear { isOnScreen = true }
+        .onDisappear { isOnScreen = false }
     }
 }
 

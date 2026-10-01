@@ -2,9 +2,10 @@ import KeaserKit
 import SwiftUI
 import UIKit
 
-/// The main screen: account switcher, search, filters, settings, the spending
-/// summary with its chart, the latest expenses and the add button. Search
-/// replaces all of it with its own full-screen view while it is open.
+/// The Home tab: account switcher, search, filters, the spending summary with
+/// its chart, the latest expenses and the add button. Search replaces all of
+/// it with its own full-screen view while it is open, and the tab bar hides
+/// meanwhile.
 struct HomeView: View {
     @Environment(KeaserStore.self) private var store
     @Environment(ProStore.self) private var pro
@@ -51,6 +52,9 @@ struct HomeView: View {
                     .transition(.opacity)
             }
         }
+        // Search keeps the whole screen, its field at the bottom as in the
+        // reference, so the tab bar steps aside while it is open.
+        .toolbarVisibility(isSearching ? .hidden : .visible, for: .tabBar)
         .animation(.smooth(duration: 0.35), value: store.selectedAccount == nil)
         // Switching accounts, from the Accounts sheet or by creating one,
         // animates everything that depends on the account at once: the
@@ -149,8 +153,7 @@ struct HomeView: View {
             HomeTopBar(
                 accountName: account.name,
                 onAccounts: { sheet = .accounts },
-                onSearch: beginSearch,
-                onSettings: { sheet = .settings }
+                onSearch: beginSearch
             ) {
                 HomeFilterMenu(
                     account: account,
@@ -168,6 +171,7 @@ struct HomeView: View {
         .overlay(alignment: .bottomTrailing) {
             HomeAddButton { sheet = .newExpense }
                 .padding(.trailing, HomeLayout.addButtonTrailing)
+                .padding(.bottom, HomeLayout.addButtonBottom)
                 .keaserReadableWidth(alignment: .trailing)
         }
     }
@@ -246,8 +250,6 @@ struct HomeView: View {
             if let account = store.selectedAccount, account.expenses.contains(where: { $0.id == id }) {
                 ExpenseDetailSheet(accountID: account.id, expenseID: id)
             }
-        case .settings:
-            SettingsView()
         case .paywall(let feature):
             PaywallView(highlighting: feature)
         }
@@ -358,15 +360,20 @@ struct HomeView: View {
         deletedCount += 1
     }
 
+    /// Follows a route `AppRouter.open` left. Home's own routes come once
+    /// the Home tab shows. `.settings` comes before the Settings tab does,
+    /// and Home only closes what it presents: a sheet left up would hide
+    /// that tab, and would stick once Home left the screen.
     private func handle(_ route: AppRouter.Route?) {
         guard let route else { return }
+        expenseToDelete = nil
         switch route {
         case .newExpense:
             sheet = store.selectedAccount == nil ? .addAccount : .newExpense
         case .scanReceipt:
             sheet = store.selectedAccount == nil ? .addAccount : .scanReceipt
         case .settings:
-            sheet = .settings
+            sheet = nil
         case .expense(let id):
             openExpense(id)
         case .account(let id):
@@ -377,7 +384,7 @@ struct HomeView: View {
                 showSearch(for: text)
             }
         }
-        router.pendingRoute = nil
+        router.clearPendingRoute()
     }
 
     /// An expense opened from Siri, Shortcuts or Spotlight: its account is
@@ -453,7 +460,6 @@ enum HomeSheet: Identifiable, Hashable {
     /// An expense's details, read only, with Edit and Delete.
     case expense(UUID)
     case editExpense(UUID)
-    case settings
     case paywall(ProFeature)
 
     var id: Self { self }

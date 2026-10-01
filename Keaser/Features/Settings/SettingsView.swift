@@ -1,33 +1,27 @@
 import KeaserKit
 import SwiftUI
 
-/// The Settings sheet, presented from Home's gear button. Owns its own
-/// NavigationStack.
+/// The Settings tab: its own NavigationStack, whose path is
+/// `AppRouter.settingsPath` so a route can take it back to the root, and the
+/// paywall that Upgrade opens as a sheet.
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var path: [SettingsPage]
+    @Environment(AppRouter.self) private var router
     @State private var showsPaywall = false
 
-    init() {
-        _path = State(initialValue: SettingsPage.launchPath(store: AppEnvironment.store))
-    }
-
     var body: some View {
-        NavigationStack(path: $path) {
-            SettingsRootList(path: $path, showsPaywall: $showsPaywall)
+        @Bindable var router = router
+        NavigationStack(path: $router.settingsPath) {
+            SettingsRootList(path: $router.settingsPath, showsPaywall: $showsPaywall)
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        HeaderIconButton("xmark", label: "Close") { dismiss() }
-                    }
-                }
                 .navigationDestination(for: SettingsPage.self) { $0.destination }
         }
         .sheet(isPresented: $showsPaywall) {
             PaywallView()
         }
-        .keaserSheetChrome()
+        // A route (a widget, Siri, Spotlight) closes the paywall: a sheet
+        // left up would hide the tab the route selects.
+        .onChange(of: router.modalReset) { showsPaywall = false }
     }
 }
 
@@ -128,8 +122,11 @@ private struct SettingsRootList: View {
             .settingsListStyle(sectionSpacing: 14)
             .task {
                 #if DEBUG
-                // `-KeaserSettingsScroll bottom` starts at the end of the page.
-                guard DebugLaunch.string("KeaserSettingsScroll") == "bottom" else { return }
+                // `-KeaserSettingsScroll bottom` starts at the end of the page,
+                // once: coming back to the tab must not scroll it again.
+                guard DebugLaunch.string("KeaserSettingsScroll") == "bottom",
+                      DebugLaunch.firstTime("settingsRootScroll")
+                else { return }
                 try? await Task.sleep(for: .milliseconds(400))
                 proxy.scrollTo(Self.footerID, anchor: .bottom)
                 #endif

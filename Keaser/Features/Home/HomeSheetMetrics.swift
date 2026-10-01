@@ -23,8 +23,8 @@ enum HomeSheetMetrics {
 // Home's floating sheets (Accounts, Add Account, the expense editor) sit
 // on glass at a medium detent. In light mode the reference draws their
 // cards as a grey veil over that glass, with white symbol tiles, where the
-// full-height Settings sheet uses white cards; dark mode keeps the shared
-// sheet values exactly.
+// Settings pages use white cards; dark mode keeps the shared sheet values
+// exactly.
 extension Color {
     /// Cards and fields on Home's sheets.
     static let homeSheetCard = Color(light: .black.opacity(0.055), dark: .white.opacity(0.055))

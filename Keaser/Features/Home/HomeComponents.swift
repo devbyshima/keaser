@@ -9,6 +9,8 @@ enum HomeLayout {
     static let topBarHeight: CGFloat = 44
     static let addButtonSize: CGFloat = 64
     static let addButtonTrailing: CGFloat = 29
+    /// From the top of the tab bar to the bottom of the add button.
+    static let addButtonBottom: CGFloat = 16
     /// Where the hairline between expense rows starts: under the title,
     /// past the 16pt margin, the 42pt symbol tile and the 16pt gap.
     static let rowSeparatorLeading: CGFloat = 74
@@ -143,8 +145,9 @@ private struct HomeRowButtonStyle: ButtonStyle {
     }
 }
 
-/// The round ink "+" that floats at the bottom trailing corner: white on
-/// black in dark mode, black on the pale canvas in light mode.
+/// The round ink "+" that floats at the bottom trailing corner, above the
+/// tab bar: white on black in dark mode, black on the pale canvas in light
+/// mode.
 struct HomeAddButton: View {
     let action: () -> Void
 

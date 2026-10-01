@@ -2,12 +2,12 @@ import KeaserKit
 import SwiftUI
 
 /// Home's floating bar: the account switcher on the left and one glass
-/// capsule with search, filters and settings on the right.
+/// capsule with search and filters on the right. Settings is a tab of its
+/// own.
 struct HomeTopBar<FilterMenu: View>: View {
     let accountName: String
     let onAccounts: () -> Void
     let onSearch: () -> Void
-    let onSettings: () -> Void
     @ViewBuilder var filterMenu: FilterMenu
 
     var body: some View {
@@ -81,13 +81,6 @@ struct HomeTopBar<FilterMenu: View>: View {
                 Label("Search", systemImage: "magnifyingglass")
             }
             filterMenu
-            Button(action: onSettings) {
-                HomeToolIcon(symbol: "gear")
-            }
-            .accessibilityLabel("Settings")
-            .accessibilityShowsLargeContentViewer {
-                Label("Settings", systemImage: "gear")
-            }
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 0.5)

@@ -6,6 +6,7 @@ struct AccountSettingsView: View {
     let accountID: UUID
 
     @Environment(KeaserStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var isRenaming = false
     @State private var draftName = ""
@@ -19,17 +20,27 @@ struct AccountSettingsView: View {
             if let account = store.account(id: accountID) {
                 content(for: account)
             } else {
-                // Deleted (possibly from another screen): nothing left to show.
+                // Deleted (from Home's Accounts sheet, or on another device):
+                // nothing left to show, and the Settings tab pops the page.
                 Color.clear
             }
         }
         .settingsPage("Account Settings")
         .sensoryFeedback(.success, trigger: committedChanges)
+        // A route (a widget, Siri, Spotlight) closes the rename alert and
+        // the delete dialog, which would hide the tab it selects.
+        .onChange(of: router.modalReset) {
+            isRenaming = false
+            confirmsDelete = false
+        }
         #if DEBUG
         // `-KeaserSettingsAlert rename` opens the rename alert, for
-        // screenshots.
+        // screenshots (once a launch, not on every return to the page).
         .task {
-            guard DebugLaunch.string("KeaserSettingsAlert") == "rename", let account = store.account(id: accountID) else { return }
+            guard DebugLaunch.string("KeaserSettingsAlert") == "rename",
+                  let account = store.account(id: accountID),
+                  DebugLaunch.firstTime("renameAlert")
+            else { return }
             try? await Task.sleep(for: .milliseconds(600))
             draftName = account.name
             isRenaming = true

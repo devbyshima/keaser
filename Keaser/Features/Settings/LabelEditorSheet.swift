@@ -100,14 +100,17 @@ struct LabelEditorSheet: View {
                 #if DEBUG
                 .task {
                     // `-KeaserSettingsScroll bottom` shows Reset to Default,
-                    // below a long icon grid, for screenshots.
-                    guard DebugLaunch.string("KeaserSettingsScroll") == "bottom" else { return }
+                    // below a long icon grid, for screenshots (once a
+                    // launch).
+                    guard DebugLaunch.string("KeaserSettingsScroll") == "bottom",
+                          DebugLaunch.firstTime("labelEditorScroll")
+                    else { return }
                     try? await Task.sleep(for: .milliseconds(600))
                     proxy.scrollTo(Self.resetID, anchor: .bottom)
                 }
                 #endif
             }
-            .background(Color.settingsCanvas.ignoresSafeArea())
+            .background(Color.settingsSheetCanvas.ignoresSafeArea())
             .navigationTitle(existing == nil ? kind.newTitle : kind.editTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

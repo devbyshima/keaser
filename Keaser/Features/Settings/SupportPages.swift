@@ -51,8 +51,10 @@ struct TutorialDetailView: View {
                 #if DEBUG
                 // `-KeaserTutorialScroll <section id>`, an illustration's
                 // name, or `end` starts the article there, so a screenshot
-                // can show it.
-                guard let anchor = DebugLaunch.string("KeaserTutorialScroll") else { return }
+                // can show it (once a launch).
+                guard let anchor = DebugLaunch.string("KeaserTutorialScroll"),
+                      DebugLaunch.firstTime("tutorialScroll")
+                else { return }
                 try? await Task.sleep(for: .milliseconds(400))
                 proxy.scrollTo(anchor, anchor: .top)
                 #endif

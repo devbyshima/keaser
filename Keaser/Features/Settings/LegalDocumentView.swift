@@ -27,17 +27,20 @@ enum LegalDocument: String, Identifiable {
     }
 }
 
-/// A legal document pushed inside Settings.
+/// A legal document pushed inside Settings, on the canvas of the other
+/// settings pages.
 struct LegalDocumentView: View {
     let document: LegalDocument
 
     var body: some View {
         LegalDocumentBody(document: document)
+            .background(Color.settingsCanvas.ignoresSafeArea())
             .settingsPage(document.title)
     }
 }
 
-/// A legal document in its own sheet, for the paywall's links.
+/// A legal document in its own sheet, for the paywall's links. It draws no
+/// canvas of its own, so the sheet's background shows.
 struct LegalDocumentSheet: View {
     let document: LegalDocument
 
@@ -79,13 +82,15 @@ private struct LegalDocumentBody: View {
                 #if DEBUG
                 .onAppear {
                     // `-KeaserSettingsScroll <word>` starts at the first
-                    // heading containing it, to screenshot a later section.
+                    // heading containing it, to screenshot a later section
+                    // (once a launch, not on every return to the page).
                     guard let word = DebugLaunch.string("KeaserSettingsScroll"),
                           let index = blocks.firstIndex(where: { block in
                               if case .heading(_, let text) = block { return text.localizedCaseInsensitiveContains(word) }
                               return false
                           })
                     else { return }
+                    guard DebugLaunch.firstTime("legalScroll") else { return }
                     proxy.scrollTo(index, anchor: .top)
                 }
                 #endif

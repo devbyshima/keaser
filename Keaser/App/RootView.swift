@@ -1,20 +1,26 @@
 import KeaserKit
 import SwiftUI
 
-/// Onboarding until it is finished, then Home. The welcome letter slides up
-/// over Home the first time it appears.
+/// Onboarding until it is finished, then the tabs (Home first). The welcome
+/// letter slides up over Home the first time it appears.
 struct RootView: View {
     @Environment(KeaserStore.self) private var store
+    #if DEBUG
+    @Environment(AppRouter.self) private var router
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if DEBUG
-    @State private var debugSheet: DebugSheet? = DebugSheet(rawValue: DebugLaunch.sheet ?? "")
+    /// `-KeaserSheet paywall`: the paywall over whatever shows, so it can be
+    /// screenshotted on its own, or over Settings with `-KeaserTab settings`
+    /// as Upgrade there opens it. Home's own sheets are HomeView's.
+    @State private var showsDebugPaywall = DebugLaunch.sheet == "paywall"
     #endif
 
     var body: some View {
         ZStack {
             Color.keaserBackground.ignoresSafeArea()
             if store.preferences.hasCompletedOnboarding {
-                HomeView()
+                MainTabView()
                     .transition(.opacity)
             } else {
                 OnboardingView {
@@ -39,13 +45,9 @@ struct RootView: View {
             store.reloadFromDisk()
         }
         #if DEBUG
-        .sheet(item: $debugSheet) { sheet in
-            switch sheet {
-            case .settings: SettingsView()
-            case .paywall: PaywallView()
-            case .settingsPaywall: SettingsWithPaywall()
-            }
-        }
+        .sheet(isPresented: $showsDebugPaywall) { PaywallView() }
+        // A route closes it, as it closes the Settings tab's own sheets.
+        .onChange(of: router.modalReset) { showsDebugPaywall = false }
         #endif
         .sheet(isPresented: welcomeLetterPresented) {
             WelcomeLetterSheet()
@@ -107,24 +109,3 @@ private struct StorageBanner: View {
         .accessibilityElement(children: .combine)
     }
 }
-
-#if DEBUG
-/// Sheets owned by features that Home does not present at launch, opened
-/// directly from `-KeaserSheet` so they can be screenshotted in isolation.
-/// Home's own sheets (`newExpense`, `accounts`...) are handled by HomeView.
-private enum DebugSheet: String, Identifiable {
-    /// `settingsPaywall` is the paywall as Upgrade in Settings opens it, on a
-    /// second sheet over Settings, as in the reference recording.
-    case settings, paywall, settingsPaywall
-    var id: String { rawValue }
-}
-
-private struct SettingsWithPaywall: View {
-    @State private var showsPaywall = true
-
-    var body: some View {
-        SettingsView()
-            .sheet(isPresented: $showsPaywall) { PaywallView() }
-    }
-}
-#endif
