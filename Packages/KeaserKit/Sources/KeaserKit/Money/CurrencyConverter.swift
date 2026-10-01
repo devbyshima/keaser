@@ -84,4 +84,28 @@ extension Account {
     public func effectiveCurrency(of adjustment: BalanceAdjustment, display: String) -> String {
         adjustment.currencyCode ?? effectiveCurrency(ofWallet: adjustment.walletID, display: display) ?? display
     }
+
+    /// Writes `code` into everything that follows wallet `id`'s currency
+    /// (no currency of its own): its expenses, incomes, both sides of its
+    /// transfers and its stated balances. Done before the wallet's currency
+    /// changes or the wallet goes, so what was typed keeps its currency.
+    mutating func pinCurrency(_ code: String, followingWallet id: UUID) {
+        for i in expenses.indices where expenses[i].paymentMethodID == id && expenses[i].currencyCode == nil {
+            expenses[i].currencyCode = code
+        }
+        for i in incomes.indices where incomes[i].walletID == id && incomes[i].currencyCode == nil {
+            incomes[i].currencyCode = code
+        }
+        for i in transfers.indices {
+            if transfers[i].fromWalletID == id, transfers[i].currencyOut == nil {
+                transfers[i].currencyOut = code
+            }
+            if transfers[i].toWalletID == id, transfers[i].currencyIn == nil {
+                transfers[i].currencyIn = code
+            }
+        }
+        for i in balanceAdjustments.indices where balanceAdjustments[i].walletID == id && balanceAdjustments[i].currencyCode == nil {
+            balanceAdjustments[i].currencyCode = code
+        }
+    }
 }

@@ -332,9 +332,13 @@ struct SyncMoneyTests {
         cash.currencyCode = "RWF"
         a.store.savePaymentMethod(cash, in: personal.id)
         a.store.updateSplitRule(in: personal.id) { $0.savingsWalletID = cash.id }
+        let bank = try #require(a.wallet("Bank Transfer"))
+        a.store.saveTransfer(Transfer(fromWalletID: bank.id, toWalletID: cash.id, amountOut: 10, amountIn: 15_000, note: "Francs"), in: personal.id)
         a.sync(cloud)
         b.sync(cloud)
         #expect(b.wallet("Cash")?.currencyCode == "RWF")
+        // Made while Cash followed the display currency, it stays in euros.
+        #expect(b.transfer("Cash for the week")?.currencyIn == "EUR")
         #expect(b.account("Personal")?.splitRule.savingsWalletID == cash.id)
 
         a.store.deletePaymentMethod(cash.id, in: personal.id)
@@ -348,11 +352,12 @@ struct SyncMoneyTests {
             let account = try #require(device.account("Personal"))
             let display = device.database.preferences.currencyCode
             #expect(device.wallet("Cash") == nil)
-            let transfer = try #require(device.transfer("Cash for the week"))
+            let transfer = try #require(device.transfer("Francs"))
             #expect(transfer.toWalletID == nil)
             // What arrived in Cash stays in Cash's currency.
             #expect(transfer.currencyIn == "RWF")
             #expect(account.effectiveCurrencyIn(of: transfer, display: display) == "RWF")
+            #expect(device.transfer("Cash for the week")?.currencyIn == "EUR")
             #expect(account.balanceAdjustments.isEmpty)
             #expect(account.splitRule.savingsWalletID == nil)
             // B's refund keeps working: its wallet reads as none and its

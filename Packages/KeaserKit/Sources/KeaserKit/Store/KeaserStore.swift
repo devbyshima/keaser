@@ -212,10 +212,20 @@ public final class KeaserStore {
 
     // MARK: Payment methods
 
-    /// Inserts or replaces a payment method (matched by ID).
+    /// Inserts or replaces a payment method (matched by ID). When that
+    /// changes the wallet's currency, what followed it (expenses, incomes,
+    /// transfer sides and stated balances with no currency of their own)
+    /// is given the old one first, so it keeps the currency it was typed
+    /// in. The opening balance has no currency of its own: it is read in
+    /// the new one, so a tracking wallet's balance is stated again with it.
     public func savePaymentMethod(_ method: PaymentMethod, in accountID: UUID) {
+        let display = database.preferences.currencyCode
         updateAccount(accountID) { account in
             if let i = account.paymentMethods.firstIndex(where: { $0.id == method.id }) {
+                let old = account.paymentMethods[i].effectiveCurrency(display: display)
+                if !CurrencyConverter.same(old, method.effectiveCurrency(display: display)) {
+                    account.pinCurrency(old, followingWallet: method.id)
+                }
                 account.paymentMethods[i] = method
             } else {
                 account.paymentMethods.append(method)
@@ -230,23 +240,21 @@ public final class KeaserStore {
     /// falling back to the display currency.
     public func deletePaymentMethod(_ methodID: UUID, in accountID: UUID) {
         updateAccount(accountID) { account in
-            let currency = account.paymentMethod(id: methodID)?.currencyCode
+            if let currency = account.paymentMethod(id: methodID)?.currencyCode {
+                account.pinCurrency(currency, followingWallet: methodID)
+            }
             account.paymentMethods.removeAll { $0.id == methodID }
             for i in account.expenses.indices where account.expenses[i].paymentMethodID == methodID {
-                account.expenses[i].currencyCode = account.expenses[i].currencyCode ?? currency
                 account.expenses[i].paymentMethodID = nil
             }
             for i in account.incomes.indices where account.incomes[i].walletID == methodID {
-                account.incomes[i].currencyCode = account.incomes[i].currencyCode ?? currency
                 account.incomes[i].walletID = nil
             }
             for i in account.transfers.indices {
                 if account.transfers[i].fromWalletID == methodID {
-                    account.transfers[i].currencyOut = account.transfers[i].currencyOut ?? currency
                     account.transfers[i].fromWalletID = nil
                 }
                 if account.transfers[i].toWalletID == methodID {
-                    account.transfers[i].currencyIn = account.transfers[i].currencyIn ?? currency
                     account.transfers[i].toWalletID = nil
                 }
             }

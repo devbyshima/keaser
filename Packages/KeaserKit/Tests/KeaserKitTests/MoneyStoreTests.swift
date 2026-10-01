@@ -635,6 +635,56 @@ struct MoneyStoreTests {
         #expect(stored.splitRule.updatedAt > ruleStamp)
     }
 
+    @Test func changingAWalletsCurrencyKeepsWhatWasTypedInTheOldOne() throws {
+        let store = KeaserStore(file: nil)
+        store.updatePreferences { $0.currencyCode = "RWF" }
+        let account = store.createAccount(name: "Personal")
+        let card = account.paymentMethods[0]
+        let cash = account.paymentMethods[2]
+        store.setBalance(0, ofWallet: card.id, in: account.id, at: then)
+        store.setBalance(-25_000, ofWallet: card.id, in: account.id, at: later)
+        let lunch = Expense(title: "Lunch", amount: 25_000, paymentMethodID: card.id)
+        let museum = Expense(title: "Museum", amount: 9, paymentMethodID: card.id, currencyCode: "EUR")
+        let bus = Expense(title: "Bus", amount: 500, paymentMethodID: cash.id)
+        for expense in [lunch, museum, bus] { store.saveExpense(expense, in: account.id, now: then) }
+        store.saveIncome(Income(title: "Refund", amount: 3_000, walletID: card.id), in: account.id, now: then)
+        let out = Transfer(fromWalletID: card.id, toWalletID: cash.id, amountOut: 1_000)
+        let into = Transfer(fromWalletID: cash.id, toWalletID: card.id, amountOut: 20_000)
+        store.saveTransfer(out, in: account.id, now: then)
+        store.saveTransfer(into, in: account.id, now: then)
+
+        // The display currency's own code, written in: nothing to keep.
+        var pinned = try #require(store.account(id: account.id)?.paymentMethod(id: card.id))
+        pinned.currencyCode = "RWF"
+        store.savePaymentMethod(pinned, in: account.id)
+        #expect(store.account(id: account.id)?.expenses.allSatisfy { $0.title == "Museum" || $0.currencyCode == nil } == true)
+
+        var dollars = pinned
+        dollars.currencyCode = "USD"
+        store.savePaymentMethod(dollars, in: account.id)
+        let stored = try #require(store.account(id: account.id))
+        let expenses = Dictionary(uniqueKeysWithValues: stored.expenses.map { ($0.title, $0) })
+        #expect(expenses["Lunch"]?.currencyCode == "RWF")
+        #expect(expenses["Lunch"].map { stored.effectiveCurrency(of: $0, display: "RWF") } == "RWF")
+        #expect(expenses["Lunch"].map { $0.updatedAt > then } == true)
+        #expect(expenses["Museum"]?.currencyCode == "EUR")
+        #expect(expenses["Bus"]?.currencyCode == nil && expenses["Bus"]?.updatedAt == then)
+        #expect(stored.incomes.first?.currencyCode == "RWF")
+        let transfers = Dictionary(uniqueKeysWithValues: stored.transfers.map { ($0.id, $0) })
+        #expect(transfers[out.id]?.currencyOut == "RWF" && transfers[out.id]?.currencyIn == nil)
+        #expect(transfers[into.id]?.currencyIn == "RWF" && transfers[into.id]?.currencyOut == nil)
+        #expect(stored.balanceAdjustments.map(\.currencyCode) == ["RWF"])
+        #expect(stored.paymentMethod(id: card.id)?.currencyCode == "USD")
+
+        // From USD to EUR, what was typed in USD since stays in USD.
+        store.saveExpense(Expense(title: "Taxi", amount: 12, paymentMethodID: card.id), in: account.id)
+        var euros = dollars
+        euros.currencyCode = "EUR"
+        store.savePaymentMethod(euros, in: account.id)
+        #expect(store.account(id: account.id)?.expenses.first { $0.title == "Taxi" }?.currencyCode == "USD")
+        #expect(store.account(id: account.id)?.expenses.first { $0.title == "Lunch" }?.currencyCode == "RWF")
+    }
+
     @Test func deletingAWalletInTheDisplayCurrencyPinsNothing() throws {
         let store = KeaserStore(file: nil)
         let account = store.createAccount(name: "Personal")
