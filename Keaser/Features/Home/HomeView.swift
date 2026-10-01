@@ -145,7 +145,7 @@ struct HomeView: View {
             }
             .padding(.horizontal, KeaserMetrics.screenPadding)
             .padding(.top, HomeLayout.contentTop)
-            .padding(.bottom, HomeLayout.addButtonSize + 48)
+            .padding(.bottom, KeaserMetrics.screenPadding)
             .animation(.smooth(duration: 0.3), value: expenses.map(\.id))
         }
         .scrollIndicators(.hidden)
@@ -169,12 +169,6 @@ struct HomeView: View {
                 )
             }
             .keaserEntity(account: account.id)
-        }
-        .overlay(alignment: .bottomTrailing) {
-            HomeAddButton { sheet = .newExpense }
-                .padding(.trailing, HomeLayout.addButtonTrailing)
-                .padding(.bottom, HomeLayout.addButtonBottom)
-                .keaserReadableWidth(alignment: .trailing)
         }
     }
 
