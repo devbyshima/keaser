@@ -1,7 +1,8 @@
 import Foundation
 
 /// A separate ledger ("Personal", "Business"). Each account owns its own
-/// categories, payment methods and expenses.
+/// categories, payment methods (its wallets), expenses, income and
+/// transfers.
 public struct Account: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var name: String
@@ -18,7 +19,17 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
     public var categoriesOrderedAt: Date
     /// When the order of `paymentMethods` last changed.
     public var paymentMethodsOrderedAt: Date
+    public var incomeCategories: [IncomeCategory]
+    public var incomes: [Income]
+    public var transfers: [Transfer]
+    /// Set Balance on wallets already tracking (`PaymentMethod.trackingSince`).
+    public var balanceAdjustments: [BalanceAdjustment]
+    public var splitRule: SplitRule
+    /// When the order of `incomeCategories` last changed.
+    public var incomeCategoriesOrderedAt: Date
 
+    /// A nil `incomeCategories` is the built-in ones
+    /// (`IncomeCategory.defaults(for:)`).
     public init(
         id: UUID = UUID(),
         name: String,
@@ -26,7 +37,12 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         categories: [ExpenseCategory] = ExpenseCategory.defaults(),
         paymentMethods: [PaymentMethod] = PaymentMethod.defaults(),
         expenses: [Expense] = [],
-        updatedAt: Date? = nil
+        updatedAt: Date? = nil,
+        incomeCategories: [IncomeCategory]? = nil,
+        incomes: [Income] = [],
+        transfers: [Transfer] = [],
+        balanceAdjustments: [BalanceAdjustment] = [],
+        splitRule: SplitRule = SplitRule()
     ) {
         self.id = id
         self.name = name
@@ -37,6 +53,12 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         self.updatedAt = updatedAt ?? createdAt
         self.categoriesOrderedAt = createdAt
         self.paymentMethodsOrderedAt = createdAt
+        self.incomeCategories = incomeCategories ?? IncomeCategory.defaults(for: id)
+        self.incomes = incomes
+        self.transfers = transfers
+        self.balanceAdjustments = balanceAdjustments
+        self.splitRule = splitRule
+        self.incomeCategoriesOrderedAt = createdAt
     }
 
     public init(from decoder: any Decoder) throws {
@@ -50,6 +72,14 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
         categoriesOrderedAt = try c.decodeIfPresent(Date.self, forKey: .categoriesOrderedAt) ?? .distantPast
         paymentMethodsOrderedAt = try c.decodeIfPresent(Date.self, forKey: .paymentMethodsOrderedAt) ?? .distantPast
+        // An account from before income gets the built-in income
+        // categories; a stored list, even an empty one, stays as it is.
+        incomeCategories = try c.decodeIfPresent([IncomeCategory].self, forKey: .incomeCategories) ?? IncomeCategory.defaults(for: id)
+        incomes = try c.decodeIfPresent([Income].self, forKey: .incomes) ?? []
+        transfers = try c.decodeIfPresent([Transfer].self, forKey: .transfers) ?? []
+        balanceAdjustments = try c.decodeIfPresent([BalanceAdjustment].self, forKey: .balanceAdjustments) ?? []
+        splitRule = try c.decodeIfPresent(SplitRule.self, forKey: .splitRule) ?? SplitRule()
+        incomeCategoriesOrderedAt = try c.decodeIfPresent(Date.self, forKey: .incomeCategoriesOrderedAt) ?? .distantPast
     }
 
     /// First letter of the name, for the monogram tile in Settings.
@@ -62,9 +92,25 @@ public struct Account: Identifiable, Codable, Hashable, Sendable {
         return categories.first { $0.id == id }
     }
 
+    /// The payment method, which is also the wallet.
     public func paymentMethod(id: UUID?) -> PaymentMethod? {
         guard let id else { return nil }
         return paymentMethods.first { $0.id == id }
+    }
+
+    public func incomeCategory(id: UUID?) -> IncomeCategory? {
+        guard let id else { return nil }
+        return incomeCategories.first { $0.id == id }
+    }
+
+    public func income(id: UUID?) -> Income? {
+        guard let id else { return nil }
+        return incomes.first { $0.id == id }
+    }
+
+    public func transfer(id: UUID?) -> Transfer? {
+        guard let id else { return nil }
+        return transfers.first { $0.id == id }
     }
 
     /// SF Symbol for an expense row: its category's symbol, or a card.

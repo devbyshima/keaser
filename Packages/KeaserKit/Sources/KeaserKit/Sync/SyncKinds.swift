@@ -213,9 +213,9 @@ public enum AccountSyncKind: SyncKind {
 
 // MARK: - What an account holds
 
-/// A category, payment method or expense: a value with an ID and an edit
-/// time, kept in one of an account's lists. The record's `parent` is the
-/// account.
+/// A category, payment method, expense, income category, income, transfer
+/// or balance adjustment: a value with an ID and an edit time, kept in one
+/// of an account's lists. The record's `parent` is the account.
 public protocol AccountItem: Identifiable, Codable, Equatable, Sendable where ID == UUID {
     var updatedAt: Date { get set }
 }
@@ -223,6 +223,10 @@ public protocol AccountItem: Identifiable, Codable, Equatable, Sendable where ID
 extension ExpenseCategory: AccountItem {}
 extension PaymentMethod: AccountItem {}
 extension Expense: AccountItem {}
+extension IncomeCategory: AccountItem {}
+extension Income: AccountItem {}
+extension Transfer: AccountItem {}
+extension BalanceAdjustment: AccountItem {}
 
 public protocol AccountItemSyncKind: SyncKind {
     associatedtype Item: AccountItem

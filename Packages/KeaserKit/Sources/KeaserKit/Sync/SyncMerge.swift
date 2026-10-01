@@ -305,3 +305,4 @@ protocol Named {
 
 extension ExpenseCategory: Named {}
 extension PaymentMethod: Named {}
+extension IncomeCategory: Named {}

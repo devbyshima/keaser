@@ -16,6 +16,13 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
     /// `ReceiptList.maximum`. The images are files in the Receipts folder,
     /// never in the database.
     public var receipts: [ReceiptPhoto]
+    /// The currency of `amount`. Nil: its wallet's (`paymentMethodID`), and
+    /// with no wallet, the display currency. Written only when the wallet
+    /// has a currency of its own, or once that wallet is deleted.
+    public var currencyCode: String?
+    /// The rate to the display currency, saved when it was logged in
+    /// another currency.
+    public var rate: ExchangeRate?
 
     public init(
         id: UUID = UUID(),
@@ -26,7 +33,9 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         date: Date = .now,
         createdAt: Date = .now,
         updatedAt: Date = .now,
-        receipts: [ReceiptPhoto] = []
+        receipts: [ReceiptPhoto] = [],
+        currencyCode: String? = nil,
+        rate: ExchangeRate? = nil
     ) {
         self.id = id
         self.title = title
@@ -37,6 +46,8 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.receipts = receipts
+        self.currencyCode = currencyCode
+        self.rate = rate
     }
 
     // Tolerant decoding: a field added in a later version must not make an
@@ -61,6 +72,9 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         } else {
             receipts = []
         }
+        currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode)
+        // A rate that does not read is lost alone, never the expense.
+        rate = try? c.decodeIfPresent(ExchangeRate.self, forKey: .rate)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -76,10 +90,13 @@ public struct Expense: Identifiable, Codable, Hashable, Sendable {
         // Left out when empty, so an expense without receipts is written
         // exactly as before.
         if !receipts.isEmpty { try c.encode(receipts, forKey: .receipts) }
+        // The same for the currency and the rate.
+        try c.encodeIfPresent(currencyCode, forKey: .currencyCode)
+        try c.encodeIfPresent(rate, forKey: .rate)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, amount, categoryID, paymentMethodID, date, createdAt, updatedAt, receipts
+        case id, title, amount, categoryID, paymentMethodID, date, createdAt, updatedAt, receipts, currencyCode, rate
         /// The single photo an expense could carry before the list; read,
         /// never written.
         case receipt

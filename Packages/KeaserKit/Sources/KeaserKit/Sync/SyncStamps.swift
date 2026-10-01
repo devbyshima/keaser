@@ -6,12 +6,15 @@ import Foundation
 /// whether or not sync is on, so they are right the day it is turned on.
 ///
 /// - An account's `updatedAt` moves when its name changes.
-/// - A category's, payment method's or expense's `updatedAt` moves when
-///   anything else about it changes (an expense losing its deleted
-///   category included).
-/// - `categoriesOrderedAt`, `paymentMethodsOrderedAt` and
-///   `Database.accountsOrderedAt` move when their list's order changes:
-///   an item moved, added or deleted.
+/// - The `updatedAt` of a category, payment method, expense, income
+///   category, income, transfer or balance adjustment moves when anything
+///   else about it changes (an expense losing its deleted category
+///   included).
+/// - `categoriesOrderedAt`, `paymentMethodsOrderedAt`,
+///   `incomeCategoriesOrderedAt` and `Database.accountsOrderedAt` move
+///   when their list's order changes: an item moved, added or deleted.
+/// - The split rule's `updatedAt` moves when anything else about it
+///   changes.
 /// - `Preferences.settingsUpdatedAt` moves when a `SyncedSettings` field
 ///   changes.
 ///
@@ -41,8 +44,20 @@ public enum SyncStamps {
         }
         stampList(&account.categories, orderedAt: &account.categoriesOrderedAt, since: old.categories, oldOrderedAt: old.categoriesOrderedAt, now: now)
         stampList(&account.paymentMethods, orderedAt: &account.paymentMethodsOrderedAt, since: old.paymentMethods, oldOrderedAt: old.paymentMethodsOrderedAt, now: now)
+        stampList(&account.incomeCategories, orderedAt: &account.incomeCategoriesOrderedAt, since: old.incomeCategories, oldOrderedAt: old.incomeCategoriesOrderedAt, now: now)
+        stampItems(&account.expenses, since: old.expenses, now: now)
+        stampItems(&account.incomes, since: old.incomes, now: now)
+        stampItems(&account.transfers, since: old.transfers, now: now)
+        stampItems(&account.balanceAdjustments, since: old.balanceAdjustments, now: now)
+        if account.splitRule != old.splitRule, account.splitRule.updatedAt == old.splitRule.updatedAt {
+            account.splitRule.updatedAt = now
+        }
+    }
+
+    /// A list whose order means nothing (it is shown sorted by date).
+    private static func stampItems<Item: AccountItem>(_ items: inout [Item], since old: [Item], now: Date) {
         var unused = Date.distantPast
-        stampList(&account.expenses, orderedAt: &unused, since: old.expenses, oldOrderedAt: .distantPast, now: now)
+        stampList(&items, orderedAt: &unused, since: old, oldOrderedAt: .distantPast, now: now)
     }
 
     private static func stampList<Item: AccountItem>(_ items: inout [Item], orderedAt: inout Date, since old: [Item], oldOrderedAt: Date, now: Date) {
