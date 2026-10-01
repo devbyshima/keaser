@@ -54,7 +54,9 @@ struct HomeView: View {
         }
         // Search keeps the whole screen, its field at the bottom as in the
         // reference, so the tab bar steps aside while it is open.
-        .toolbarVisibility(isSearching ? .hidden : .visible, for: .tabBar)
+        // Only while Home shows: a route to Settings leaves Search open
+        // behind it, and the bar must come back there.
+        .toolbarVisibility(isSearching && router.selectedTab == .home ? .hidden : .visible, for: .tabBar)
         .animation(.smooth(duration: 0.35), value: store.selectedAccount == nil)
         // Switching accounts, from the Accounts sheet or by creating one,
         // animates everything that depends on the account at once: the
