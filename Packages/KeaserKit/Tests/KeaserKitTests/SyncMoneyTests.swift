@@ -444,6 +444,8 @@ struct SyncMoneyTests {
             #expect(fromA.toWalletID == onA.id)
             #expect(fromA.currencyIn == nil)
             #expect(account.balanceAdjustments.filter { $0.balance == 2500 }.map(\.walletID) == [onA.id])
+            // Stated in JPY, it stays in JPY.
+            #expect(account.balanceAdjustments.first { $0.balance == 2500 }?.currencyCode == "JPY")
             #expect(!account.balanceAdjustments.contains { $0.walletID == onB.id })
             #expect(account.splitRule.savingsWalletID == onA.id)
         }
@@ -540,6 +542,7 @@ struct SyncMoneyFirstSyncTests {
             #expect(topUp.toWalletID == momo.id)
             #expect(topUp.currencyOut == "RWF")
             #expect(account.balanceAdjustments.map(\.walletID) == [cashID])
+            #expect(account.balanceAdjustments.map(\.currencyCode) == ["RWF"])
             // The account's own rule stays.
             #expect(account.splitRule.savingsPercent == 30)
             #expect(account.splitRule.savingsWalletID == nil)

@@ -184,7 +184,7 @@ struct MoneyModelTests {
         #expect(transfer.note == "" && transfer.fromWalletID == nil && transfer.toWalletID == nil && transfer.incomeID == nil)
 
         let adjustment = try decode(BalanceAdjustment.self, #"{"id":"\#(id.uuidString)"}"#)
-        #expect(adjustment.balance == 0 && adjustment.walletID == nil)
+        #expect(adjustment.balance == 0 && adjustment.walletID == nil && adjustment.currencyCode == nil)
 
         let category = try decode(IncomeCategory.self, #"{"id":"\#(id.uuidString)"}"#)
         #expect(category.name == "" && category.updatedAt == .distantPast)
@@ -216,6 +216,11 @@ struct MoneyModelTests {
 
         let transfer = Transfer(kind: .cardPayment, fromWalletID: UUID(), toWalletID: nil, amountOut: 5, currencyOut: "EUR", amountIn: 6, currencyIn: "USD", note: "Card")
         #expect(try decode(Transfer.self, try encode(transfer)) == transfer)
+
+        var adjustment = BalanceAdjustment(walletID: UUID(), balance: 250)
+        #expect(!(try encode(adjustment)).contains("currencyCode"))
+        adjustment.currencyCode = "JPY"
+        #expect(try decode(BalanceAdjustment.self, try encode(adjustment)) == adjustment)
     }
 
     @Test func walletHelpersReadItsFields() {

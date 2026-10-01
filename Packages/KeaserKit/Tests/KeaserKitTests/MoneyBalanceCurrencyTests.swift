@@ -216,4 +216,38 @@ struct MoneyBalanceCurrencyTests {
         // could not convert; the pounds stay out.
         #expect(total(of: wallets, rates: table()) == (amount: 190_000, unconverted: 2))
     }
+
+    // MARK: A balance stated in another currency
+
+    @Test func aBalanceStatedInAnotherCurrencyIsConvertedAtTodaysRates() {
+        var spent = account(expenses: [expense("20", nil, from: dollars.id)])
+        spent.balanceAdjustments = [
+            BalanceAdjustment(walletID: dollars.id, balance: 30_000, currencyCode: "JPY", date: Self.at(5), createdAt: Self.at(5)),
+        ]
+        // 30,000 JPY is 200 USD; 20 spent since leaves 180.
+        #expect(balance(of: dollars.id, in: spent, rates: table()) == WalletBalance(amount: 180, unconverted: 0))
+        // Without rates it is passed over for the opening 100, and counted.
+        #expect(balance(of: dollars.id, in: spent, rates: nil) == WalletBalance(amount: 80, unconverted: 1))
+        // Pinned to the wallet's own currency, it is taken as stated.
+        spent.balanceAdjustments[0].currencyCode = "usd"
+        spent.balanceAdjustments[0].balance = 70
+        #expect(balance(of: dollars.id, in: spent, rates: nil) == WalletBalance(amount: 50, unconverted: 0))
+
+        // One the table lacks, later than that, is passed over for it.
+        spent.balanceAdjustments.append(
+            BalanceAdjustment(walletID: dollars.id, balance: 40, currencyCode: "GBP", date: Self.at(7), createdAt: Self.at(7))
+        )
+        #expect(balance(of: dollars.id, in: spent, rates: table()) == WalletBalance(amount: 50, unconverted: 1))
+        // A later one in the wallet's currency: nothing is passed over.
+        spent.balanceAdjustments.append(
+            BalanceAdjustment(walletID: dollars.id, balance: 90, date: Self.at(8), createdAt: Self.at(8))
+        )
+        #expect(balance(of: dollars.id, in: spent, rates: table()) == WalletBalance(amount: 70, unconverted: 0))
+        // Rounded to the wallet's places: 1 USD is 0.3 KWD.
+        var dinarWallet = account()
+        dinarWallet.balanceAdjustments = [
+            BalanceAdjustment(walletID: dinars.id, balance: d("10.01"), currencyCode: "USD", date: Self.at(5), createdAt: Self.at(5)),
+        ]
+        #expect(balance(of: dinars.id, in: dinarWallet, rates: table()) == WalletBalance(amount: d("3.003"), unconverted: 0))
+    }
 }

@@ -39,7 +39,10 @@ public enum WalletBalances {
     ///
     /// - The base is the latest checkpoint: the opening one
     ///   (`trackingSince`, `openingBalance`) or a later `BalanceAdjustment`
-    ///   of the wallet. Latest by date, then by when it was made.
+    ///   of the wallet. Latest by date, then by when it was made. One
+    ///   stated in another currency than the wallet's is converted at
+    ///   today's rates; one that cannot be is passed over for the one
+    ///   before it and counted in `unconverted`.
     /// - Incomes into the wallet and transfers in add; expenses from it and
     ///   transfers out subtract. A transfer from the wallet to itself is
     ///   nothing.
@@ -63,9 +66,9 @@ public enum WalletBalances {
     ) -> WalletBalance? {
         guard let wallet = account.paymentMethod(id: walletID), let since = wallet.trackingSince else { return nil }
         if let asOf, since > asOf { return nil }
-        let base = latestCheckpoint(of: wallet, since: since, in: account, asOf: asOf)
         let currency = wallet.effectiveCurrency(display: display)
-        var result = WalletBalance(amount: base.balance)
+        let (base, skipped) = latestCheckpoint(of: wallet, since: since, in: account, display: display, converter: converter, asOf: asOf)
+        var result = WalletBalance(amount: base.balance, unconverted: skipped)
 
         func add(_ amount: Decimal, in entryCurrency: String, saved: ExchangeRate?, date: Date, createdAt: Date) {
             guard counts(date: date, createdAt: createdAt, after: base.date, asOf: asOf, calendar: calendar) else { return }
@@ -138,23 +141,44 @@ public enum WalletBalances {
     }
 
     /// The latest of the opening checkpoint and the wallet's adjustments
-    /// (up to `asOf`); one from before the opening (a wallet set up again)
-    /// is never the latest. Ties go to the one made later, then to the
-    /// greater ID, so every device picks the same one. The opening one
-    /// loses every tie: an adjustment is always stated after it.
-    private static func latestCheckpoint(of wallet: PaymentMethod, since: Date, in account: Account, asOf: Date?) -> Checkpoint {
-        var latest = Checkpoint(balance: wallet.openingBalance, date: since, createdAt: .distantPast, id: "")
+    /// (up to `asOf`), in the wallet's currency; one from before the
+    /// opening (a wallet set up again) is never the latest. Ties go to the
+    /// one made later, then to the greater ID, so every device picks the
+    /// same one. The opening one loses every tie: an adjustment is always
+    /// stated after it. An adjustment in another currency is converted at
+    /// today's rates; those that cannot be are passed over and counted.
+    private static func latestCheckpoint(
+        of wallet: PaymentMethod,
+        since: Date,
+        in account: Account,
+        display: String,
+        converter: CurrencyConverter,
+        asOf: Date?
+    ) -> (base: Checkpoint, unconverted: Int) {
+        func order(_ c: Checkpoint) -> (Date, Date, String) { (c.date, c.createdAt, c.id) }
+        let opening = Checkpoint(balance: wallet.openingBalance, date: since, createdAt: .distantPast, id: "")
+        var later: [(checkpoint: Checkpoint, currency: String)] = []
         for adjustment in account.balanceAdjustments where adjustment.walletID == wallet.id {
             if let asOf, adjustment.date > asOf { continue }
             let candidate = Checkpoint(
                 balance: adjustment.balance, date: adjustment.date,
                 createdAt: adjustment.createdAt, id: adjustment.id.uuidString
             )
-            if (candidate.date, candidate.createdAt, candidate.id) > (latest.date, latest.createdAt, latest.id) {
-                latest = candidate
+            if order(candidate) > order(opening) {
+                later.append((candidate, account.effectiveCurrency(of: adjustment, display: display)))
             }
         }
-        return latest
+        let currency = wallet.effectiveCurrency(display: display)
+        var unconverted = 0
+        for (checkpoint, stated) in later.sorted(by: { order($0.checkpoint) > order($1.checkpoint) }) {
+            if let balance = converter.convert(checkpoint.balance, from: stated, to: currency, saved: nil) {
+                var base = checkpoint
+                base.balance = balance
+                return (base, unconverted)
+            }
+            unconverted += 1
+        }
+        return (opening, unconverted)
     }
 
     /// Whether an entry dated `date` and logged at `createdAt` comes after

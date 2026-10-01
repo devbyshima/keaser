@@ -329,7 +329,7 @@ struct LabelRedirects {
     var incomeCategories: [UUID: UUID] = [:]
     /// The currency of a wallet that merged into one in another currency.
     /// What followed it (no currency of its own) is given it, so an amount
-    /// keeps the currency it was typed in.
+    /// or a stated balance keeps the currency it was typed in.
     var walletCurrencies: [UUID: String] = [:]
 
     mutating func merge(_ category: ExpenseCategory, into other: ExpenseCategory) {
@@ -376,7 +376,7 @@ struct LabelRedirects {
 
     func redirect(_ adjustment: inout BalanceAdjustment) -> Bool {
         let before = adjustment
-        adjustment.walletID = redirected(adjustment.walletID, by: wallets)
+        redirectWallet(&adjustment, \.walletID, currency: \.currencyCode)
         return adjustment != before
     }
 

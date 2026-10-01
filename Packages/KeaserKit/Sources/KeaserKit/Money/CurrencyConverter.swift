@@ -78,4 +78,10 @@ extension Account {
     public func effectiveCurrencyIn(of transfer: Transfer, display: String) -> String {
         transfer.currencyIn ?? effectiveCurrency(ofWallet: transfer.toWalletID, display: display) ?? display
     }
+
+    /// The currency a balance was stated in: its own code, else its
+    /// wallet's, else the display currency.
+    public func effectiveCurrency(of adjustment: BalanceAdjustment, display: String) -> String {
+        adjustment.currencyCode ?? effectiveCurrency(ofWallet: adjustment.walletID, display: display) ?? display
+    }
 }

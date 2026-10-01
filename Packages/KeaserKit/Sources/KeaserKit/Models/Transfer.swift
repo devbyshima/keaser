@@ -130,8 +130,12 @@ public struct Transfer: Identifiable, Codable, Hashable, Sendable {
 public struct BalanceAdjustment: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var walletID: UUID?
-    /// In the wallet's currency.
+    /// In `currencyCode`'s currency.
     public var balance: Decimal
+    /// Nil: the wallet's currency, as for entries. A code pins it, so a
+    /// balance stated in a wallet that merged into one in another currency
+    /// keeps the currency it was stated in. Written only when set.
+    public var currencyCode: String?
     /// The moment the balance was stated.
     public var date: Date
     public var createdAt: Date
@@ -141,6 +145,7 @@ public struct BalanceAdjustment: Identifiable, Codable, Hashable, Sendable {
         id: UUID = UUID(),
         walletID: UUID?,
         balance: Decimal,
+        currencyCode: String? = nil,
         date: Date = .now,
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -148,6 +153,7 @@ public struct BalanceAdjustment: Identifiable, Codable, Hashable, Sendable {
         self.id = id
         self.walletID = walletID
         self.balance = balance
+        self.currencyCode = currencyCode
         self.date = date
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -158,6 +164,7 @@ public struct BalanceAdjustment: Identifiable, Codable, Hashable, Sendable {
         id = try c.decode(UUID.self, forKey: .id)
         walletID = try c.decodeIfPresent(UUID.self, forKey: .walletID)
         balance = try c.decodeIfPresent(Decimal.self, forKey: .balance) ?? 0
+        currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode)
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? .distantPast
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? date
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
