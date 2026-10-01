@@ -439,7 +439,7 @@ struct SyncMoneyTests {
             #expect(account.paymentMethods.filter { $0.name.lowercased() == "savings" }.map(\.id) == [onA.id])
             let interest = try #require(device.income("Interest"))
             #expect(interest.walletID == onA.id)
-            // Typed in JPY, it stays in JPY in a wallet that follows EUR.
+            // Typed in JPY, it stays in JPY.
             #expect(interest.currencyCode == "JPY")
             let fromB = try #require(device.transfer("Put aside on B"))
             #expect(fromB.toWalletID == onA.id)
@@ -447,12 +447,24 @@ struct SyncMoneyTests {
             #expect(fromB.currencyOut == nil)
             let fromA = try #require(device.transfer("Put aside on A"))
             #expect(fromA.toWalletID == onA.id)
-            #expect(fromA.currencyIn == nil)
+            // Made while A's Savings followed EUR, it stays in EUR.
+            #expect(fromA.currencyIn == "EUR")
             #expect(account.balanceAdjustments.filter { $0.balance == 2500 }.map(\.walletID) == [onA.id])
             // Stated in JPY, it stays in JPY.
             #expect(account.balanceAdjustments.first { $0.balance == 2500 }?.currencyCode == "JPY")
             #expect(!account.balanceAdjustments.contains { $0.walletID == onB.id })
             #expect(account.splitRule.savingsWalletID == onA.id)
+            // A's Savings was not tracking, so it takes B's balance and its
+            // currency: 2,500 stated, then 20 and 9,000 in.
+            let savings = try #require(account.paymentMethod(id: onA.id))
+            #expect(savings.currencyCode == "JPY")
+            #expect(savings.isTracking && savings.openingBalance == 1000)
+            let display = device.database.preferences.currencyCode
+            let balance = WalletBalances.balance(
+                of: onA.id, in: account, display: display,
+                converter: CurrencyConverter(displayCurrency: display, rates: nil), calendar: .current
+            )
+            #expect(balance == WalletBalance(amount: 11_520, unconverted: 0))
         }
         #expect(cloud.names(of: .paymentMethod).count == 6)
         #expect(cloud.records[SyncRecordName.make(.paymentMethod, onB.id)] == nil)
@@ -540,7 +552,7 @@ struct SyncMoneyFirstSyncTests {
             let wages = try #require(device.income("Wages"))
             #expect(wages.walletID == cashID)
             #expect(wages.categoryID == personal.incomeCategories[0].id)
-            // Typed in RWF, it stays in RWF in a Cash that follows EUR.
+            // Typed in RWF, it stays in RWF.
             #expect(wages.currencyCode == "RWF")
             let topUp = try #require(device.transfer("Top up"))
             #expect(topUp.fromWalletID == cashID)
@@ -548,6 +560,16 @@ struct SyncMoneyFirstSyncTests {
             #expect(topUp.currencyOut == "RWF")
             #expect(account.balanceAdjustments.map(\.walletID) == [cashID])
             #expect(account.balanceAdjustments.map(\.currencyCode) == ["RWF"])
+            // A's Cash was not tracking, so it takes B's balance and its
+            // currency: 12,000 stated, then 50,000 in and 3,000 out.
+            let cash = try #require(account.paymentMethod(id: cashID))
+            #expect(cash.currencyCode == "RWF")
+            #expect(cash.isTracking && cash.openingBalance == 10_000)
+            let balance = WalletBalances.balance(
+                of: cashID, in: account, display: "EUR",
+                converter: CurrencyConverter(displayCurrency: "EUR", rates: nil), calendar: .current
+            )
+            #expect(balance == WalletBalance(amount: 59_000, unconverted: 0))
             // The account's own rule stays.
             #expect(account.splitRule.savingsPercent == 30)
             #expect(account.splitRule.savingsWalletID == nil)
@@ -557,6 +579,49 @@ struct SyncMoneyFirstSyncTests {
         #expect(cloud.names(of: .incomeCategory).count == 5)
         #expect(cloud.names(of: .splitRule).count == 1)
         #expect(sameContent(a, b))
+    }
+
+    /// The person's flow: B used offline first, with its own Personal and
+    /// a balance in Cash, meets A's Personal.
+    @Test func aBalanceStatedOnTheSecondDeviceSurvivesTheMerge() throws {
+        let cloud = TestCloud()
+        let a = TestDevice()
+        let personal = a.store.createAccount(name: "Personal")
+        let cashID = personal.paymentMethods[2].id
+        // A's Bank Transfer tracks a balance too, stated earlier than B's.
+        let bankID = personal.paymentMethods[3].id
+        a.store.setBalance(100, ofWallet: bankID, in: personal.id, at: later(by: -120))
+        a.sync(cloud)
+
+        let b = TestDevice()
+        let own = b.store.createAccount(name: "Personal")
+        b.store.setBalance(300, ofWallet: own.paymentMethods[2].id, in: own.id, at: later(by: -60))
+        b.store.setBalance(700, ofWallet: own.paymentMethods[3].id, in: own.id, at: later(by: -60))
+        b.store.saveExpense(Expense(title: "Coffee", amount: 4, paymentMethodID: own.paymentMethods[2].id), in: own.id)
+        b.store.saveExpense(Expense(title: "Books", amount: 30, paymentMethodID: own.paymentMethods[3].id), in: own.id)
+        b.sync(cloud)
+        a.sync(cloud)
+        for device in [a, b] {
+            let account = try #require(device.account("Personal"))
+            let display = device.database.preferences.currencyCode
+            func balance(_ id: UUID) -> WalletBalance? {
+                WalletBalances.balance(
+                    of: id, in: account, display: display,
+                    converter: CurrencyConverter(displayCurrency: display, rates: nil), calendar: .current
+                )
+            }
+            // A's Cash was not tracking: it takes B's 300.
+            #expect(balance(cashID) == WalletBalance(amount: 296, unconverted: 0))
+            #expect(account.paymentMethod(id: cashID)?.currencyCode == nil)
+            // A's Bank Transfer was: B's later 700 is a stated balance of it.
+            #expect(balance(bankID) == WalletBalance(amount: 670, unconverted: 0))
+            #expect(account.paymentMethod(id: bankID)?.openingBalance == 100)
+            #expect(account.balanceAdjustments.map(\.balance) == [700])
+        }
+        #expect(cloud.names(of: .balanceAdjustment).count == 1)
+        #expect(sameContent(a, b))
+        #expect(a.upload().isEmpty)
+        #expect(b.upload().isEmpty)
     }
 
     @Test func onlyAnAccountWithNothingButTheBuiltInLabelsGivesWay() throws {
@@ -762,5 +827,109 @@ struct SyncMoneyToleranceTests {
         #expect(!wallet.isTracking)
         #expect(wallet.currencyCode == nil)
         #expect(b.upload().isEmpty)
+    }
+}
+
+/// What a wallet that merges into another leaves to it
+/// (`LabelRedirects.carryOverBalances`).
+struct SyncWalletMergeTests {
+    private let since = Date(timeIntervalSinceReferenceDate: 780_000_000)
+    private let now = Date(timeIntervalSinceReferenceDate: 780_100_000)
+    private let old = Date(timeIntervalSinceReferenceDate: 770_000_000)
+
+    /// `gone` merges into `stays` in an account holding `stays` and the
+    /// expenses, with the display currency EUR.
+    private func merge(_ gone: PaymentMethod, into stays: PaymentMethod, expenses: [Expense] = []) -> Account {
+        var redirects = LabelRedirects()
+        redirects.merge(gone, into: stays, display: "EUR")
+        var account = Account(name: "Personal", paymentMethods: [stays], expenses: expenses)
+        redirects.apply(to: &account, display: "EUR", now: now)
+        return account
+    }
+
+    private func wallet(_ name: String = "Cash", currency: String? = nil, since: Date? = nil, opening: Decimal = 0) -> PaymentMethod {
+        PaymentMethod(name: name, symbol: "banknote.fill", updatedAt: old, currencyCode: currency, trackingSince: since, openingBalance: opening)
+    }
+
+    @Test func aWalletThatWasNotTrackingLeavesNoBalance() {
+        let stays = wallet()
+        let account = merge(wallet(), into: stays)
+        #expect(account.paymentMethods == [stays])
+        #expect(account.balanceAdjustments.isEmpty)
+    }
+
+    @Test func oneNotTrackingTakesTheBalanceInTheSameCurrency() throws {
+        let account = merge(wallet(currency: "EUR", since: since, opening: 300), into: wallet())
+        let stays = try #require(account.paymentMethods.first)
+        #expect(stays.trackingSince == since && stays.openingBalance == 300)
+        // Its currency followed the display currency, which is EUR anyway.
+        #expect(stays.currencyCode == "EUR")
+        #expect(stays.updatedAt == now)
+        #expect(account.balanceAdjustments.isEmpty)
+    }
+
+    @Test func oneWithoutACurrencyTakesTheOthersAndKeepsWhatItHeld() throws {
+        let stays = wallet()
+        let lunch = Expense(title: "Lunch", amount: 12, paymentMethodID: stays.id, createdAt: old, updatedAt: old)
+        let account = merge(wallet(currency: "RWF", since: since, opening: 10_000), into: stays, expenses: [lunch])
+        let merged = try #require(account.paymentMethods.first)
+        #expect(merged.currencyCode == "RWF")
+        #expect(merged.trackingSince == since && merged.openingBalance == 10_000)
+        // Spent while it followed EUR: still EUR.
+        #expect(account.expenses.first?.currencyCode == "EUR")
+        #expect(account.expenses.first?.updatedAt == now)
+    }
+
+    @Test func oneInAnotherCurrencyOfItsOwnGetsTheBalanceAsAnAdjustment() throws {
+        let gone = wallet(currency: "RWF", since: since, opening: 10_000)
+        let account = merge(gone, into: wallet(currency: "USD"))
+        let stays = try #require(account.paymentMethods.first)
+        #expect(stays.currencyCode == "USD")
+        #expect(stays.trackingSince == since && stays.openingBalance == 0)
+        let adjustment = try #require(account.balanceAdjustments.first)
+        #expect(adjustment.walletID == stays.id)
+        #expect(adjustment.balance == 10_000 && adjustment.currencyCode == "RWF")
+        #expect(adjustment.date == since)
+        // It wins the tie with the opening: 10,000 RWF at 1400 RWF to the
+        // dollar; without rates it is passed over and counted.
+        let table = ExchangeRates(base: "USD", rates: ["RWF": 1400], date: since, fetchedAt: since)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        func balance(_ rates: ExchangeRates?) -> WalletBalance? {
+            WalletBalances.balance(
+                of: stays.id, in: account, display: "EUR",
+                converter: CurrencyConverter(displayCurrency: "EUR", rates: rates), calendar: calendar
+            )
+        }
+        #expect(balance(table) == WalletBalance(amount: Decimal(string: "7.14")!, unconverted: 0))
+        #expect(balance(nil) == WalletBalance(amount: 0, unconverted: 1))
+    }
+
+    @Test func oneTrackingAlreadyGetsTheBalanceAsAnAdjustmentOnce() throws {
+        let gone = wallet(since: since, opening: 300)
+        let stays = wallet(since: old, opening: 100)
+        var account = merge(gone, into: stays)
+        #expect(account.paymentMethods.first?.trackingSince == old)
+        #expect(account.paymentMethods.first?.openingBalance == 100)
+        let adjustment = try #require(account.balanceAdjustments.first)
+        #expect(adjustment.balance == 300 && adjustment.currencyCode == "EUR" && adjustment.date == since)
+        // The same merge on another device makes the same record.
+        #expect(adjustment.id == merge(gone, into: stays).balanceAdjustments.first?.id)
+        var redirects = LabelRedirects()
+        redirects.merge(gone, into: stays, display: "EUR")
+        redirects.apply(to: &account, display: "EUR", now: now)
+        #expect(account.balanceAdjustments.count == 1)
+    }
+
+    @Test func itIsASavingsWalletWhenEitherWasAndTakesALimit() throws {
+        var gone = wallet()
+        gone.isSavings = true
+        gone.creditLimit = 500
+        let account = merge(gone, into: wallet())
+        let stays = try #require(account.paymentMethods.first)
+        #expect(stays.isSavings && stays.creditLimit == 500)
+        // A limit in another currency is not taken.
+        gone.currencyCode = "USD"
+        #expect(merge(gone, into: wallet()).paymentMethods.first?.creditLimit == nil)
     }
 }

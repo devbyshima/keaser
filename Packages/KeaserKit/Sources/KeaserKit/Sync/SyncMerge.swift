@@ -30,7 +30,8 @@ import Foundation
 /// person's data instead of duplicating it. Either way everything that
 /// pointed at a label that went (expenses, income, transfers, balance
 /// adjustments, the split rule's savings wallet) points at the one that
-/// stays (`LabelRedirects`).
+/// stays, and a wallet that went leaves the balance stated in it to the
+/// one that stays (`LabelRedirects`).
 /// The database and sync state after a merge, and the files it let go.
 public struct SyncMergeResult: Sendable {
     public var database: Database
@@ -67,11 +68,15 @@ public enum SyncMerge {
         }
         let display = db.preferences.currencyCode
         for index in db.accounts.indices {
-            mergeSameNamedLabels(in: &db.accounts[index], list: \.categories, type: .category, state: st, now: now) { $0.merge($1, into: $2) }
-            mergeSameNamedLabels(in: &db.accounts[index], list: \.paymentMethods, type: .paymentMethod, state: st, now: now) {
+            mergeSameNamedLabels(in: &db.accounts[index], list: \.categories, type: .category, state: st, display: display, now: now) {
+                $0.merge($1, into: $2)
+            }
+            mergeSameNamedLabels(in: &db.accounts[index], list: \.paymentMethods, type: .paymentMethod, state: st, display: display, now: now) {
                 $0.merge($1, into: $2, display: display)
             }
-            mergeSameNamedLabels(in: &db.accounts[index], list: \.incomeCategories, type: .incomeCategory, state: st, now: now) { $0.merge($1, into: $2) }
+            mergeSameNamedLabels(in: &db.accounts[index], list: \.incomeCategories, type: .incomeCategory, state: st, display: display, now: now) {
+                $0.merge($1, into: $2)
+            }
         }
         OrderSyncKind.arrangeByKnownOrders(&db, known: st.known)
 
@@ -202,9 +207,10 @@ public enum SyncMerge {
     /// On a first sync: each account this device made that iCloud does not
     /// have yet, named like one iCloud has, merges into that one. Its
     /// categories, payment methods and income categories join the
-    /// account's (a label of the same name becomes the existing one), and
-    /// its expenses, income, transfers and balance adjustments move over.
-    /// The split rule is the account's own: this device's goes.
+    /// account's (a label of the same name becomes the existing one, and a
+    /// wallet's stated balance goes with it), and its expenses, income,
+    /// transfers and balance adjustments move over. The split rule is the
+    /// account's own: this device's goes.
     private static func mergeNewAccounts(_ db: inout Database, state st: SyncState, now: Date, redirects: inout [UUID: UUID]) {
         let inCloud = db.accounts.filter { isKnown(.account, $0.id, st) }
         guard !inCloud.isEmpty else { return }
@@ -256,6 +262,7 @@ public enum SyncMerge {
         move(\.incomes, .income) { redirects.redirect(&$0) }
         move(\.transfers, .transfer) { redirects.redirect(&$0) }
         move(\.balanceAdjustments, .balanceAdjustment) { redirects.redirect(&$0) }
+        redirects.carryOverBalances(in: &target, display: display, now: now)
         db.accounts[t] = target
         db.accounts.remove(at: s)
     }
@@ -288,13 +295,15 @@ public enum SyncMerge {
     /// allow two). The one iCloud has wins, or of two it has, the smaller
     /// ID, so every device picks the same; whatever pointed at the others
     /// points at it (`redirect` says which references a label of this list
-    /// has). Only runs when iCloud has one of them: two local labels of one
-    /// name are left for the person.
+    /// has), and a wallet that goes leaves its stated balance to it. Only
+    /// runs when iCloud has one of them: two local labels of one name are
+    /// left for the person.
     private static func mergeSameNamedLabels<Label: AccountItem & Named>(
         in account: inout Account,
         list: WritableKeyPath<Account, [Label]>,
         type: SyncRecordType,
         state st: SyncState,
+        display: String,
         now: Date,
         redirect: (inout LabelRedirects, _ label: Label, _ winner: Label) -> Void
     ) {
@@ -313,7 +322,7 @@ public enum SyncMerge {
         }
         guard !replaced.isEmpty else { return }
         account[keyPath: list].removeAll { replaced.contains($0.id) }
-        redirects.apply(to: &account, now: now)
+        redirects.apply(to: &account, display: display, now: now)
     }
 
     private static func isKnown(_ type: SyncRecordType, _ id: UUID, _ st: SyncState) -> Bool {
@@ -331,6 +340,9 @@ struct LabelRedirects {
     /// What followed it (no currency of its own) is given it, so an amount
     /// or a stated balance keeps the currency it was typed in.
     var walletCurrencies: [UUID: String] = [:]
+    /// Each wallet that merged into another, as it was, with the ID of the
+    /// one that stays, which takes on what it held (`carryOverBalances`).
+    var mergedWallets: [(wallet: PaymentMethod, into: UUID)] = []
 
     mutating func merge(_ category: ExpenseCategory, into other: ExpenseCategory) {
         categories[category.id] = other.id
@@ -344,6 +356,7 @@ struct LabelRedirects {
     /// of its own is in.
     mutating func merge(_ wallet: PaymentMethod, into other: PaymentMethod, display: String) {
         wallets[wallet.id] = other.id
+        mergedWallets.append((wallet, other.id))
         let currency = wallet.effectiveCurrency(display: display)
         if currency != other.effectiveCurrency(display: display) {
             walletCurrencies[wallet.id] = currency
@@ -386,15 +399,93 @@ struct LabelRedirects {
         return rule != before
     }
 
-    /// Points everything in `account` at the labels that stay. What changed
+    /// Points everything in `account` at the labels that stay, and carries
+    /// the stated balances of wallets that went over to them. What changed
     /// is stamped `now` (or keeps a later stamp), so it goes out and wins.
-    func apply(to account: inout Account, now: Date) {
+    func apply(to account: inout Account, display: String, now: Date) {
         Self.stamp(&account.expenses, now: now) { redirect(&$0) }
         Self.stamp(&account.incomes, now: now) { redirect(&$0) }
         Self.stamp(&account.transfers, now: now) { redirect(&$0) }
         Self.stamp(&account.balanceAdjustments, now: now) { redirect(&$0) }
         if redirect(&account.splitRule) {
             account.splitRule.updatedAt = max(account.splitRule.updatedAt, now)
+        }
+        carryOverBalances(in: &account, display: display, now: now)
+    }
+
+    /// What each wallet that merged into another held goes to the one that
+    /// stays, so no balance the person stated is lost. For one that was
+    /// tracking a balance:
+    /// - A wallet that stays and is not tracking starts tracking from the
+    ///   same moment and balance. It takes the other's currency first when
+    ///   it has none of its own and the other has one (what followed it is
+    ///   given its old currency, as when a wallet's currency changes).
+    /// - A wallet that stays and is tracking already, or is in another
+    ///   currency, is given the other's opening balance as a balance
+    ///   adjustment: the same moment and balance, pinned to the currency of
+    ///   the wallet that went. The later of the stated balances is the
+    ///   balance; one in another currency is converted. Its ID comes from
+    ///   the wallet that went, so two devices making it make one.
+    ///
+    /// The one that stays is a savings wallet when either was, and takes a
+    /// credit limit in its currency when it has none. Run after `redirect`
+    /// has pointed everything at the wallets that stay. What changed is
+    /// stamped `now` (or keeps a later stamp).
+    func carryOverBalances(in account: inout Account, display: String, now: Date) {
+        let before = account
+        for (gone, winnerID) in mergedWallets.sorted(by: { $0.wallet.id.uuidString < $1.wallet.id.uuidString }) {
+            guard let w = account.paymentMethods.firstIndex(where: { $0.id == winnerID }) else { continue }
+            var stays = account.paymentMethods[w]
+            let stated = gone.effectiveCurrency(display: display)
+            if let since = gone.trackingSince {
+                if !stays.isTracking, stays.currencyCode == nil, let code = gone.currencyCode {
+                    let current = stays.effectiveCurrency(display: display)
+                    if !CurrencyConverter.same(current, code) {
+                        account.pinCurrency(current, followingWallet: stays.id)
+                    }
+                    stays.currencyCode = code
+                }
+                if !stays.isTracking, CurrencyConverter.same(stays.effectiveCurrency(display: display), stated) {
+                    stays.trackingSince = since
+                    stays.openingBalance = gone.openingBalance
+                } else {
+                    if !stays.isTracking {
+                        // Its own currency differs: it starts from nothing
+                        // at that moment, and the adjustment, which wins
+                        // the tie, says what was there.
+                        stays.trackingSince = since
+                        stays.openingBalance = 0
+                    }
+                    let id = UUID.derived(from: "\(gone.id.uuidString).opening-balance")
+                    if !account.balanceAdjustments.contains(where: { $0.id == id }) {
+                        account.balanceAdjustments.append(BalanceAdjustment(
+                            id: id, walletID: stays.id, balance: gone.openingBalance, currencyCode: stated,
+                            date: since, createdAt: since, updatedAt: now
+                        ))
+                    }
+                }
+            }
+            stays.isSavings = stays.isSavings || gone.isSavings
+            if stays.creditLimit == nil, CurrencyConverter.same(stays.effectiveCurrency(display: display), stated) {
+                stays.creditLimit = gone.creditLimit
+            }
+            account.paymentMethods[w] = stays
+        }
+        Self.stampChanges(&account.paymentMethods, since: before.paymentMethods, now: now)
+        Self.stampChanges(&account.expenses, since: before.expenses, now: now)
+        Self.stampChanges(&account.incomes, since: before.incomes, now: now)
+        Self.stampChanges(&account.transfers, since: before.transfers, now: now)
+        Self.stampChanges(&account.balanceAdjustments, since: before.balanceAdjustments, now: now)
+    }
+
+    /// Stamps `now` (or keeps a later stamp) on each item that differs
+    /// from its copy in `old`.
+    private static func stampChanges<Item: AccountItem>(_ items: inout [Item], since old: [Item], now: Date) {
+        guard items != old else { return }
+        let previous = Dictionary(old.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for index in items.indices {
+            guard let earlier = previous[items[index].id], earlier != items[index] else { continue }
+            items[index].updatedAt = max(items[index].updatedAt, now)
         }
     }
 
