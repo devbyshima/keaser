@@ -9,11 +9,16 @@ public struct ExpenseDeletion: Hashable, Sendable {
         public let expense: Expense
         public let accountID: UUID
         public let accountName: String
+        /// Its wallet's own currency when it was deleted (nil: the wallet
+        /// followed the display currency, or there was none), so it can
+        /// keep it if the wallet goes before it is put back.
+        public let walletCurrency: String?
 
-        public init(expense: Expense, accountID: UUID, accountName: String) {
+        public init(expense: Expense, accountID: UUID, accountName: String, walletCurrency: String? = nil) {
             self.expense = expense
             self.accountID = accountID
             self.accountName = accountName
+            self.walletCurrency = walletCurrency
         }
     }
 
@@ -26,7 +31,10 @@ public struct ExpenseDeletion: Hashable, Sendable {
         let wanted = Set(ids)
         for account in database.accounts {
             for expense in account.expenses where wanted.contains(expense.id) {
-                found[expense.id] = Item(expense: expense, accountID: account.id, accountName: account.name)
+                found[expense.id] = Item(
+                    expense: expense, accountID: account.id, accountName: account.name,
+                    walletCurrency: account.paymentMethod(id: expense.paymentMethodID)?.currencyCode
+                )
             }
         }
         var seen = Set<UUID>()
@@ -92,8 +100,10 @@ extension KeaserStore {
 
     /// Puts deleted expenses back into their accounts exactly as they were
     /// (undo). One that is back already, or whose account was deleted since,
-    /// is skipped. When the change cannot be written they are taken out of
-    /// memory again and false is returned.
+    /// is skipped. One whose wallet was deleted since comes back as deleting
+    /// the wallet left the others: without it, in the currency it had. When
+    /// the change cannot be written they are taken out of memory again and
+    /// false is returned.
     @discardableResult
     public func restore(_ items: [ExpenseDeletion.Item]) -> Bool {
         let restorable = items.filter { item in
@@ -109,7 +119,14 @@ extension KeaserStore {
     }
 
     private func putBack(_ items: [ExpenseDeletion.Item]) {
-        // Stamped with its own last change, so it comes back unchanged.
-        for item in items { saveExpense(item.expense, in: item.accountID, now: item.expense.updatedAt) }
+        for item in items {
+            var expense = item.expense
+            if expense.paymentMethodID != nil, account(id: item.accountID)?.paymentMethod(id: expense.paymentMethodID) == nil {
+                expense.currencyCode = expense.currencyCode ?? item.walletCurrency
+                expense.paymentMethodID = nil
+            }
+            // Stamped with its own last change, so it comes back unchanged.
+            saveExpense(expense, in: item.accountID, now: expense == item.expense ? expense.updatedAt : .now)
+        }
     }
 }
