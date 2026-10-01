@@ -37,6 +37,15 @@ public struct ExchangeRates: Codable, Hashable, Sendable {
         return to / from
     }
 
+    /// `amount` of `from` in `to` at the table's rates, not rounded, or nil
+    /// when `rate(from:to:)` is. It multiplies before it divides, so a
+    /// result that is exact (7 RWF at 1400 to the dollar is 0.005 USD) is
+    /// rounded as exactly that, not as a cut-short quotient.
+    public func convert(_ amount: Decimal, from: String, to: String) -> Decimal? {
+        guard let from = units(of: from), let to = units(of: to) else { return nil }
+        return amount * to / from
+    }
+
     /// Units of `code` per one `base`.
     private func units(of code: String) -> Decimal? {
         let code = code.uppercased()

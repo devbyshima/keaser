@@ -31,12 +31,12 @@ public struct CurrencyConverter: Hashable, Sendable {
             if Self.same(saved.currencyCode, to) {
                 return CurrencyMath.rounded(amount * saved.rate, currencyCode: to)
             }
-            if let table = rates?.rate(from: saved.currencyCode, to: to) {
-                return CurrencyMath.rounded(amount * saved.rate * table, currencyCode: to)
+            if let converted = rates?.convert(amount * saved.rate, from: saved.currencyCode, to: to) {
+                return CurrencyMath.rounded(converted, currencyCode: to)
             }
         }
-        if let table = rates?.rate(from: from, to: to) {
-            return CurrencyMath.rounded(amount * table, currencyCode: to)
+        if let converted = rates?.convert(amount, from: from, to: to) {
+            return CurrencyMath.rounded(converted, currencyCode: to)
         }
         return nil
     }

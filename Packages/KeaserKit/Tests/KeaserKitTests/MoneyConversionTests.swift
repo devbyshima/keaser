@@ -112,6 +112,20 @@ struct MoneyConversionTests {
         #expect(converter.convert(100, from: "EUR", to: "KWD", saved: saved("2", "")) == decimal("33.333"))
     }
 
+    @Test func anExactHalfThroughTheTableRoundsAwayFromZero() {
+        // 1/1400 is a cut-short quotient; 7 RWF is exactly 0.005 USD.
+        let converter = CurrencyConverter(displayCurrency: "USD", rates: table)
+        #expect(converter.convert(7, from: "RWF", to: "USD", saved: nil) == decimal("0.01"))
+        #expect(converter.convert(21, from: "RWF", to: "USD", saved: nil) == decimal("0.02"))
+        #expect(converter.convert(175, from: "RWF", to: "USD", saved: nil) == decimal("0.13"))
+        #expect(converter.convert(-7, from: "RWF", to: "USD", saved: nil) == decimal("-0.01"))
+        #expect(converter.convert(7007, from: "RWF", to: "USD", saved: nil) == decimal("5.01"))
+        // The same through a saved rate into another currency (rule 3).
+        #expect(converter.convert(7, from: "BIF", to: "USD", saved: saved("1", "RWF")) == decimal("0.01"))
+        #expect(table.convert(7, from: "RWF", to: "USD") == decimal("0.005"))
+        #expect(table.convert(7, from: "GBP", to: "USD") == nil)
+    }
+
     @Test func rule5WhatCannotBeConvertedIsNil() {
         let offline = CurrencyConverter(displayCurrency: "RWF", rates: nil)
         #expect(offline.convert(10, from: "USD", to: "RWF", saved: nil) == nil)
