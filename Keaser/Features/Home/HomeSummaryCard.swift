@@ -195,8 +195,11 @@ struct HomeSpendingChart: View {
         .task {
             // `-KeaserChartSelection last` (or a bar index) shows the callout
             // without a long press, for screenshots. It waits for Home to
-            // apply `-KeaserPeriod`, which would otherwise clear it.
+            // apply `-KeaserPeriod`, which would otherwise clear it. Once a
+            // launch: coming back to the Home tab must not show it again.
+            guard DebugLaunch.string("KeaserChartSelection") != nil else { return }
             try? await Task.sleep(for: .milliseconds(800))
+            guard !Task.isCancelled, DebugLaunch.firstTime("chartSelection") else { return }
             switch DebugLaunch.string("KeaserChartSelection") {
             case "last": selectedIndex = buckets.last?.index
             case let value?: selectedIndex = Int(value)
