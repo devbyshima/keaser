@@ -261,6 +261,28 @@ public final class KeaserStore {
         updateAccount(accountID) { $0.paymentMethods.keaserMove(fromOffsets: source, toOffset: destination) }
     }
 
+    // MARK: Labels
+
+    /// Saves a category's or payment method's name and icon, as the label
+    /// editor does. One the account has keeps everything else (a category's
+    /// role, a wallet's kind, currency, balance, limit and switches), so a
+    /// rename or a new icon never resets it; a new one starts from its name.
+    public func saveLabel(id: UUID, name: String, symbol: String, kind: LabelKind, in accountID: UUID) {
+        let stored = account(id: accountID)
+        switch kind {
+        case .category:
+            var category = stored?.category(id: id) ?? ExpenseCategory(id: id, name: name, symbol: symbol)
+            category.name = name
+            category.symbol = symbol
+            saveCategory(category, in: accountID)
+        case .paymentMethod:
+            var method = stored?.paymentMethod(id: id) ?? PaymentMethod(id: id, name: name, symbol: symbol)
+            method.name = name
+            method.symbol = symbol
+            savePaymentMethod(method, in: accountID)
+        }
+    }
+
     // MARK: Wallet balances
 
     /// States what is in a wallet at `date`. A wallet not tracking starts

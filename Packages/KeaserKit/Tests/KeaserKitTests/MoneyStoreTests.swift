@@ -354,6 +354,53 @@ struct MoneyStoreTests {
         #expect(store.account(id: account.id)?.splitRule.updatedAt == then)
     }
 
+    // MARK: Renaming a label
+
+    @Test func aRenameOrANewIconInTheLabelEditorKeepsWhatTheLabelHolds() throws {
+        let store = KeaserStore(file: nil)
+        let account = store.createAccount(name: "Personal")
+        var cash = account.paymentMethods[2]
+        cash.currencyCode = "USD"
+        cash.creditLimit = 300
+        cash.isSavings = true
+        cash.isHidden = true
+        store.savePaymentMethod(cash, in: account.id)
+        store.setBalance(5_000, ofWallet: cash.id, in: account.id, at: then)
+        store.setBalance(4_000, ofWallet: cash.id, in: account.id, at: later)
+        store.updateSplitRule(in: account.id) { $0.savingsWalletID = cash.id }
+        let shopping = account.categories[1]
+        #expect(shopping.role == .freeMoney)
+        let before = try #require(store.account(id: account.id)?.paymentMethod(id: cash.id))
+
+        store.saveLabel(id: cash.id, name: "Pocket", symbol: cash.symbol, kind: .paymentMethod, in: account.id)
+        store.saveLabel(id: cash.id, name: "Pocket", symbol: "wallet.bifold.fill", kind: .paymentMethod, in: account.id)
+        store.saveLabel(id: shopping.id, name: "Clothes", symbol: "tshirt.fill", kind: .category, in: account.id)
+        let stored = try #require(store.account(id: account.id))
+        let pocket = try #require(stored.paymentMethod(id: cash.id))
+        #expect(pocket.name == "Pocket" && pocket.symbol == "wallet.bifold.fill")
+        #expect(pocket.updatedAt > before.updatedAt)
+        #expect(pocket.kind == .cash)
+        #expect(pocket.currencyCode == "USD")
+        #expect(pocket.trackingSince == then && pocket.openingBalance == 5_000)
+        #expect(pocket.creditLimit == 300)
+        #expect(pocket.isSavings && pocket.isHidden)
+        #expect(stored.balanceAdjustments.map(\.walletID) == [cash.id])
+        #expect(stored.splitRule.savingsWalletID == cash.id)
+        let clothes = try #require(stored.category(id: shopping.id))
+        #expect(clothes.name == "Clothes" && clothes.symbol == "tshirt.fill")
+        #expect(clothes.role == .freeMoney)
+
+        // A new one starts from its name; saving it unchanged changes nothing.
+        let momo = UUID()
+        store.saveLabel(id: momo, name: "MoMo", symbol: "iphone", kind: .paymentMethod, in: account.id)
+        let made = try #require(store.account(id: account.id)?.paymentMethod(id: momo))
+        #expect(made.kind == .mobileMoney && !made.isTracking)
+        var changes: [StoreChange] = []
+        store.addObserver { changes.append($0) }
+        store.saveLabel(id: momo, name: "MoMo", symbol: "iphone", kind: .paymentMethod, in: account.id)
+        #expect(changes.isEmpty)
+    }
+
     // MARK: Deleting a wallet
 
     @Test func deletingAWalletUnlinksEverythingAndKeepsCurrencies() throws {
