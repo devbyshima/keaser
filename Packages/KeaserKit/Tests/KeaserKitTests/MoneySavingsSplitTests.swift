@@ -7,7 +7,6 @@ import Testing
 struct MoneySavingsSplitTests {
     private let day = Date(timeIntervalSinceReferenceDate: 780_000_000)
     private let now = Date(timeIntervalSinceReferenceDate: 780_100_000)
-    private let fixedID = UUID(uuidString: "E1B2C3D4-0001-4000-8000-000000000001")!
     /// Every `income()` is the same income, saved again.
     private let incomeID = UUID(uuidString: "E1B2C3D4-0002-4000-8000-000000000002")!
 
@@ -34,7 +33,7 @@ struct MoneySavingsSplitTests {
     ) -> (transfer: Transfer?, percent: Int?) {
         SavingsSplit.transfer(
             for: income, stored: stored, existing: existing, in: account, rule: rule ?? self.rule, display: "RWF",
-            converter: CurrencyConverter(displayCurrency: "RWF", rates: rates), now: now, newID: { fixedID }
+            converter: CurrencyConverter(displayCurrency: "RWF", rates: rates), now: now
         )
     }
 
@@ -164,7 +163,10 @@ struct MoneySavingsSplitTests {
         var source = income()
         source.rate = ExchangeRate(rate: 1, currencyCode: "RWF", date: day)
         let made = try #require(split(source).transfer)
-        #expect(made.id == fixedID)
+        // Its ID comes from the income's alone, the same on every device.
+        #expect(made.id == SavingsSplit.transferID(forIncome: incomeID))
+        #expect(made.id.uuidString == "AB83AC43-A540-8DE1-966A-C17749E1985C")
+        #expect(SavingsSplit.transferID(forIncome: UUID()) != made.id)
         #expect(made.kind == .savings)
         #expect(made.fromWalletID == cash.id && made.toWalletID == savings.id)
         #expect(made.date == day && made.incomeID == source.id)

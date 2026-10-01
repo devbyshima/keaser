@@ -134,6 +134,92 @@ struct SyncMoneyTests {
         #expect(sameContent(a, b))
     }
 
+    /// The pair with a Savings wallet tracking from 0 and the split rule on
+    /// into it, synced.
+    private func pairWithRule() throws -> (cloud: TestCloud, a: TestDevice, b: TestDevice, savings: PaymentMethod) {
+        let (cloud, a, b) = try pair()
+        let personal = try #require(a.account("Personal"))
+        let savings = PaymentMethod(name: "Savings", symbol: "banknote", isSavings: true)
+        a.store.savePaymentMethod(savings, in: personal.id)
+        a.store.setBalance(0, ofWallet: savings.id, in: personal.id, at: later(by: -60))
+        a.store.updateSplitRule(in: personal.id) {
+            $0.isEnabled = true
+            $0.savingsWalletID = savings.id
+        }
+        a.sync(cloud)
+        b.sync(cloud)
+        return (cloud, a, b, savings)
+    }
+
+    /// The device's single savings transfer for the income, or nil when
+    /// it has none or more than one; with the Savings balance it makes.
+    private func savingsSplit(of title: String, on device: TestDevice, savings: PaymentMethod) -> (Transfer, Decimal?)? {
+        guard let account = device.account("Personal"), let income = device.income(title) else { return nil }
+        let split = account.transfers.filter { $0.kind == .savings && $0.incomeID == income.id }
+        guard split.count == 1, let transfer = split.first, income.savingsTransferID == transfer.id else { return nil }
+        let display = device.database.preferences.currencyCode
+        let balance = WalletBalances.balance(
+            of: savings.id, in: account, display: display,
+            converter: CurrencyConverter(displayCurrency: display, rates: nil), calendar: .current
+        )
+        return (transfer, balance?.amount)
+    }
+
+    @Test func aSavingsTransferMadeOnTwoDevicesIsOne() throws {
+        let (cloud, a, b, savings) = try pairWithRule()
+        let personal = try #require(a.account("Personal"))
+        let bank = try #require(a.wallet("Bank Transfer"))
+        a.store.saveIncome(Income(title: "Bonus", amount: 500, walletID: bank.id, savingsSkipped: true), in: personal.id)
+        a.sync(cloud)
+        b.sync(cloud)
+        #expect(b.income("Bonus")?.savingsSkipped == true)
+
+        // Each device turns Skip This Time off while offline.
+        for (device, seconds) in [(a, 10.0), (b, 20.0)] {
+            var bonus = try #require(device.income("Bonus"))
+            bonus.savingsSkipped = false
+            device.store.saveIncome(bonus, in: personal.id, now: later(by: seconds))
+        }
+        a.sync(cloud)
+        b.sync(cloud)
+        a.sync(cloud)
+        let bonus = try #require(a.income("Bonus"))
+        for device in [a, b] {
+            let (transfer, balance) = try #require(savingsSplit(of: "Bonus", on: device, savings: savings))
+            #expect(transfer.id == SavingsSplit.transferID(forIncome: bonus.id))
+            #expect(transfer.amountOut == 100)
+            #expect(balance == 100)
+        }
+        #expect(cloud.names(of: .transfer).count == 2)
+        #expect(sameContent(a, b))
+    }
+
+    @Test func anIncomeEditedBeforeItsSavingsTransferArrivesMakesNoSecondOne() throws {
+        let (cloud, a, b, savings) = try pairWithRule()
+        let personal = try #require(a.account("Personal"))
+        let bank = try #require(a.wallet("Bank Transfer"))
+        a.store.saveIncome(Income(title: "Bonus", amount: 500, walletID: bank.id), in: personal.id)
+        let bonus = try #require(a.income("Bonus"))
+        a.sync(cloud)
+
+        // B has the income from one batch of a fetch, not yet its transfer.
+        b.pullPartially(cloud, names: [SyncRecordName.make(.income, bonus.id)])
+        #expect(b.income("Bonus") != nil)
+        #expect(b.account("Personal")?.transfer(id: bonus.savingsTransferID) == nil)
+        var onB = try #require(b.income("Bonus"))
+        onB.title = "Year-end bonus"
+        b.store.saveIncome(onB, in: personal.id, now: later(by: 10))
+        b.sync(cloud)
+        a.sync(cloud)
+        for device in [a, b] {
+            let (transfer, balance) = try #require(savingsSplit(of: "Year-end bonus", on: device, savings: savings))
+            #expect(transfer.id == bonus.savingsTransferID)
+            #expect(balance == 100)
+        }
+        #expect(cloud.names(of: .transfer).count == 2)
+        #expect(sameContent(a, b))
+    }
+
     @Test func theLaterSplitRuleEditWins() throws {
         let (cloud, a, b) = try pair()
         let personal = try #require(a.account("Personal"))

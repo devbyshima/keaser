@@ -29,7 +29,8 @@ public enum SavingsSplit {
     ///    the income's saved rate, so both sides are worth the same, or at
     ///    today's rates without one. When it cannot be converted,
     ///    `existing` stays as it is and a new one is none.
-    /// 6. It keeps `existing`'s ID, creation time and note, and is dated
+    /// 6. It keeps `existing`'s ID, creation time and note; a new one's ID
+    ///    comes from the income's (`transferID(forIncome:)`). It is dated
     ///    with the income. Its currencies follow its wallets (nil), except
     ///    that an income in another currency than its wallet's gives the
     ///    transfer that currency, so the amount is never read in another.
@@ -42,8 +43,7 @@ public enum SavingsSplit {
         rule: SplitRule,
         display: String,
         converter: CurrencyConverter,
-        now: Date,
-        newID: () -> UUID = UUID.init
+        now: Date
     ) -> (transfer: Transfer?, percent: Int?) {
         let none: (transfer: Transfer?, percent: Int?) = (nil, nil)
         guard !income.savingsSkipped else { return none }
@@ -85,7 +85,7 @@ public enum SavingsSplit {
         else { return kept }
         let walletCurrency = wallet.effectiveCurrency(display: display)
         let transfer = Transfer(
-            id: existing?.id ?? newID(),
+            id: existing?.id ?? transferID(forIncome: income.id),
             kind: .savings,
             fromWalletID: wallet.id,
             toWalletID: target.id,
@@ -102,5 +102,13 @@ public enum SavingsSplit {
             updatedAt: now
         )
         return (transfer, percent)
+    }
+
+    /// The ID of the savings transfer an income makes, derived from the
+    /// income's alone: two devices that make it for the same income (each
+    /// turning its Skip This Time off while offline) make one record, which
+    /// iCloud sync merges, rather than two that would count twice.
+    static func transferID(forIncome id: UUID) -> UUID {
+        .derived(from: "\(id.uuidString).savings-transfer")
     }
 }

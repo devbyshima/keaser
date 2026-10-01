@@ -338,6 +338,9 @@ public final class KeaserStore {
         } else if let existing {
             account.transfers.removeAll { $0.id == existing.id }
         }
+        // Any other savings transfer of it is a copy (made on another
+        // device) that would count twice.
+        account.transfers.removeAll { $0.kind == .savings && $0.incomeID == income.id && $0.id != split.transfer?.id }
         income.savingsTransferID = split.transfer?.id
         income.savingsPercent = split.percent
         if let i = account.incomes.firstIndex(where: { $0.id == income.id }) {
@@ -381,16 +384,21 @@ public final class KeaserStore {
     }
 
     /// Removes a transfer. Deleting an income's savings transfer is
-    /// skipping it: the income keeps no split and is marked skipped.
+    /// skipping it: the income keeps no split and is marked skipped. A
+    /// copy of it the income does not link, while another remains, goes
+    /// alone.
     public func deleteTransfer(_ transferID: UUID, in accountID: UUID) {
         guard let a = database.accounts.firstIndex(where: { $0.id == accountID }),
               let t = database.accounts[a].transfers.firstIndex(where: { $0.id == transferID })
         else { return }
         let before = database
         let transfer = database.accounts[a].transfers.remove(at: t)
+        let remaining = database.accounts[a].transfers
         for i in database.accounts[a].incomes.indices {
             let income = database.accounts[a].incomes[i]
-            guard income.savingsTransferID == transferID || (transfer.kind == .savings && transfer.incomeID == income.id) else { continue }
+            let itsLast = transfer.kind == .savings && transfer.incomeID == income.id
+                && !remaining.contains { $0.kind == .savings && $0.incomeID == income.id }
+            guard income.savingsTransferID == transferID || itsLast else { continue }
             database.accounts[a].incomes[i].savingsTransferID = nil
             database.accounts[a].incomes[i].savingsPercent = nil
             database.accounts[a].incomes[i].savingsSkipped = true

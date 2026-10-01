@@ -181,6 +181,60 @@ struct MoneyStoreTests {
         #expect(savingsTransfers.first?.amountOut == 10_000)
     }
 
+    @Test func aSavingsTransferTheIncomeLostTrackOfIsFoundByItsIncome() throws {
+        let (store, account) = storeWithRule()
+        store.saveIncome(Income(title: "Salary", amount: 100_000, walletID: wallet("Cash", in: account).id), in: account.id)
+        // The stored income has lost its link too (a merge from iCloud), and
+        // the transfer has an ID of its own (an earlier build's).
+        let older = UUID()
+        store.updateAccount(account.id) { account in
+            account.transfers[0].id = older
+            account.incomes[0].savingsTransferID = nil
+        }
+        var income = try #require(store.account(id: account.id)?.incomes.first)
+        income.amount = 150_000
+        store.saveIncome(income, in: account.id)
+        let stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.map(\.id) == [older])
+        #expect(stored.transfers.first?.amountOut == 30_000)
+        #expect(stored.incomes.first?.savingsTransferID == older)
+    }
+
+    @Test func aCopyOfAnIncomesSavingsTransferGoes() throws {
+        let (store, account) = storeWithRule()
+        let cash = wallet("Cash", in: account)
+        let income = Income(title: "Salary", amount: 100_000, walletID: cash.id)
+        store.saveIncome(income, in: account.id)
+        let linked = try #require(store.account(id: account.id)?.transfers.first)
+        #expect(linked.id == SavingsSplit.transferID(forIncome: income.id))
+        // A second one for the same income, as two devices made before.
+        let copy = Transfer(kind: .savings, fromWalletID: cash.id, toWalletID: wallet("Savings", in: account).id, amountOut: 20_000, incomeID: income.id)
+        store.saveTransfer(copy, in: account.id)
+
+        // Deleting the copy leaves the income's split as it is.
+        store.deleteTransfer(copy.id, in: account.id)
+        var stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.map(\.id) == [linked.id])
+        #expect(stored.incomes.first?.savingsSkipped == false)
+        #expect(stored.incomes.first?.savingsTransferID == linked.id)
+
+        // Saving the income again takes a copy away.
+        store.saveTransfer(copy, in: account.id)
+        var edited = try #require(stored.incomes.first)
+        edited.title = "Pay"
+        store.saveIncome(edited, in: account.id)
+        stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.map(\.id) == [linked.id])
+
+        // Its only savings transfer, linked or not, is its split: deleting
+        // it skips the income.
+        store.updateAccount(account.id) { $0.incomes[0].savingsTransferID = nil }
+        store.deleteTransfer(linked.id, in: account.id)
+        stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.isEmpty)
+        #expect(stored.incomes.first?.savingsSkipped == true)
+    }
+
     @Test func aSavingsWalletInAnotherCurrencyTakesTodaysRate() throws {
         let (store, account) = storeWithRule()
         var savings = wallet("Savings", in: account)
