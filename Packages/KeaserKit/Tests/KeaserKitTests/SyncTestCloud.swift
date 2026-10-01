@@ -191,9 +191,57 @@ final class TestDevice {
     func expense(_ title: String) -> Expense? {
         database.accounts.flatMap(\.expenses).first { $0.title == title }
     }
+
+    func income(_ title: String) -> Income? {
+        database.accounts.flatMap(\.incomes).first { $0.title == title }
+    }
+
+    /// By its note.
+    func transfer(_ note: String) -> Transfer? {
+        database.accounts.flatMap(\.transfers).first { $0.note == note }
+    }
+
+    /// The wallet (payment method) of this name in the account.
+    func wallet(_ name: String, in account: String = "Personal") -> PaymentMethod? {
+        self.account(account)?.paymentMethods.first { $0.name == name }
+    }
 }
 
 /// A moment after `date`, for edits that must be later than another.
 func later(_ date: Date = .now, by seconds: TimeInterval = 1) -> Date {
     date.addingTimeInterval(seconds)
+}
+
+/// Whether two devices hold the same data: each account with its labels in
+/// order, its expenses, income, transfers, balance adjustments and split
+/// rule, and the shared settings.
+@MainActor
+func sameContent(_ a: TestDevice, _ b: TestDevice) -> Bool {
+    func shape(_ db: Database) -> [String] {
+        db.accounts.map { account in
+            let labels = [
+                account.categories.map(\.name), account.paymentMethods.map(\.name), account.incomeCategories.map(\.name),
+            ].map { $0.joined(separator: ",") }.joined(separator: "|")
+            let expenses = account.expenses.sorted { $0.id.uuidString < $1.id.uuidString }
+                .map { "\($0.id)\($0.title)\($0.amount)\($0.categoryID?.uuidString ?? "-")\($0.paymentMethodID?.uuidString ?? "-")" }
+            return "\(account.id) \(account.name) [\(labels)] \(expenses.joined(separator: ";"))"
+        }
+    }
+    func money(_ db: Database) -> [String: [String]] {
+        Dictionary(uniqueKeysWithValues: db.accounts.map { account in
+            let wallets = account.paymentMethods.map {
+                "\($0.id) \($0.kind.rawValue) \($0.currencyCode ?? "-") \(String(describing: $0.trackingSince)) \($0.openingBalance) \($0.isSavings)"
+            }
+            return (account.id.uuidString, wallets + [
+                "\(account.incomes.sorted { $0.id.uuidString < $1.id.uuidString })",
+                "\(account.transfers.sorted { $0.id.uuidString < $1.id.uuidString })",
+                "\(account.balanceAdjustments.sorted { $0.id.uuidString < $1.id.uuidString })",
+                "\(account.splitRule)",
+                "\(account.incomeCategories.map(\.id))",
+            ])
+        })
+    }
+    return shape(a.database) == shape(b.database)
+        && money(a.database) == money(b.database)
+        && SyncedSettings(a.database.preferences).differs(from: SyncedSettings(b.database.preferences)) == false
 }
