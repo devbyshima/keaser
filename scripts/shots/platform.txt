@@ -19,10 +19,10 @@ widgets-accented-locked-small | -KeaserSeed fresh -KeaserOnboardingPage widgetGa
 widgets-accented-locked-large | -KeaserSeed fresh -KeaserOnboardingPage widgetGalleryLocked -KeaserGalleryRendering accented -KeaserGalleryScroll large
 
 # Settings page titles, centred beside the round back button.
-title-shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
-title-smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions
-title-currency | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage currency
-title-categories | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage categories
+title-shortcut | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage shortcut
+title-smart-suggestions | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage smartSuggestions
+title-currency | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage currency
+title-categories | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage categories
 
 # Wider screens: run these on a bigger simulator too, e.g.
 #   SIM="Keaser iPad" SIM_TYPE=com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M5-12GB ./scripts/screenshots.sh platform

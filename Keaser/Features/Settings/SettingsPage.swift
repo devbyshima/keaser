@@ -1,7 +1,8 @@
 import KeaserKit
 import SwiftUI
 
-/// Every page that can be pushed inside the Settings sheet.
+/// Every page that can be pushed in the Settings tab. The tab's path lives in
+/// `AppRouter.settingsPath`, so a route can take it back to the root.
 enum SettingsPage: Hashable {
     case account(UUID)
     /// Categories or payment methods of an account. `opening` shows the
@@ -43,8 +44,19 @@ enum SettingsPage: Hashable {
         }
     }
 
-    /// The pages `-KeaserSettingsPage <name>` opens at launch (DEBUG), so a
-    /// screenshot can start deep inside Settings. Empty in Release.
+    /// The account a page belongs to: Account Settings and an account's
+    /// Categories or Payment Methods.
+    var accountID: UUID? {
+        switch self {
+        case .account(let id): id
+        case .labels(_, let accountID, _): accountID
+        default: nil
+        }
+    }
+
+    /// The pages `-KeaserSettingsPage <name>` pushes in the Settings tab at
+    /// launch (DEBUG), so a screenshot can start deep inside Settings (with
+    /// `-KeaserTab settings` to show it). Empty in Release.
     @MainActor
     static func launchPath(store: KeaserStore) -> [SettingsPage] {
         guard let name = DebugLaunch.settingsPage else { return [] }
@@ -72,5 +84,17 @@ enum SettingsPage: Hashable {
         case "terms": return [.terms]
         default: return []
         }
+    }
+}
+
+extension [SettingsPage] {
+    /// The path without the first page whose account is not among
+    /// `accountIDs`, or any page after it: a deleted account's pages leave
+    /// the stack, and so does whatever was pushed over them.
+    func keepingAccounts(_ accountIDs: Set<UUID>) -> [SettingsPage] {
+        guard let gone = firstIndex(where: { page in
+            page.accountID.map { !accountIDs.contains($0) } ?? false
+        }) else { return self }
+        return Array(prefix(gone))
     }
 }

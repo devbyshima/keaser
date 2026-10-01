@@ -10,8 +10,9 @@ import KeaserKit
 /// Keys (see AGENTS.md for the full table):
 /// - `-KeaserSeed fresh|onboarded|account|single|demo`
 /// - `-KeaserOnboardingPage 0...4`
+/// - `-KeaserTab home|wallets|summary|settings`
 /// - `-KeaserSheet <name>` (each feature documents its own sheet names)
-/// - `-KeaserSettingsPage <name>`
+/// - `-KeaserSettingsPage <name>` (pushed in the Settings tab)
 /// - `-KeaserPeriod today|thisWeek|thisMonth|thisYear|allTime`
 enum DebugLaunch {
     static func string(_ key: String) -> String? {
@@ -30,11 +31,24 @@ enum DebugLaunch {
         string("KeaserSeed").flatMap(DemoData.Seed.init(rawValue:))
     }
 
+    /// The tab showing at launch, instead of Home.
+    static var tab: AppTab? { string("KeaserTab").flatMap(AppTab.init(rawValue:)) }
+
     /// The sheet a screenshot wants presented at launch, e.g. "newExpense".
     static var sheet: String? { string("KeaserSheet") }
 
     /// A page inside Settings, e.g. "currency".
     static var settingsPage: String? { string("KeaserSettingsPage") }
+
+    /// True the first time a launch asks for `hook`, false after that. A
+    /// screen that applies its launch argument when it appears (scrolling,
+    /// an alert) asks first, since switching tabs makes it appear again.
+    @MainActor
+    static func firstTime(_ hook: String) -> Bool {
+        usedHooks.insert(hook).inserted
+    }
+
+    @MainActor private static var usedHooks: Set<String> = []
 
     /// A shortcut card drawn in a stand-in of the system's, e.g. "confirm"
     /// (see `SnippetPreview`).

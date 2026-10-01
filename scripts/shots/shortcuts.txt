@@ -1,6 +1,6 @@
 # Owned by shortcuts. The Shortcut settings page, and the Add Expense and
 # Wallet cards drawn inside a stand-in of the system card (-KeaserSnippet).
-settings | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
+settings | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage shortcut
 
 # The expense cards (-KeaserSnippet): confirm is the interactive card of iOS
 # 26, confirm-plain the one of iOS 18 to 25, result the Add Expense card with

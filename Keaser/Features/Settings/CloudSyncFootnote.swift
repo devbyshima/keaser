@@ -9,7 +9,7 @@ struct CloudSyncFootnote: View {
     let status: CloudSyncStatus
 
     var body: some View {
-        // "2 min ago" stays true while Settings is open.
+        // "2 min ago" stays true while Settings shows.
         TimelineView(.periodic(from: .now, by: 30)) { context in
             SettingsFootnote(status.text(now: context.date))
         }

@@ -8,9 +8,9 @@ guess-model-none | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTit
 # A title the word rules know is never asked about: Food & Drinks, then Cash.
 guess-model-rules | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount -KeaserCategoryModel Health
 # The footer's Apple Intelligence sentence, and the page without it.
-smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel Health
-smart-suggestions-ineligible | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel off
+smart-suggestions | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel Health
+smart-suggestions-ineligible | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage smartSuggestions -KeaserCategoryModel off
 # The privacy policy's paragraph on Apple Intelligence.
-privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll Intelligence
+privacy | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage privacy -KeaserSettingsScroll Intelligence
 # The privacy policy's paragraph on receipts.
-privacy-receipts | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll Receipts
+privacy-receipts | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage privacy -KeaserSettingsScroll Receipts

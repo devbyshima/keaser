@@ -1,46 +1,48 @@
-# Owned by settings-pro. Settings pages open from -KeaserSheet settings plus
-# -KeaserSettingsPage <page>; the paywall from -KeaserSheet paywall.
-root | -KeaserSeed single -KeaserSheet settings
-root-bottom | -KeaserSeed single -KeaserSheet settings -KeaserSettingsScroll bottom
-root-expired | -KeaserSeed single -KeaserSheet settings -KeaserPro expired
-root-purchased | -KeaserSeed single -KeaserSheet settings -KeaserPro purchased
-account | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage account
-account-rename | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage account -KeaserSettingsAlert rename
-categories | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage categories
-new-category | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage newCategory
-edit-category | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editCategory
-edit-category-reset | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editCategory -KeaserSettingsScroll bottom
-payment-methods | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage paymentMethods
-new-payment-method | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage newPaymentMethod
-edit-payment-method | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage editPaymentMethod
-currency | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage currency
-start-week | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage startWeek
-smart-suggestions | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage smartSuggestions
-weekly-summary | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage weeklySummary
-weekly-summary-denied | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage weeklySummary -KeaserNotifState denied
-shortcut | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage shortcut
-tutorials | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorials
+# Owned by settings-pro. Settings is a tab: -KeaserTab settings starts on it,
+# with -KeaserSettingsPage <page> already pushed; the paywall opens from
+# -KeaserSheet paywall.
+root | -KeaserSeed single -KeaserTab settings
+root-bottom | -KeaserSeed single -KeaserTab settings -KeaserSettingsScroll bottom
+root-expired | -KeaserSeed single -KeaserTab settings -KeaserPro expired
+root-purchased | -KeaserSeed single -KeaserTab settings -KeaserPro purchased
+account | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage account
+account-rename | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage account -KeaserSettingsAlert rename
+categories | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage categories
+new-category | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage newCategory
+edit-category | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage editCategory
+edit-category-reset | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage editCategory -KeaserSettingsScroll bottom
+payment-methods | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage paymentMethods
+new-payment-method | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage newPaymentMethod
+edit-payment-method | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage editPaymentMethod
+currency | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage currency
+start-week | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage startWeek
+smart-suggestions | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage smartSuggestions
+weekly-summary | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage weeklySummary
+weekly-summary-denied | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage weeklySummary -KeaserNotifState denied
+shortcut | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage shortcut
+tutorials | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorials
 # Tutorial articles: the top, then -KeaserTutorialScroll <section id,
 # illustration name or end> for the rest of each page.
-tutorial-wallet | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet
-tutorial-wallet-options | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll walletTrigger
-tutorial-wallet-action | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll action
-tutorial-wallet-variables | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll walletVariables
-tutorial-wallet-date | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll currentDate
-tutorial-wallet-end | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll end
-whats-new | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage whatsNew
-release | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage release
-help | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage help
-follow-us | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage followUs
-privacy | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy
-terms | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage terms
+tutorial-wallet | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorialWallet
+tutorial-wallet-options | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll walletTrigger
+tutorial-wallet-action | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll action
+tutorial-wallet-variables | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll walletVariables
+tutorial-wallet-date | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll currentDate
+tutorial-wallet-end | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage tutorialWallet -KeaserTutorialScroll end
+whats-new | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage whatsNew
+release | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage release
+help | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage help
+follow-us | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage followUs
+privacy | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage privacy
+terms | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage terms
 paywall | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample
-# As Upgrade in Settings opens it, on a second sheet: compare with the reference.
-paywall-over-settings | -KeaserSeed single -KeaserSheet settingsPaywall -KeaserProPrices sample
+# As Upgrade in Settings opens it: one sheet over the Settings tab (the
+# reference stacks it on the Settings sheet, which is now a tab).
+paywall-over-settings | -KeaserSeed single -KeaserTab settings -KeaserSheet paywall -KeaserProPrices sample
 paywall-plans | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample -KeaserPaywallPlans all
 paywall-purchased | -KeaserSeed single -KeaserSheet paywall -KeaserPro purchased
 paywall-live | -KeaserSeed single -KeaserSheet paywall
-root-links | -KeaserSeed demo -KeaserSheet settings -KeaserSettingsScroll bottom -KeaserSampleLinks 1
-help-links | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage help -KeaserSampleLinks 1
-follow-us-links | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage followUs -KeaserSampleLinks 1
+root-links | -KeaserSeed demo -KeaserTab settings -KeaserSettingsScroll bottom -KeaserSampleLinks 1
+help-links | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage help -KeaserSampleLinks 1
+follow-us-links | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage followUs -KeaserSampleLinks 1
 paywall-highlight | -KeaserSeed single -KeaserSheet paywall -KeaserProPrices sample -KeaserPro expired -KeaserPaywallFeature longTermInsights

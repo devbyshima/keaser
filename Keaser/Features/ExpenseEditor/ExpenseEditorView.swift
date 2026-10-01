@@ -166,9 +166,10 @@ struct ExpenseEditorView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, EditorMetrics.contentTop)
+                    .padding(.top, EditorMetrics.contentTop - KeaserMetrics.sheetScrollEdge)
                     .padding(.bottom, 24)
                 }
+                .keaserSheetScrollEdge()
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
                 .keaserReadableScrollContent()
@@ -725,13 +726,15 @@ struct ExpenseEditorView: View {
 }
 
 /// The note under the card once a receipt filled it in, set like a list
-/// section's footer. On iOS 26 and later Home's + button shows blurred
-/// through the glass sheet at the trailing edge, level with the note, as
-/// in the reference; the note's lines wrap before they reach it.
+/// section's footer. On iOS 26 and later the tab bar's Add Expense button
+/// shows blurred through the glass sheet at the trailing edge, level with
+/// the note once the editor scrolls to its end (Home's floating + sat there
+/// in the reference); the note's lines wrap before they reach it.
 private struct ReceiptNote: View {
     let text: String
 
-    /// The + button and its blur, measured from the note's trailing edge.
+    /// The Add Expense button and its blur, measured from the note's
+    /// trailing edge.
     private static var trailingClearance: CGFloat {
         if #available(iOS 26.0, *) { 72 } else { 0 }
     }

@@ -3,7 +3,7 @@
 iOS SwiftUI expense tracker: accounts, expenses, categories, payment methods,
 charts, filters, a spending widget, Shortcuts, weekly summary notifications, and a
 Keaser Pro upgrade with a 7-day pass. Light and dark, monochrome,
-Liquid Glass on iOS 26+.
+Liquid Glass on iOS 26+. Four tabs: Home, Wallets, Summary and Settings.
 
 - `Packages/KeaserKit/` - models, persistence, the `KeaserStore`, and all pure
   logic. Foundation only (no SwiftUI, UIKit or WidgetKit). Tested on the Mac with
@@ -33,8 +33,11 @@ simulator GUI; add launch arguments instead.
 
 ## Platform
 
-- Deployment target iOS 18.0; built with the iOS 27 SDK. The only local
-  simulator runtime is iOS 27.0, so that is what screenshots show. Cold
+- Deployment target iOS 18.0; built with the iOS 27 SDK. Screenshots use
+  the iOS 27.0 simulator runtime; an iOS 18.6 runtime is installed too
+  (`SIM_RUNTIME=com.apple.CoreSimulator.SimRuntime.iOS-18-6` with your own
+  `SIM` name) for checking the pre-26 look, and a fresh simulator can hang
+  on its first launch for minutes, so boot one or two at a time. Cold
   launches straight into deep Settings pages or right after a rebuild can
   come out black at the default settle time; use `SETTLE=7` (or up to 12).
 - Liquid Glass (iOS 26+) only through `Keaser/Design/Glass.swift`
@@ -52,7 +55,15 @@ simulator GUI; add launch arguments instead.
   `homeSheetHeaderButton`, `KeaserCircleButton`, `KeaserCard(fill:)` (sheets
   use `.homeSheetCard`), `KeaserRowSeparator`, `HighlightRowButtonStyle`,
   `KeaserConfirmButton`, `PrimaryButtonStyle`, `.keaserCapsule`,
-  `SymbolTile`, `EmptyStateView`, `keaserSheetChrome()`, `keaserBottomBar`,
+  `SymbolTile`, `EmptyStateView`, `keaserSheetChrome()`,
+  `keaserSheetScrollEdge()` on a scroll view or list under a sheet's
+  header (scrolled content stays 32pt below the header's buttons, fading
+  out over the lower 16pt, instead of touching them; the band is top safe
+  area padding, so the content's own top margin is
+  `HomeSheetMetrics.contentTop - KeaserMetrics.sheetScrollEdge`, or
+  `.contentMargins(.top, ...)` on a List, and it still starts at
+  `contentTop`), `keaserBottomBar`, `keaserSoftBottomEdge()` on a scroll
+  view that runs under the tab bar or another bottom bar,
   `settingsListStyle` for list pages, `keaserGlass` for glass, and the
   Theme tokens, fonts, corner radii and spacing those already use
   (`HomeSheetMetrics` for sheet margins). Never invent a new card, button,
@@ -183,6 +194,43 @@ simulator GUI; add launch arguments instead.
   Shortcut tutorial (a home-made shortcut on Back Tap or a Run Shortcut
   control) was removed by the founder's choice: Keaser's own Add Expense
   control does the same with nothing to build.
+- The tab bar is the founder's choice over the reference, whose recordings
+  have none (money tracking, `docs/plans/money-tracking.md`). It is the
+  system `TabView` in `Keaser/App/MainTabView.swift` (Liquid Glass on iOS
+  26+, the standard bar before; no style, minimize behaviour or bottom
+  accessory; the root `.tint(Color.keaserInk)` colours the selected tab),
+  with four tabs in this order: Home `house`, Wallets `wallet.bifold`,
+  Summary `chart.bar.xaxis`, Settings `gearshape`, then Add Expense set
+  apart at the bar's trailing end (the founder's choice: the + is part of
+  the bar, detached, as the system draws it, and coloured: an ink disc with
+  the + in `keaserOnInk`, the old floating button's look, drawn as an image
+  that keeps its colours, `AddExpenseIcon`, 44pt inside the glass circle on
+  iOS 26+, 30pt before): the prominent tab
+  (`TabRole.prominent`) on iOS 27, the search tab's place (`.search`) on
+  iOS 26, the only tab the bar sets apart there, and a plain last tab
+  before. It is never selected: picking it runs `AppRouter.open(.newExpense)`,
+  so New Expense opens on Home from any tab, as `keaser://new-expense`
+  does. The selected tab is never remembered: every launch starts on Home.
+  Home has no gear and no floating + any more: its top bar is the account
+  capsule on the left and one glass capsule with Search and Filters on the
+  right, and the bar hides while Search is open (only while Home shows:
+  `toolbarVisibility(.hidden, for: .tabBar)`), so Search keeps the whole
+  screen with its field at the bottom. Settings is a tab, not a sheet: no
+  xmark, the inline "Settings" title, and its pushed pages keep the round
+  back button and the tab bar. Light mode is unchanged (the 242,242,247
+  canvas and white cards of the reference); dark mode takes Home's page
+  look, a black canvas with 28,28,30 cards (`settingsCanvas`,
+  `settingsCard`). Its sheets keep the sheet look: the label editor on
+  `settingsSheetCanvas` (grey in light mode, clear in dark), and the
+  paywall's legal documents (`LegalDocumentSheet`) on the sheet's own
+  background with no canvas. In dark mode the Pro banner's near-black sky
+  has the cards' hairline (`keaserSeparator`), so it keeps its edge on the
+  black canvas. The pushed legal pages (Privacy Policy, Terms) are white
+  in light mode, as the reference draws them, and black in dark
+  (`settingsDocumentCanvas`). What scrolls under the tab bar (Home and
+  every settings page) fades into it on iOS 26+ (`keaserSoftBottomEdge()`).
+  Wallets and Summary are placeholders until money tracking phases 3 and
+  7: an inline title over Home's `.large` `EmptyStateView`, centred.
 
 ## Data
 
@@ -403,7 +451,8 @@ What to verify on two devices (A and B, same Apple Account):
 | Argument | Values | Area |
 |---|---|---|
 | `-KeaserSeed` | `fresh`, `onboarded`, `account`, `single`, `demo` | foundation |
-| `-KeaserSheet` | `settings`, `paywall` (presented by `RootView` over whatever is showing); `settingsPaywall` opens Settings with the paywall on a second sheet over it, as Upgrade does | foundation |
+| `-KeaserTab` | `home`, `wallets`, `summary`, `settings`: the tab showing at launch (Home without it) | foundation |
+| `-KeaserSheet` | `paywall` (presented by `RootView` over whatever is showing; with `-KeaserTab settings` it is the paywall as Upgrade in Settings opens it) | foundation |
 | `-KeaserOnboardingPage` | `0`...`4`; `widgetGallery` (every Spending widget size: the Today, This Week and This Month medium widgets first, then small, lock screen, large and extra large portrait, with a long RWF total), `widgetGalleryLocked` (every size once the pass is over, and without an account); both need seed `fresh` | onboarding |
 | `-KeaserGalleryScroll` | `small` (then the lock screen widgets), `lockScreen`, `large`, `extraLarge` start either widget gallery at that section; `extraLargeNoAccount` starts the locked gallery at its last widget (the sections before the start are left out, so shots begin at its heading) | onboarding, platform |
 | `-KeaserGalleryRendering` | `accented`: the gallery's home screen widgets as a tinted or clear home screen draws them (glass, white content, a stand-in tint on the total) | platform |
@@ -417,20 +466,21 @@ What to verify on two devices (A and B, same Apple Account):
 | `-KeaserExpenseFocus` | `amount`: then moves on to Amount (shows the guessed category and payment); `none`: the keyboard stays down, to see the receipt card and Delete under the card | home |
 | `-KeaserReceiptAttached` | a count from `1` to `10`: that many sample receipts (each a different shop, printed onto paper by `ReceiptImageRenderer`) are kept with the selected account's newest expense (seeded folder), for `-KeaserSheet expense` and `editExpense`; with `newExpense` it starts New Expense with them attached, unsaved | home |
 | `-KeaserReceiptViewer` | `n` (from 1): with receipts showing (`-KeaserReceiptAttached`), opens the n-th full screen, in the details or the editor (`3` receipts and `2` shows "Receipt 2 of 3") | home |
-| `-KeaserExpenseScroll` | `receipts`: the editor scrolls down to its receipts, to see the gallery under the card (with `-KeaserExpenseFocus none`) | home |
+| `-KeaserExpenseScroll` | `receipts`: the editor (with `-KeaserExpenseFocus none`) or the details scroll down to their receipts, to see the gallery under the header | home |
 | `-KeaserOpenURL` | a deep link taken through `AppRouter` as if a widget or control opened it; `keaser://scan-receipt` with `-KeaserReceipt <sample> -KeaserReceiptImage 1` shows the Scan Receipt control's route reading and attaching that sample instead of opening the camera | home |
 | `-KeaserAccountsEditing` | `1` opens the Accounts sheet in edit mode | home |
 | `-KeaserChartSelection` | `last` or a bar index: shows the long-press callout | home |
 | `-KeaserCurrency` | an ISO code (`RWF`, `JPY`...): the seed's currency | home |
 | `-KeaserAmountScale` | a whole number every seeded amount is multiplied by; with `-KeaserCurrency RWF` and `5000`, seed `single` shows RWF 100,000 | home |
-| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms` | settings |
-| `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default); or a word: with `-KeaserSettingsPage privacy` or `terms`, starts at the first heading containing it | settings, intelligence |
+| `-KeaserSettingsPage` | `account`, `categories`, `newCategory`, `editCategory`, `paymentMethods`, `newPaymentMethod`, `editPaymentMethod`, `currency`, `startWeek`, `smartSuggestions`, `weeklySummary`, `shortcut`, `tutorials`, `tutorialWallet`, `whatsNew`, `release`, `help`, `followUs`, `privacy`, `terms`: pushed in the Settings tab at launch (`AppRouter.settingsPath`), so pair it with `-KeaserTab settings` | settings |
+| `-KeaserSettingsScroll` | `bottom` (also scrolls the label editor to Reset to Default); or a word: with `-KeaserSettingsPage privacy` or `terms`, starts at the first heading containing it. Once a launch, so a return to the tab does not scroll again | settings, intelligence |
+| `-KeaserTutorialScroll` | a section ID, an illustration's name or `end`: with `-KeaserSettingsPage tutorialWallet`, starts the article there (once a launch) | settings |
 | `-KeaserSnippet` | `confirm`, `confirmPlain`, `result`, `wallet`: the shortcut's expense card (the real `ExpenseCardView`) in a stand-in of the system card over a plain lock screen; `confirm` is the interactive iOS 26+ card, `confirmPlain` the iOS 18 to 25 one; `confirmAccount`, `confirmCategory`, `confirmPayment`: the interactive card with that detail tapped, its options listed inside the card | shortcuts |
 | `-KeaserSnippet` | `spending`: the answer of "How Much Did I Spend" (`SpendingSnippetView`) for the selected account, This Week unless `-KeaserPeriod` says otherwise | intents |
 | `-KeaserSnippetLong` | `1` gives the card a long title and a long account name | shortcuts |
 | `-KeaserSnippetOptions` | `many` gives the account twelve more categories, so an open category list pages | shortcuts |
 | `-KeaserSnippetPage` | `n` (from 1): the page of the open list shown; without it, the page with the chosen option | shortcuts |
-| `-KeaserSettingsAlert` | `rename`: the Rename Account alert, with `-KeaserSettingsPage account` | settings |
+| `-KeaserSettingsAlert` | `rename`: the Rename Account alert, with `-KeaserSettingsPage account` (once a launch) | settings |
 | `-KeaserPro` | `purchased`, `expired`, `never` | settings |
 | `-KeaserProPrices` | `sample` (fake prices; simctl launches cannot use the StoreKit configuration) | settings |
 | `-KeaserPaywallFeature` | a `ProFeature` raw value to highlight | settings |
@@ -440,8 +490,8 @@ What to verify on two devices (A and B, same Apple Account):
 | `-KeaserReceipt` | a `ReceiptSamples` name (`coffee`, `grocery`, `cafe-paris`, `not-a-receipt`, `tip-suggestions`, `cash-change`, `gross-net`, `cable`, ...): New Expense reads that sample receipt as if it had just been scanned | intelligence |
 | `-KeaserReceiptImage` | `1`: with `-KeaserReceipt`, prints the sample onto an image first and reads it with Vision, the whole way a photo goes | intelligence |
 | `-KeaserReceiptHold` | `1`: with `-KeaserReceipt`, keeps the receipt reading (the spinner in the title row) | intelligence |
-| `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, the expense's details over Home) | intents |
-| `-KeaserOpenAccount` | an account index: the route `OpenAccountIntent` leaves (the account selected, Home with nothing over it) | intents |
+| `-KeaserOpenExpense` | `first` (the newest expense in any account) or an index into every expense, newest first: the route `OpenExpenseIntent` and a tapped Spotlight result leave (its account selected, the expense's details over the Home tab) | intents |
+| `-KeaserOpenAccount` | an account index: the route `OpenAccountIntent` leaves (the account selected, the Home tab with nothing over it) | intents |
 | `-KeaserOpenSearch` | search text: the route `SearchExpensesIntent` leaves (Search with the results, keyboard down) | intents |
 | `-KeaserSelectAccount` | an account index selected at launch, with a seed; `1` with seed `demo` starts on Business, to see an opened Personal expense switch back | intents |
 | `-KeaserSpotlight` | `index`: a seeded launch writes its data to Spotlight too (seeded launches normally never index) | intents |
@@ -526,11 +576,27 @@ Seeded launches keep the database in memory and never touch the real file.
   the DEBUG `ResetTestDataIntent` (`IntentTestFixture`, fixed IDs). AppIntentsTesting
   accepts confirmations on its own, so confirmation paths are device-only checks.
   Spotlight searches go through `IntentTestCase.spotlight(_:_:)`, bounded at 40 s.
+  The simulator's Spotlight can stall ("did not answer within 40 s"), on
+  main as well: erase the "Keaser intents test" simulator (its data is the
+  tests' own) and run `SpotlightTests` again.
 - Deep links: `keaser://new-expense`, `keaser://scan-receipt`, `keaser://settings`
   (see `AppRouter.route(for:)`).
   App Intents and Spotlight results use the routes `AppRouter.Route.expense(UUID)`
   (select its account, the expense's details), `.account(UUID)` (select it, Home) and
   `.search(String)` (Search with the text); `HomeView.handle(_:)` follows them.
+  Every route goes through `AppRouter.open(_:)` (deep links, Spotlight,
+  `AppIntentRoutes.open`, DEBUG launches), which owns the tab showing
+  (`selectedTab`) and the Settings tab's stack (`settingsPath`).
+  `keaser://settings` (the locked widget) selects the Settings tab at its root,
+  where Upgrade is, and closes a Home sheet; every other route selects Home.
+  Each route bumps `modalReset`, which closes what the Settings tab presents
+  (the paywall, the label editor, alerts and dialogs) and RootView's DEBUG
+  paywall. When the route changes tabs, the tab changes once nothing is
+  presented any more, or after 2 s at most (the welcome letter, say, stays
+  up): a sheet whose tab leaves the screen while it is up stays stuck, and
+  the new tab cannot present one while another is leaving.
+  An account deleted elsewhere takes its Settings pages (Account Settings,
+  its Categories or Payment Methods) off the stack.
 - Siri, Spotlight and Shortcuts entities: `ExpenseEntity` (app only,
   `Keaser/Intents/ExpenseEntity.swift`; an `IndexedEntity` whose
   `ExpenseEntityQuery` resolves IDs in every account, matches titles and
@@ -598,7 +664,7 @@ Seeded launches keep the database in memory and never touch the real file.
 
 | Area | Files |
 |---|---|
-| foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
+| foundation | `project.yml`, `Keaser/App/` (incl. `AppLinks.swift`, the tab container `MainTabView.swift` and `AppRouter` in `AppEnvironment.swift`), `Keaser/Design/Theme.swift`, `Glass.swift`, `Components.swift`, `Packages/KeaserKit/Sources/KeaserKit/{Models,Store}`, `Logic/{Period,MoneyFormat,ProEntitlement}.swift`, `scripts/*.sh` |
 | onboarding-platform | `Keaser/Features/{Onboarding,Welcome}/`, `Keaser/Design/KeaserLogo.swift`, `Keaser/Intents/`, `Keaser/Notifications/`, `KeaserWidgets/`, `Keaser/Resources/AppIcon.icon` and `scripts/make_icon.swift` (app icon) |
 | platform | `Keaser/Design/ReadableWidth.swift` (the readable column for wide windows on iPad and in iPhone Mirroring, and clearing iPad window controls), `Keaser/Design/SwipeActions.swift` (iOS 27 swipe to edit or delete on Home and search rows), the widget families, `SpendingHeadlineMetrics` (each home screen size's caption and total) and `WidgetInks` (full colour vs accented and vibrant styles) in `KeaserWidgets/Shared/SpendingWidgetView.swift`, the lock screen texts in `Packages/KeaserKit/Sources/KeaserKit/Platform/SpendingSnapshot.swift`, `scripts/shots/platform.txt` |
 | home-expenses | `Keaser/Features/{Home,Accounts,ExpenseEditor}/`; receipts kept with expenses: `ReceiptAttachment.swift` (the editor's receipt section, the single row, `ReceiptGallery`, thumbnails), `ReceiptViewer.swift` (full screen, paging, zoom, share, Remove Receipt), `ReceiptImage.swift` (JPEG making, DEBUG samples) in `Keaser/Features/ExpenseEditor/`, `KeaserActionCard` in `Keaser/Design/SheetChrome.swift`, `Packages/KeaserKit/Sources/KeaserKit/Models/ReceiptPhoto.swift` (`ReceiptPhoto`, `ReceiptList`), `Store/ReceiptFolder.swift` (files, orphans), `Intelligence/ReceiptFill.swift` |
@@ -606,7 +672,7 @@ Seeded launches keep the database in memory and never touch the real file.
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph; `ReceiptCaptureRequest` and `receiptCapture`, the document camera and photo picker the editor presents for scanning and attaching), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
 | sync | `Keaser/Cloud/` (`CloudSyncSwitch`, `CloudSync`, `CloudSyncEngine`, `CloudRecords` and `CloudAttachmentFiles`), `Keaser/Features/Settings/CloudSyncFootnote.swift`, `Keaser/App/KeaserCloud.entitlements` and the signing templates in `project.yml`, `Packages/KeaserKit/Sources/KeaserKit/Sync/`, the conditional sections of `Keaser/Resources/Legal/privacy.md`, `scripts/shots/sync.txt` |
-| money | `Packages/KeaserKit/Sources/KeaserKit/Money/` (`WalletBalances`, `MonthEnvelopes` in `Envelopes.swift`, `SavingsSplit`, `CurrencyConverter`, `CurrencyMath`, `ExchangeRates`), `Models/{Income,Transfer,SplitRule,ExchangeRate,UUID+Derived}.swift`, the wallet fields and `WalletKind` and `CategoryRole` in `Models/Labels.swift`, the money methods in `Store/KeaserStore.swift`, the money sync kinds in `Sync/SyncKinds.swift` and `LabelRedirects` in `Sync/SyncMerge.swift`, the plan `docs/plans/money-tracking.md`; no screen and no screenshot list yet |
+| money | `Packages/KeaserKit/Sources/KeaserKit/Money/` (`WalletBalances`, `MonthEnvelopes` in `Envelopes.swift`, `SavingsSplit`, `CurrencyConverter`, `CurrencyMath`, `ExchangeRates`), `Models/{Income,Transfer,SplitRule,ExchangeRate,UUID+Derived}.swift`, the wallet fields and `WalletKind` and `CategoryRole` in `Models/Labels.swift`, the money methods in `Store/KeaserStore.swift`, the money sync kinds in `Sync/SyncKinds.swift` and `LabelRedirects` in `Sync/SyncMerge.swift`, the plan `docs/plans/money-tracking.md`; the Wallets and Summary tabs, still placeholders (`Keaser/Features/Wallets/WalletsView.swift`, `Keaser/Features/Summary/SummaryView.swift`), and `scripts/shots/money.txt` |
 | intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/AccountEntity.swift` and `Keaser/Intents/ExpenseEntities.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`

@@ -25,6 +25,7 @@ struct LabelListView: View {
     }
 
     @Environment(KeaserStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @State private var editor: EditorTarget?
     @State private var pendingDelete: LabelItem?
     @State private var editMode: EditMode = .inactive
@@ -121,6 +122,12 @@ struct LabelListView: View {
             }
         }
         .sensoryFeedback(.success, trigger: committedChanges)
+        // A route (a widget, Siri, Spotlight) closes the editor and the
+        // delete dialog, which would hide the tab it selects.
+        .onChange(of: router.modalReset) {
+            editor = nil
+            pendingDelete = nil
+        }
         .confirmationDialog(
             "Delete \u{201C}\(pendingDelete?.name ?? "")\u{201D}?",
             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),

@@ -1,17 +1,18 @@
 # iCloud sync. Its status, the account card's small print in Settings, shows
 # only while sync is on; -KeaserCloudStatus <state> previews each state in any
-# DEBUG build. Take these with SETTLE=10 (Settings is a sheet over Home).
-status-synced | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus synced
-status-syncing | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus syncing
-status-offline | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus offline
-status-icloud-off | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus off
-status-storage-full | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus full
-status-other-account | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus otherAccount
-status-failed | -KeaserSeed single -KeaserSheet settings -KeaserCloudStatus failed
-status-no-account | -KeaserSeed onboarded -KeaserSheet settings -KeaserCloudStatus synced
+# DEBUG build. Take these with SETTLE=10 (a cold launch straight into the
+# Settings tab can still be drawing at the default settle time).
+status-synced | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus synced
+status-syncing | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus syncing
+status-offline | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus offline
+status-icloud-off | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus off
+status-storage-full | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus full
+status-other-account | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus otherAccount
+status-failed | -KeaserSeed single -KeaserTab settings -KeaserCloudStatus failed
+status-no-account | -KeaserSeed onboarded -KeaserTab settings -KeaserCloudStatus synced
 # Sync off (every free-team build): no line, as before.
-status-none | -KeaserSeed single -KeaserSheet settings
+status-none | -KeaserSeed single -KeaserTab settings
 # The privacy policy's iCloud wording, shown only with sync on.
-privacy-icloud | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll iCloud -KeaserCloudStatus synced
-privacy-kept-on | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll kept -KeaserCloudStatus synced
-privacy-kept-off | -KeaserSeed single -KeaserSheet settings -KeaserSettingsPage privacy -KeaserSettingsScroll kept
+privacy-icloud | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage privacy -KeaserSettingsScroll iCloud -KeaserCloudStatus synced
+privacy-kept-on | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage privacy -KeaserSettingsScroll kept -KeaserCloudStatus synced
+privacy-kept-off | -KeaserSeed single -KeaserTab settings -KeaserSettingsPage privacy -KeaserSettingsScroll kept

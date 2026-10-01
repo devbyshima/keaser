@@ -1,0 +1,4 @@
+# Money tracking (owner: money). Wallets and Summary are tabs that stay empty
+# until their phases build them (docs/plans/money-tracking.md).
+wallets-empty | -KeaserSeed demo -KeaserTab wallets
+summary-empty | -KeaserSeed demo -KeaserTab summary

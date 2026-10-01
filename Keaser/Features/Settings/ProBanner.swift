@@ -55,22 +55,38 @@ struct ProBanner: View {
         .clipShape(RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous))
         .accessibilityElement(children: .contain)
         .environment(\.colorScheme, .dark)
+        // The hairline other cards on dark photos and drawings have, so the
+        // near-black sky keeps its edge on the black dark mode canvas. Drawn
+        // outside the forced dark scheme, it follows the appearance.
+        .overlay(
+            RoundedRectangle(cornerRadius: KeaserMetrics.cardRadius, style: .continuous)
+                .strokeBorder(Color.keaserSeparator, lineWidth: 0.5)
+                .accessibilityHidden(true)
+        )
     }
 }
 
 /// A near-black sky whose glow drifts between deep teal and violet, with
 /// a fixed, seeded star field that slides and twinkles. Stands still when
 /// Reduce Motion is on, and holds still where it is while iOS 27 asks apps
-/// to use fewer resources.
+/// to use fewer resources, or while the card is off screen: Settings is a
+/// tab that stays alive behind the others and under the pages pushed over
+/// it.
 struct StarfieldBackground: View {
+    @State private var isOnScreen = false
+
     var body: some View {
-        if #available(iOS 27.0, *) {
-            ReducedResourceReader { reduced in
-                StarfieldSky(isHeld: reduced)
+        Group {
+            if #available(iOS 27.0, *) {
+                ReducedResourceReader { reduced in
+                    StarfieldSky(isHeld: reduced || !isOnScreen)
+                }
+            } else {
+                StarfieldSky(isHeld: !isOnScreen)
             }
-        } else {
-            StarfieldSky(isHeld: false)
         }
+        .onAppear { isOnScreen = true }
+        .onDisappear { isOnScreen = false }
     }
 }
 

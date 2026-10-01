@@ -51,6 +51,34 @@ struct KeaserCircleGlyph: View {
     }
 }
 
+extension View {
+    /// For the scroll view (or list) under a sheet's `KeaserSheetHeader`.
+    /// Content scrolled up stays clear of the header's buttons: it fades out
+    /// in the lower half of the `KeaserMetrics.sheetScrollEdge` band and is
+    /// gone in the upper half, and scrolling to an item stops below the
+    /// band. The band is top safe area padding,
+    /// so the caller takes it off its own top margin and nothing moves
+    /// before scrolling. A mask rather than a colour, since a sheet is
+    /// glass on iOS 26 and later.
+    func keaserSheetScrollEdge() -> some View {
+        safeAreaPadding(.top, KeaserMetrics.sheetScrollEdge)
+            .mask {
+                VStack(spacing: 0) {
+                    // Only the gradient's opacity counts in a mask.
+                    LinearGradient(
+                        stops: [.init(color: .clear, location: 0.5), .init(color: .black, location: 1)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: KeaserMetrics.sheetScrollEdge)
+                    Rectangle()
+                }
+                // Content still runs on under the home indicator.
+                .ignoresSafeArea(edges: .bottom)
+            }
+    }
+}
+
 /// The header drawn at the top of a sheet: a control on each side and a
 /// centred title. The title stays centred on the sheet while it fits between
 /// the side controls, and wraps or shrinks (never overlaps them) at large

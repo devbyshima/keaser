@@ -7,8 +7,6 @@ enum HomeLayout {
     /// From the bottom of the top bar to the summary card.
     static let contentTop: CGFloat = 45
     static let topBarHeight: CGFloat = 44
-    static let addButtonSize: CGFloat = 64
-    static let addButtonTrailing: CGFloat = 29
     /// Where the hairline between expense rows starts: under the title,
     /// past the 16pt margin, the 42pt symbol tile and the 16pt gap.
     static let rowSeparatorLeading: CGFloat = 74
@@ -140,33 +138,5 @@ private struct HomeRowButtonStyle: ButtonStyle {
                     .allowsHitTesting(false)
             }
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-/// The round ink "+" that floats at the bottom trailing corner: white on
-/// black in dark mode, black on the pale canvas in light mode.
-struct HomeAddButton: View {
-    let action: () -> Void
-
-    /// Lifts the button off rows scrolling under it in dark mode; the light
-    /// reference draws it flat.
-    private static let shadow = Color(light: .clear, dark: .black.opacity(0.35))
-
-    var body: some View {
-        Button(action: action) {
-            // A glyph in a fixed 64pt circle, so it stays fixed; the Large
-            // Content Viewer shows it at accessibility sizes instead.
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(Color.keaserOnInk)
-                .frame(width: HomeLayout.addButtonSize, height: HomeLayout.addButtonSize)
-                .background(Circle().fill(Color.keaserInk))
-                .shadow(color: Self.shadow, radius: 12, y: 4)
-        }
-        .buttonStyle(PressScaleButtonStyle())
-        .accessibilityLabel("Add Expense")
-        .accessibilityShowsLargeContentViewer {
-            Label("Add Expense", systemImage: "plus")
-        }
     }
 }

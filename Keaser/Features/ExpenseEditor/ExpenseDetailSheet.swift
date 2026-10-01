@@ -22,6 +22,8 @@ struct ExpenseDetailSheet: View {
     @State private var deletedCount = 0
     @State private var viewing: ReceiptViewing?
 
+    private static let receiptsID = "receipts"
+
     private var account: Account? { store.account(id: accountID) }
     private var expense: Expense? { account?.expenses.first { $0.id == expenseID } }
 
@@ -58,26 +60,39 @@ struct ExpenseDetailSheet: View {
                 .accessibilityShowsLargeContentViewer()
             }
             .homeSheetHeader()
-            ScrollView {
-                VStack(spacing: 16) {
-                    if let expense, let account {
-                        KeaserCard(fill: .homeSheetCard) {
-                            ExpenseCardView(card: IntentSupport.card(for: expense, in: account, store: store))
-                                .padding(.bottom, 8)
+            ScrollViewReader { scroller in
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if let expense, let account {
+                            KeaserCard(fill: .homeSheetCard) {
+                                ExpenseCardView(card: IntentSupport.card(for: expense, in: account, store: store))
+                                    .padding(.bottom, 8)
+                            }
+                            ReceiptDetailSection(receipts: expense.receipts) { index in
+                                viewing = ReceiptViewing(receipts: expense.receipts.map(ReceiptImageSource.saved), start: index)
+                            }
+                            .id(Self.receiptsID)
+                            deleteButton
                         }
-                        ReceiptDetailSection(receipts: expense.receipts) { index in
-                            viewing = ReceiptViewing(receipts: expense.receipts.map(ReceiptImageSource.saved), start: index)
-                        }
-                        deleteButton
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, HomeSheetMetrics.contentTop - KeaserMetrics.sheetScrollEdge)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, HomeSheetMetrics.contentTop)
-                .padding(.bottom, 24)
+                .keaserSheetScrollEdge()
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .keaserReadableScrollContent()
+                #if DEBUG
+                // `-KeaserExpenseScroll receipts` scrolls down to the
+                // receipts, to screenshot the gallery under the header.
+                .task {
+                    guard DebugLaunch.string("KeaserExpenseScroll") == "receipts" else { return }
+                    try? await Task.sleep(for: .milliseconds(900))
+                    scroller.scrollTo(Self.receiptsID, anchor: .top)
+                }
+                #endif
             }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize)
-            .keaserReadableScrollContent()
         }
         // Two or more receipts make a gallery that needs the whole height.
         .presentationDetents((expense?.receipts.count ?? 0) > 1 ? [.large] : [.medium])

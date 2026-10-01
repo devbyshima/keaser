@@ -1,25 +1,38 @@
 import SwiftUI
 import UIKit
 
-// Shared look for every page inside the Settings sheet: rounded cards on the
-// sheet background (charcoal on charcoal in dark mode, white on grouped grey
-// in light mode), 68pt rows with a symbol, round glass header buttons.
+// Shared look for every page in the Settings tab: rounded cards on the
+// settings canvas (white on grouped grey in light mode, as in the reference;
+// Home's charcoal cards on its black canvas in dark mode), 68pt rows with a
+// symbol, round glass header buttons. Sheets presented from Settings (the
+// label editor, the legal documents) keep the sheet look instead.
 
 extension Color {
-    static var settingsCard: Color { .keaserSheetCard }
+    /// Cards on a settings page: white in light mode, Home's charcoal
+    /// (`keaserCard`) in dark mode, where the page is black like Home.
+    static var settingsCard: Color { .keaserCard }
     /// The tile behind row symbols and the account monogram. Light mode
     /// matches the reference's #EBEBEB on a white card, where the shared
-    /// sheet tile would barely show; dark mode is `keaserSheetTile`.
+    /// sheet tile would barely show. Dark mode is `keaserSheetTile`'s faint
+    /// veil, which lifts the charcoal card by the same few levels it lifted
+    /// the sheet's card (3 of 255, as the reference draws it).
     static let settingsTile = Color(light: .black.opacity(0.08), dark: .white.opacity(0.014))
     /// The label editor's preview tile, name field, icon grid and buttons:
     /// white cards on the grey sheet in light mode, as in the reference;
     /// `keaserSheetField` in dark mode.
     static let settingsField = Color(light: .white, dark: .white.opacity(0.03))
-    /// Behind every settings list: the grouped grey in light mode, so white
-    /// cards stand out even where the system draws the sheet white (iOS 26
-    /// at full height). Clear in dark mode, which keeps the sheet's own
-    /// background.
-    static let settingsCanvas = Color(light: .init(red: 242 / 255, green: 242 / 255, blue: 247 / 255), dark: .clear)
+    /// Behind every settings page: the grouped grey in light mode, so white
+    /// cards stand out; black in dark mode, Home's canvas
+    /// (`keaserBackground`), under charcoal cards.
+    static let settingsCanvas = Color(light: .init(red: 242 / 255, green: 242 / 255, blue: 247 / 255), dark: .black)
+    /// Behind a sheet presented from Settings (the label editor): the same
+    /// grey in light mode, and clear in dark mode, which keeps the sheet's
+    /// own background.
+    static let settingsSheetCanvas = Color(light: .init(red: 242 / 255, green: 242 / 255, blue: 247 / 255), dark: .clear)
+    /// Behind a legal document pushed in Settings: white in light mode, as
+    /// the reference draws the page, and black in dark mode like the other
+    /// pages.
+    static let settingsDocumentCanvas = Color(light: .white, dark: .black)
 }
 
 /// Where a row sits in its card, so its background rounds the right corners.
@@ -95,6 +108,7 @@ extension View {
             .keaserReadableScrollContent(base: KeaserMetrics.screenPadding)
             .contentMargins(.top, SettingsListInset.top(topMargin), for: .scrollContent)
             .listSectionSpacing(sectionSpacing)
+            .keaserSoftBottomEdge()
             // Card rows set their own heights (52, 68 or 74pt); this floor
             // is for title rows and for sections other features embed.
             .environment(\.defaultMinListRowHeight, 44)

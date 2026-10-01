@@ -2,7 +2,7 @@ import KeaserKit
 import SwiftUI
 
 // The pieces of a tutorial article (`TutorialDetailView`): free text sits on
-// the sheet, aligned with the text inside the cards; steps, notes and
+// the settings canvas, aligned with the text inside the cards; steps, notes and
 // illustrations sit on the same rounded cards as every other settings page.
 
 /// Headline and intro at the top of the article.

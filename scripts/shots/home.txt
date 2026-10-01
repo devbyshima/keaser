@@ -41,7 +41,8 @@ receipt-currency | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt ca
 receipt-image | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
 receipt-not-found | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt not-a-receipt -KeaserCategoryModel off
 # Receipts kept with an expense. The details with 1 receipt (a row), then 2,
-# 3 and 5 (the two-column gallery, the sheet at full height); the photo full
+# 3 and 5 (the two-column gallery, the sheet at full height), and 5 scrolled
+# to the gallery (clear of the header's buttons); the photo full
 # screen, alone, on the second of three, and from the editor (with Remove
 # Receipt under it); New Expense and Edit Expense with none, 1, 2, 3 and 5
 # (keyboard down, and scrolled to the gallery); the gallery at a large text
@@ -51,6 +52,7 @@ expense-receipt | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 1
 expense-receipts-2 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 2
 expense-receipts-3 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 3
 expense-receipts-5 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 5
+expense-receipts-5-scrolled | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 5 -KeaserExpenseScroll receipts
 receipt-viewer | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 1 -KeaserReceiptViewer 1
 receipt-viewer-2-of-3 | -KeaserSeed demo -KeaserSheet expense -KeaserReceiptAttached 3 -KeaserReceiptViewer 2
 edit-receipt-viewer | -KeaserSeed single -KeaserSheet editExpense -KeaserReceiptAttached 3 -KeaserReceiptViewer 2 -KeaserExpenseFocus none
