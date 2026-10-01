@@ -8,6 +8,8 @@ struct MoneySavingsSplitTests {
     private let day = Date(timeIntervalSinceReferenceDate: 780_000_000)
     private let now = Date(timeIntervalSinceReferenceDate: 780_100_000)
     private let fixedID = UUID(uuidString: "E1B2C3D4-0001-4000-8000-000000000001")!
+    /// Every `income()` is the same income, saved again.
+    private let incomeID = UUID(uuidString: "E1B2C3D4-0002-4000-8000-000000000002")!
 
     private let cash = PaymentMethod(name: "Cash", symbol: "banknote.fill")
     private let bank = PaymentMethod(name: "Bank Account", symbol: "building.columns.fill")
@@ -35,7 +37,7 @@ struct MoneySavingsSplitTests {
     }
 
     private func income(_ amount: Decimal = 200_000, into wallet: UUID? = nil, percent: Int? = nil) -> Income {
-        Income(title: "Salary", amount: amount, walletID: wallet ?? cash.id, date: day, createdAt: day, updatedAt: day, savingsPercent: percent)
+        Income(id: incomeID, title: "Salary", amount: amount, walletID: wallet ?? cash.id, date: day, createdAt: day, updatedAt: day, savingsPercent: percent)
     }
 
     @Test func rule1NoneWhenSkippedOrIntoNoWallet() {
@@ -77,10 +79,13 @@ struct MoneySavingsSplitTests {
         // The existing transfer's wallet wins over the rule's.
         let existing = Transfer(id: UUID(), kind: .savings, fromWalletID: cash.id, toWalletID: bank.id, amountOut: 1)
         #expect(split(income(), existing: existing).transfer?.toWalletID == bank.id)
-        // Its wallet gone, the rule's.
+        // Its wallet deleted since: it stays as it is, never moved to the
+        // rule's wallet.
         var orphan = existing
         orphan.toWalletID = nil
-        #expect(split(income(), existing: orphan).transfer?.toWalletID == savings.id)
+        #expect(split(income(), existing: orphan).transfer == orphan)
+        // Into the savings wallet itself now: none.
+        #expect(split(income(into: bank.id), existing: existing).transfer == nil)
         // No savings wallet, one the account lacks, or the income's own: none.
         var noWallet = rule
         noWallet.savingsWalletID = nil
@@ -103,7 +108,7 @@ struct MoneySavingsSplitTests {
         #expect(transfer?.amountIn == 9_338)
     }
 
-    @Test func rule5WhatArrivesIsInTheSavingsWalletsCurrency() {
+    @Test func rule5WhatArrivesIsInTheSavingsWalletsCurrency() throws {
         var toDollars = rule
         toDollars.savingsWalletID = dollars.id
         let table = ExchangeRates(base: "USD", rates: ["RWF": 1400], date: day, fetchedAt: day)
@@ -114,8 +119,23 @@ struct MoneySavingsSplitTests {
         let result = split(income(280_000), rule: toDollars)
         #expect(result.transfer == nil && result.percent == nil)
         // Within one currency, what arrives is what left.
-        let same = split(income()).transfer
-        #expect(same?.amountIn == same?.amountOut)
+        let same = try #require(split(income()).transfer)
+        #expect(same.amountIn == same.amountOut)
+    }
+
+    @Test func rule5AForeignIncomesSavedRateValuesBothSides() throws {
+        // 50 EUR into a wallet in the display currency, typed at 1500 RWF
+        // while the table says 1450: what arrives is worth what left at
+        // the income's rate, not today's.
+        var euros = Income(title: "Refund", amount: 50, currencyCode: "EUR", walletID: cash.id, date: day)
+        euros.rate = ExchangeRate(rate: 1500, currencyCode: "RWF", date: day, isTyped: true)
+        let table = ExchangeRates(base: "EUR", rates: ["RWF": 1450], date: day, fetchedAt: day)
+        let transfer = try #require(split(euros, rates: table).transfer)
+        #expect(transfer.amountOut == 10 && transfer.currencyOut == "EUR")
+        #expect(transfer.amountIn == 15_000)
+        #expect(transfer.rate == euros.rate)
+        // Without a table the saved rate alone is enough.
+        #expect(split(euros).transfer?.amountIn == 15_000)
     }
 
     @Test func rule6ANewTransferIsMadeAndAnExistingOneKeepsItsIdentity() throws {
@@ -152,5 +172,67 @@ struct MoneySavingsSplitTests {
         #expect(transfer.currencyOut == "EUR")
         #expect(transfer.amountIn == 15_000)
         #expect(account.effectiveCurrencyOut(of: transfer, display: "RWF") == "EUR")
+    }
+
+    // MARK: An existing transfer
+
+    @Test func anExistingTransferChangesOnlyWithWhatTheIncomeChanged() throws {
+        var toDollars = rule
+        toDollars.savingsWalletID = dollars.id
+        let made = try #require(split(income(280_000), rule: toDollars, rates: table(1400)).transfer)
+        #expect(made.amountIn == 40)
+
+        // Saved again unchanged, under another table or none: as it was.
+        #expect(split(income(280_000, percent: 20), existing: made, rule: toDollars, rates: table(1500)).transfer == made)
+        #expect(split(income(280_000, percent: 20), existing: made, rule: toDollars).transfer == made)
+        // The rule switched off since changes nothing either.
+        var off = toDollars
+        off.isEnabled = false
+        #expect(split(income(280_000, percent: 20), existing: made, rule: off).transfer == made)
+        // A new date moves it, and only that.
+        var moved = income(280_000, percent: 20)
+        moved.date = now
+        let redated = try #require(split(moved, existing: made, rule: toDollars).transfer)
+        #expect(redated.date == now && redated.amountIn == 40 && redated.updatedAt == now)
+
+        // A new amount converts again, at today's rates.
+        let raised = try #require(split(income(300_000, percent: 20), existing: made, rule: toDollars, rates: table(1500)).transfer)
+        #expect(raised.id == made.id)
+        #expect(raised.amountOut == 60_000 && raised.amountIn == 40)
+        // Without rates it cannot, so the transfer stays as it was.
+        let offline = split(income(300_000, percent: 20), existing: made, rule: toDollars)
+        #expect(offline.transfer == made && offline.percent == 20)
+    }
+
+    @Test func aTransferWhoseWalletWasDeletedIsKeptAsItIs() throws {
+        let made = try #require(split(income()).transfer)
+        // The savings wallet deleted: the transfer lost it, as did the rule.
+        var lostTarget = made
+        lostTarget.toWalletID = nil
+        var noRule = rule
+        noRule.savingsWalletID = nil
+        let kept = split(income(percent: 20), existing: lostTarget, rule: noRule)
+        #expect(kept.transfer == lostTarget && kept.percent == 20)
+        // With a new savings wallet picked since, it still stays where it went.
+        var newWallet = rule
+        newWallet.savingsWalletID = bank.id
+        #expect(split(income(percent: 20), existing: lostTarget, rule: newWallet).transfer == lostTarget)
+
+        // The income's wallet deleted: both lost it.
+        var lostSource = made
+        lostSource.fromWalletID = nil
+        var walletless = income(percent: 20)
+        walletless.walletID = nil
+        #expect(split(walletless, existing: lostSource).transfer == lostSource)
+        // Taken out of a wallet that is still there, it moves nothing.
+        #expect(split(walletless, existing: made).transfer == nil)
+        // Skipped, it goes whatever became of its wallets.
+        var skipped = walletless
+        skipped.savingsSkipped = true
+        #expect(split(skipped, existing: lostSource).transfer == nil)
+    }
+
+    private func table(_ rwf: Decimal) -> ExchangeRates {
+        ExchangeRates(base: "USD", rates: ["RWF": rwf], date: day, fetchedAt: day)
     }
 }

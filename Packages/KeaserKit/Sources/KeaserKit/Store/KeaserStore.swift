@@ -309,7 +309,8 @@ public final class KeaserStore {
     /// Inserts or replaces an income (matched by ID) and stamps `updatedAt`.
     /// In the same save, its savings transfer is made, updated or removed
     /// as the split rule says (`SavingsSplit`), at `rates` when the savings
-    /// wallet is in another currency.
+    /// wallet is in another currency. One already made stays as it is
+    /// unless what leaves the income's wallet changed.
     public func saveIncome(_ income: Income, in accountID: UUID, rates: ExchangeRates? = nil, now: Date = .now) {
         guard let a = database.accounts.firstIndex(where: { $0.id == accountID }) else { return }
         var income = income

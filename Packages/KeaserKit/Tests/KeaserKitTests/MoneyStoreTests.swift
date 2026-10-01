@@ -28,6 +28,30 @@ struct MoneyStoreTests {
         account.paymentMethods.first { $0.name == name }!
     }
 
+    private static let calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "UTC")!
+        return c
+    }()
+
+    /// 1 USD = `rwf` RWF.
+    private func table(_ rwf: Decimal) -> ExchangeRates {
+        ExchangeRates(base: "USD", rates: ["RWF": rwf], date: then, fetchedAt: then)
+    }
+
+    /// The balances of the named wallets of the account, in RWF.
+    private func balances(_ names: [String], in store: KeaserStore, _ accountID: UUID, rates: ExchangeRates? = nil) -> [Decimal?] {
+        guard let account = store.account(id: accountID) else { return [] }
+        return names.map { name in
+            account.paymentMethods.first { $0.name == name }.flatMap { wallet in
+                WalletBalances.balance(
+                    of: wallet.id, in: account, display: "RWF",
+                    converter: CurrencyConverter(displayCurrency: "RWF", rates: rates), calendar: Self.calendar
+                )?.amount
+            }
+        }
+    }
+
     @Test func aNewAccountStartsWithIncomeCategoriesAndNoMoney() throws {
         let store = KeaserStore(file: nil)
         let account = store.createAccount(name: "Personal")
@@ -170,6 +194,86 @@ struct MoneyStoreTests {
         store.saveIncome(Income(title: "Gift", amount: 10_000, walletID: wallet("Cash", in: account).id), in: account.id)
         #expect(store.account(id: account.id)?.transfers.count == 1)
         #expect(store.account(id: account.id)?.incomes.last?.savingsPercent == nil)
+    }
+
+    @Test func savingAnIncomeAgainLeavesItsSavingsTransferAsItWas() throws {
+        let (store, account) = storeWithRule()
+        var savings = wallet("Savings", in: account)
+        savings.currencyCode = "USD"
+        store.savePaymentMethod(savings, in: account.id)
+        let cash = wallet("Cash", in: account)
+        let start = then.addingTimeInterval(-2 * 86_400)
+        store.setBalance(0, ofWallet: cash.id, in: account.id, at: start)
+        store.setBalance(0, ofWallet: savings.id, in: account.id, at: start)
+        let salary = Income(title: "Salary", amount: 280_000, walletID: cash.id, date: then, createdAt: then)
+        store.saveIncome(salary, in: account.id, rates: table(1400), now: then)
+        let made = try #require(store.account(id: account.id)?.transfers.first)
+        #expect(made.amountOut == 56_000 && made.amountIn == 40)
+        #expect(balances(["Cash", "Savings"], in: store, account.id) == [224_000, 40])
+
+        // Its title fixed without a rate table, then under another one:
+        // nothing about the money moves.
+        var income = try #require(store.account(id: account.id)?.incomes.first)
+        income.title = "Salary, September"
+        store.saveIncome(income, in: account.id, now: later)
+        income.title = "September salary"
+        store.saveIncome(income, in: account.id, rates: table(1500), now: later)
+        var stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers == [made])
+        #expect(stored.incomes.first?.savingsPercent == 20)
+        #expect(stored.incomes.first?.savingsTransferID == made.id)
+        #expect(balances(["Cash", "Savings"], in: store, account.id) == [224_000, 40])
+
+        // The savings wallet deleted and another picked, then the title
+        // fixed: the money that went stays gone from Cash.
+        store.deletePaymentMethod(savings.id, in: account.id)
+        store.updateSplitRule(in: account.id) { $0.savingsWalletID = wallet("Bank Transfer", in: account).id }
+        income = try #require(store.account(id: account.id)?.incomes.first)
+        income.title = "Salary"
+        store.saveIncome(income, in: account.id, rates: table(1500))
+        stored = try #require(store.account(id: account.id))
+        let orphan = try #require(stored.transfers.first)
+        #expect(stored.transfers.count == 1)
+        #expect(orphan.id == made.id && orphan.toWalletID == nil)
+        #expect(orphan.amountIn == 40 && orphan.currencyIn == "USD")
+        #expect(balances(["Cash"], in: store, account.id) == [224_000])
+
+        // Cash deleted too, then the title fixed again: still saved that month.
+        store.deletePaymentMethod(cash.id, in: account.id)
+        income = try #require(store.account(id: account.id)?.incomes.first)
+        income.title = "Pay"
+        store.saveIncome(income, in: account.id)
+        stored = try #require(store.account(id: account.id))
+        #expect(stored.transfers.map(\.id) == [made.id])
+        #expect(stored.incomes.first?.savingsPercent == 20 && stored.incomes.first?.savingsTransferID == made.id)
+        let month = MonthEnvelopes.envelopes(
+            for: stored, month: then, calendar: Self.calendar, display: "RWF",
+            converter: CurrencyConverter(displayCurrency: "RWF", rates: nil)
+        )
+        #expect(month.savings.spent == 56_000)
+    }
+
+    @Test func aForeignIncomesSavingsAddUpOnBothSides() throws {
+        let (store, account) = storeWithRule()
+        let start = then.addingTimeInterval(-2 * 86_400)
+        for name in ["Cash", "Savings"] {
+            store.setBalance(0, ofWallet: wallet(name, in: account).id, in: account.id, at: start)
+        }
+        // 50 EUR typed at 1500 RWF, while today's table says 1450.
+        let rate = ExchangeRate(rate: 1500, currencyCode: "RWF", date: then, isTyped: true)
+        let rates = ExchangeRates(base: "EUR", rates: ["RWF": 1450], date: then, fetchedAt: then)
+        let refund = Income(title: "Refund", amount: 50, currencyCode: "EUR", rate: rate, walletID: wallet("Cash", in: account).id, date: then, createdAt: then)
+        store.saveIncome(refund, in: account.id, rates: rates, now: then)
+        let transfer = try #require(store.account(id: account.id)?.transfers.first)
+        #expect(transfer.amountOut == 10 && transfer.amountIn == 15_000)
+
+        let stored = try #require(store.account(id: account.id))
+        let converter = CurrencyConverter(displayCurrency: "RWF", rates: rates)
+        #expect(balances(["Cash", "Savings"], in: store, account.id, rates: rates) == [60_000, 15_000])
+        #expect(WalletBalances.total(in: stored, display: "RWF", converter: converter, calendar: Self.calendar).amount == 75_000)
+        let month = MonthEnvelopes.envelopes(for: stored, month: then, calendar: Self.calendar, display: "RWF", converter: converter)
+        #expect(month.income == 75_000)
+        #expect(month.savings.spent == 15_000)
     }
 
     @Test func deletingAnIncomeTakesItsSavingsTransfer() throws {
