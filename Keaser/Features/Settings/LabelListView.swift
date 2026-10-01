@@ -202,10 +202,7 @@ extension KeaserStore {
     }
 
     func saveLabel(_ item: LabelItem, kind: LabelKind, in accountID: UUID) {
-        switch kind {
-        case .category: saveCategory(ExpenseCategory(id: item.id, name: item.name, symbol: item.symbol), in: accountID)
-        case .paymentMethod: savePaymentMethod(PaymentMethod(id: item.id, name: item.name, symbol: item.symbol), in: accountID)
-        }
+        saveLabel(id: item.id, name: item.name, symbol: item.symbol, kind: kind, in: accountID)
     }
 
     func deleteLabel(_ kind: LabelKind, id: UUID, in accountID: UUID) {

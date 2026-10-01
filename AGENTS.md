@@ -233,9 +233,55 @@ change only through `KeaserStore.saveExpense`, which stamps `updatedAt` for
 sync. Seeded launches use a temporary `SeededReceipts` folder
 (`AppEnvironment.receipts`), emptied at each launch.
 
+Money tracking (`docs/plans/money-tracking.md`) has its data and maths in
+KeaserKit (phase 1); no screen shows it yet. Payment methods are the wallets:
+`PaymentMethod` keeps its name, IDs, intents and sync records and gains
+`kind` (`WalletKind`: cash, bank, mobile money, credit card, other; guessed
+from the name for older ones and always written, so a rename never changes
+it), `currencyCode`, `trackingSince` and `openingBalance` (no
+`trackingSince`: Not Tracking), `creditLimit`, `isSavings` and `isHidden`. A
+balance is the money in the wallet, so a card that owes 500 is -500 and counts
+against the total with no special case. Each `ExpenseCategory` has a `role`
+(Expenses or Free Money, guessed and written the same way). An account also
+holds `incomeCategories` (Salary, Business, Gifts, Refunds; an account saved
+before them gets them when it loads, with IDs derived from the account's, so
+two devices never make two sets), `incomes`, `transfers`,
+`balanceAdjustments` and its `splitRule`. `WalletKind`, `CategoryRole` and
+`TransferKind` are open sets of strings, so a value a later version writes
+survives.
+
+A nil `currencyCode` on a wallet means the display currency
+(`Preferences.currencyCode`, so the Currency setting still relabels as it
+always has); on an expense, income, transfer side or balance adjustment it
+means its wallet's. Changing a wallet's currency, or deleting the wallet,
+first writes the old currency into what followed it
+(`KeaserStore.savePaymentMethod`, `deletePaymentMethod`). Converting goes
+through `CurrencyConverter.convert`: the rate saved on the transaction
+(`ExchangeRate`), else today's table (`ExchangeRates`, never synced), rounded
+to the target currency's places (`CurrencyMath`); what cannot be converted is
+left out and counted (`unconverted`), never guessed. A wallet's balance
+(`WalletBalances`) starts from the latest balance the person stated (the
+opening one, or a `BalanceAdjustment` from Set Balance) and counts only
+entries dated after that day, or that day and logged after it, so history is
+never edited. Envelopes (`MonthEnvelopes.envelopes`) are per calendar month:
+income times each percentage, minus that month's spending by category role
+(no category counts as Expenses); Savings progress is the month's `.savings`
+transfers. Saving an income makes, keeps or removes its savings transfer in
+the same save (`SavingsSplit`): the rule applies to a new income or one no
+longer skipped, an income keeps the percentage it was logged with, money that
+already moved is never re-rated, and the transfer's ID is derived from the
+income's. The label editor saves through `KeaserStore.saveLabel(id:name:symbol:kind:in:)`,
+which changes only the name and icon. The store's money methods:
+`saveIncome`, `deleteIncome`, `saveTransfer`, `deleteTransfer` (deleting a
+savings transfer skips it), `saveIncomeCategory`, `deleteIncomeCategory`,
+`moveIncomeCategories`, `setBalance`, `deleteBalanceAdjustment` and
+`updateSplitRule`.
+
 `KeaserStore` stamps edit times on what each local edit changes
-(`SyncStamps`): `updatedAt` on accounts (name), categories, payment methods and
-expenses, `categoriesOrderedAt` / `paymentMethodsOrderedAt` on accounts,
+(`SyncStamps`): `updatedAt` on accounts (name), categories, payment methods,
+expenses, income categories, incomes, transfers and balance adjustments,
+`categoriesOrderedAt` / `paymentMethodsOrderedAt` /
+`incomeCategoriesOrderedAt` on accounts, `SplitRule.updatedAt`,
 `Database.accountsOrderedAt`, and `Preferences.settingsUpdatedAt` for the
 shared settings. iCloud sync decides between two devices' edits by them, so a
 new way of changing data must go through the store (or stamp the same way).
@@ -257,10 +303,14 @@ How it works (KeaserKit `Sync/`, pure and tested; app `Keaser/Cloud/`):
   field, `payload`: a JSON envelope `{body, modifiedAt, parent,
   readerVersion}` where `body` is the model's own JSON. Types and names:
   `Account.<id>` (name, created, updated; what it holds are records of their
-  own), `Category.<id>`, `PaymentMethod.<id>`, `Expense.<id>` (parent: the
-  account), `Settings` (`SyncedSettings`), `Order.Accounts`,
-  `Order.Categories.<account>`, `Order.PaymentMethods.<account>` (ID lists),
-  and `Receipt.<photo id>` (a receipt photo's JPEG as the CKAsset `file`).
+  own), `Category.<id>`, `PaymentMethod.<id>` (the wallets), `Expense.<id>`,
+  `IncomeCategory.<id>`, `Income.<id>`, `Transfer.<id>`,
+  `BalanceAdjustment.<id>` (parent: the account), `SplitRule.<account>` (one
+  per account; iCloud's wins on a device's first meeting, as the settings
+  do), `Settings` (`SyncedSettings`), `Order.Accounts`,
+  `Order.Categories.<account>`, `Order.PaymentMethods.<account>`,
+  `Order.IncomeCategories.<account>` (ID lists), and `Receipt.<photo id>` (a
+  receipt photo's JPEG as the CKAsset `file`).
   A new kind of data syncs by adding a `SyncKind` to `SyncKinds.all` and a
   `SyncStamps` rule.
 - Stays on the device: onboarding and the welcome letter, the weekly
@@ -273,7 +323,10 @@ How it works (KeaserKit `Sync/`, pure and tested; app `Keaser/Cloud/`):
   after a local delete brings the record back, an edit here outlives a delete
   elsewhere, a deleted account takes everything in it along, an item whose
   account has not arrived waits, and same-named labels in an account become
-  one. On a device's first sync nothing is sent until iCloud's data has been
+  one: everything that pointed at a label that went (expenses, income,
+  transfers, balance adjustments, the split rule's Savings wallet) points
+  at the one that stays, and a wallet that went leaves the balance stated
+  in it to the one that stays (`LabelRedirects`). On a device's first sync nothing is sent until iCloud's data has been
   fetched and merged: a never-synced account named like one in iCloud merges
   into it, an empty placeholder account made within the hour gives way, and
   iCloud's settings and orders win.
@@ -335,6 +388,15 @@ What to verify on two devices (A and B, same Apple Account):
    from A. Add Expense from Siri on A reaches B.
 8. Delete Keaser's data from iCloud storage in the Settings app: the next
    launch uploads the device's data again, and the other device merges it.
+9. Money, once its screens exist (phases 3 to 6 of
+   `docs/plans/money-tracking.md`): on A, set a wallet's balance, log an
+   income with the split rule on, and make a transfer; on B the balance,
+   the income, its one savings transfer and the rule arrive and match.
+   Change the rule on both while offline: the later edit wins. On B
+   offline, make a wallet named like one of A's and set its balance: after
+   reconnecting there is one wallet, everything logged in either points at
+   it, and B's stated balance is kept. Delete a wallet on A: B's expenses,
+   income and transfers in it stay, showing no wallet.
 
 ## Launch arguments (DEBUG only)
 
@@ -544,9 +606,10 @@ Seeded launches keep the database in memory and never touch the real file.
 | settings-pro | `Keaser/Features/{Settings,Paywall}/`, `Keaser/Resources/Keaser.storekit`, `Keaser/Resources/Legal/` |
 | intelligence | `Keaser/Intelligence/` (`CategoryModels`: the model the app uses, DEBUG stand-in; `ReceiptScanner`: reads a scan for New Expense, DEBUG samples), `Keaser/Features/ExpenseEditor/ReceiptScanButton.swift` (the title row's scanner glyph; `ReceiptCaptureRequest` and `receiptCapture`, the document camera and photo picker the editor presents for scanning and attaching), `Packages/KeaserKit/Sources/KeaserIntelligence/` (Vision and Foundation Models on device, linked by the app only: `AppleIntelligence` availability, `OnDeviceCategoryModel`, `ReceiptTextRecognizer`, `OnDeviceReceiptModel`, DEBUG `ReceiptImageRenderer`), `Packages/KeaserKit/Sources/KeaserKit/Intelligence/` (`CategoryPrompt`, `CategoryModel`, `SmartLabels`, `Deadline`, the async `ShortcutFlow` steps; receipts: `ReceiptText`, `ReceiptParser`, `ReceiptReading`, `ReceiptDraft`, DEBUG `ReceiptSamples`), opt-in model evaluation `scripts/eval.sh` (`Tests/KeaserIntelligenceEvals`, Mac with Apple Intelligence) |
 | sync | `Keaser/Cloud/` (`CloudSyncSwitch`, `CloudSync`, `CloudSyncEngine`, `CloudRecords` and `CloudAttachmentFiles`), `Keaser/Features/Settings/CloudSyncFootnote.swift`, `Keaser/App/KeaserCloud.entitlements` and the signing templates in `project.yml`, `Packages/KeaserKit/Sources/KeaserKit/Sync/`, the conditional sections of `Keaser/Resources/Legal/privacy.md`, `scripts/shots/sync.txt` |
+| money | `Packages/KeaserKit/Sources/KeaserKit/Money/` (`WalletBalances`, `MonthEnvelopes` in `Envelopes.swift`, `SavingsSplit`, `CurrencyConverter`, `CurrencyMath`, `ExchangeRates`), `Models/{Income,Transfer,SplitRule,ExchangeRate,UUID+Derived}.swift`, the wallet fields and `WalletKind` and `CategoryRole` in `Models/Labels.swift`, the money methods in `Store/KeaserStore.swift`, the money sync kinds in `Sync/SyncKinds.swift` and `LabelRedirects` in `Sync/SyncMerge.swift`, the plan `docs/plans/money-tracking.md`; no screen and no screenshot list yet |
 | intents | `Keaser/Intents/{ExpenseEntity,AccountIndexing,OpenIntents,SearchIntents,SpotlightIndexer,EntityAnnotations,KeaserShortcuts,GetSpendingIntent,DeleteExpenseIntent,IntentRefusal,IntentDonations,TestDataIntent}.swift`, the string queries in `KeaserWidgets/Shared/AccountEntity.swift` and `Keaser/Intents/ExpenseEntities.swift`, the open and search routes in `Keaser/App/AppEnvironment.swift` and `HomeView.handle(_:)`, `Packages/KeaserKit/Sources/KeaserKit/Platform/{EntityCatalog,SpotlightPlan,SpendingAnswer,ExpenseDeletion,IntentTestFixture}.swift`, `KeaserIntentTests/`, `scripts/intents-test.sh` |
 
 Logic for each area lives in `Packages/KeaserKit/Sources/KeaserKit/<Area>/`
-(`Home`, `Settings`, `Platform`, `Sync`) with tests in
+(`Home`, `Settings`, `Platform`, `Sync`, `Money`, `Intelligence`) with tests in
 `Packages/KeaserKit/Tests/KeaserKitTests/<Area>*Tests.swift`, and its
 screenshot list in `scripts/shots/<area>.txt`.

@@ -1,6 +1,6 @@
 # Money tracking: plan for review
 
-Status: APPROVED, not built yet. The founder decided the direction on 2026-09-29 and, the same day, accepted every recommendation in "Decisions" below ("do what you recommend"). Next: build phase 1, then phase 2. Written against main at 6f9a2af (receipts, iCloud sync and every widget size merged).
+Status: APPROVED; phase 1 BUILT on 2026-10-01 (see "Phase 1 as built" at the end). The founder decided the direction on 2026-09-29 and, the same day, accepted every recommendation in "Decisions" below ("do what you recommend"). Next: phase 2. Written against main at 6f9a2af (receipts, iCloud sync and every widget size merged).
 
 Every screen here follows the rule in AGENTS.md: it is built from Keaser's existing pieces and looks, flows, moves and talks like what is already there. Each screen below names the existing screen it copies.
 
@@ -133,7 +133,7 @@ Each phase ends with a build on Serein and screenshots checked against the scree
 
 | # | Phase | Effort | Shows on screen |
 |---|---|---|---|
-| 1 | Data model, migration, balance and envelope maths, sync kinds, tests | about 16 h | Nothing (existing data loads unchanged) |
+| 1 | Data model, migration, balance and envelope maths, sync kinds, tests (built) | about 16 h | Nothing (existing data loads unchanged) |
 | 2 | Tab bar; Settings moves into its tab; Home without the gear | about 8 h | The four tabs, Wallets and Summary still empty |
 | 3 | Wallets: list, details, add and edit, Set Balance, transfers, credit cards, first-time setup card | about 24 h | The Wallets tab and Home's Balance card |
 | 4 | Currencies: the daily rates service, wallet currencies, converted totals, rate override, privacy policy | about 20 h | Wallets and expenses in other currencies |
@@ -151,3 +151,28 @@ About 130 hours in all. Every decision is made, so build in this order, starting
 - **The tab bar changes every screenshot of Home and Settings,** and the reference recordings have none. That is the founder's choice, recorded in AGENTS.md when built.
 - **Decimal places differ by currency** (RWF and JPY have none, USD has two). Formatting already goes through `MoneyFormat`, and conversions round to the target currency's places.
 - **iCloud sync** needs its two-device test repeated once wallets, income and transfers sync.
+
+## Phase 1 as built
+
+Built on 2026-10-01 in KeaserKit only: the data model, its tolerant decoding, the balance, envelope and savings maths, the store's money methods and the sync kinds, with 139 new tests (629 in 81 suites). Nothing on screen changed. AGENTS.md ("Data", "iCloud sync" and the `money` row) describes it; this section keeps what the plan above did not say.
+
+Decisions made while building, on the founder's lead:
+
+- A nil currency on a wallet means the display currency, so the Currency setting relabels it as it always has. On an expense, income, transfer side or balance adjustment it means its wallet's. Changing a wallet's currency, or deleting the wallet, first writes the old currency into what followed it, so nothing changes currency after the fact.
+- A balance is the money in the wallet, so a credit card that owes 500 has a balance of -500 and counts against the total with no special case. Owed and Available (phase 3) are read from it.
+- Set Balance states a dated checkpoint (`BalanceAdjustment`) rather than editing history: a wallet's balance starts from the latest stated one and counts only entries dated after that day, or that day and logged after it.
+- The split rule applies only to a new income or one no longer skipped. An income keeps the percentage it was logged with, and money that already moved is never re-rated. The savings transfer's ID is derived from the income's, so two devices never make two.
+- The built-in income categories (Salary, Business, Gifts, Refunds) are added to an account saved before them when it loads, with IDs derived from the account's, so two devices make the same set.
+- What cannot be converted (no rate saved, none in today's table) is left out of a total and counted, never guessed.
+
+Left for later phases, because they show on screen:
+
+- Phase 3: new accounts start with Cash, Bank Account, Mobile Money and Credit Card (today they still get the old payment methods).
+- Phases 4, 6 and 7: the three new `ProFeature` cases (other currencies, the split rule, the AI summary).
+- Phase 4: the exchange rates file in the app group and fetching it. `ExchangeRates` and `CurrencyConverter` are ready for it.
+
+Notes for the next phases:
+
+- Phase 5: Add Income must work with an empty income category list (the person can delete them all); an income with no category is valid.
+- Phase 6, optional hardening: on a device's first meeting iCloud's split rule wins, as the settings do. A rule in iCloud that nobody ever edited should not beat one edited on this device before its first sync.
+- Repeat the two-device test (AGENTS.md, item 9) once wallets, income and transfers have screens.

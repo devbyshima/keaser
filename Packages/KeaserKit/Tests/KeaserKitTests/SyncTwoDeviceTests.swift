@@ -19,19 +19,6 @@ struct SyncTwoDeviceTests {
         return (cloud, a, b)
     }
 
-    private func sameContent(_ a: TestDevice, _ b: TestDevice) -> Bool {
-        func shape(_ db: Database) -> [String] {
-            db.accounts.map { account in
-                let labels = (account.categories.map(\.name) + ["|"] + account.paymentMethods.map(\.name)).joined(separator: ",")
-                let expenses = account.expenses.sorted { $0.id.uuidString < $1.id.uuidString }
-                    .map { "\($0.id)\($0.title)\($0.amount)\($0.categoryID?.uuidString ?? "-")\($0.paymentMethodID?.uuidString ?? "-")" }
-                return "\(account.id) \(account.name) [\(labels)] \(expenses.joined(separator: ";"))"
-            }
-        }
-        return shape(a.database) == shape(b.database)
-            && SyncedSettings(a.database.preferences).differs(from: SyncedSettings(b.database.preferences)) == false
-    }
-
     @Test func aSecondDeviceReceivesEverything() {
         let (cloud, a, b) = pair()
         #expect(b.account("Personal")?.expenses.count == 2)

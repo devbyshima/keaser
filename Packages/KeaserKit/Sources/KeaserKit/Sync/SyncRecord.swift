@@ -24,9 +24,15 @@ public struct SyncRecordType: RawRepresentable, Hashable, Codable, Sendable, Cus
     public static let expense = SyncRecordType("Expense")
     /// The settings shared between devices (`SyncedSettings`).
     public static let settings = SyncRecordType("Settings")
-    /// The order of the accounts, or of one account's categories or
-    /// payment methods.
+    /// The order of the accounts, or of one account's categories, payment
+    /// methods or income categories.
     public static let order = SyncRecordType("Order")
+    public static let incomeCategory = SyncRecordType("IncomeCategory")
+    public static let income = SyncRecordType("Income")
+    public static let transfer = SyncRecordType("Transfer")
+    public static let balanceAdjustment = SyncRecordType("BalanceAdjustment")
+    /// One account's split rule, named by the account's ID.
+    public static let splitRule = SyncRecordType("SplitRule")
 }
 
 /// Record names (`CKRecord.ID.recordName`): the type, then the ID of what
@@ -47,6 +53,10 @@ public enum SyncRecordName {
 
     public static func paymentMethodsOrder(_ accountID: UUID) -> String {
         "Order.PaymentMethods.\(accountID.uuidString)"
+    }
+
+    public static func incomeCategoriesOrder(_ accountID: UUID) -> String {
+        "Order.IncomeCategories.\(accountID.uuidString)"
     }
 
     /// The UUID a name ends with, if any.

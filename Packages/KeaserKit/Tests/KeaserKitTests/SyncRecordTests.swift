@@ -9,6 +9,10 @@ struct SyncRecordTests {
             Expense(title: "Coffee", amount: Decimal(string: "4.50")!, categoryID: account.categories[0].id),
             Expense(title: "Rent", amount: Decimal(string: "12345678901234567.89")!),
         ]
+        let cash = account.paymentMethods[2].id, bank = account.paymentMethods[3].id
+        account.incomes = [Income(title: "Salary", amount: 2000, categoryID: account.incomeCategories[0].id, walletID: bank)]
+        account.transfers = [Transfer(fromWalletID: bank, toWalletID: cash, amountOut: 100)]
+        account.balanceAdjustments = [BalanceAdjustment(walletID: cash, balance: 80)]
         return Database(accounts: [account])
     }
 
@@ -26,9 +30,18 @@ struct SyncRecordTests {
         #expect(names.contains("Order.Accounts"))
         #expect(names.contains("Order.Categories.\(account.id.uuidString)"))
         #expect(names.contains("Order.PaymentMethods.\(account.id.uuidString)"))
-        // 1 account, 7 categories, 5 payment methods, 2 expenses, settings, 3 orders.
-        #expect(records.count == 19)
-        for record in records where [.category, .paymentMethod, .expense].contains(record.type) {
+        #expect(names.contains("IncomeCategory.\(account.incomeCategories[0].id.uuidString)"))
+        #expect(names.contains("Income.\(account.incomes[0].id.uuidString)"))
+        #expect(names.contains("Transfer.\(account.transfers[0].id.uuidString)"))
+        #expect(names.contains("BalanceAdjustment.\(account.balanceAdjustments[0].id.uuidString)"))
+        #expect(names.contains("SplitRule.\(account.id.uuidString)"))
+        #expect(names.contains("Order.IncomeCategories.\(account.id.uuidString)"))
+        // 1 account, 7 categories, 5 payment methods, 4 income categories,
+        // 1 split rule, 2 expenses, 1 income, 1 transfer, 1 balance
+        // adjustment, settings, 4 orders.
+        #expect(records.count == 28)
+        let held: [SyncRecordType] = [.category, .paymentMethod, .expense, .incomeCategory, .income, .transfer, .balanceAdjustment, .splitRule]
+        for record in records where held.contains(record.type) {
             #expect(record.parent == account.id)
         }
         #expect(records.first { $0.type == .account }?.parent == nil)
@@ -52,7 +65,7 @@ struct SyncRecordTests {
         let state = SyncState()
         let names = SyncKinds.records(in: database).map(\.name) + ["Expense.\(UUID().uuidString)", "Wallet.x"]
         let batch = SyncPlan.outgoingRecords(named: names, in: database, state: state)
-        #expect(batch.count == 19)
+        #expect(batch.count == 28)
         for name in names {
             #expect(batch[name] == SyncPlan.outgoingRecord(named: name, in: database, state: state))
         }
@@ -76,6 +89,83 @@ struct SyncRecordTests {
         #expect(SyncKinds.kind(forName: SyncRecordName.settings) == SettingsSyncKind.self)
         #expect(SyncKinds.kind(forName: "Wallet.\(id.uuidString)") == nil)
         #expect(SyncRecordName.id(in: SyncRecordName.paymentMethodsOrder(id)) == id)
+        // "Income" and "IncomeCategory" share a beginning, not a type.
+        #expect(SyncKinds.kind(forName: SyncRecordName.make(.income, id)) == IncomeSyncKind.self)
+        #expect(SyncKinds.kind(forName: SyncRecordName.make(.incomeCategory, id)) == IncomeCategorySyncKind.self)
+        #expect(SyncKinds.kind(forName: SyncRecordName.make(.transfer, id)) == TransferSyncKind.self)
+        #expect(SyncKinds.kind(forName: SyncRecordName.make(.balanceAdjustment, id)) == BalanceAdjustmentSyncKind.self)
+        #expect(SyncKinds.kind(forName: SyncRecordName.make(.splitRule, id)) == SplitRuleSyncKind.self)
+        #expect(SyncKinds.kind(forName: SyncRecordName.incomeCategoriesOrder(id)) == OrderSyncKind.self)
+        #expect(SyncRecordName.id(in: SyncRecordName.incomeCategoriesOrder(id)) == id)
+    }
+
+    @Test func kindsApplyInRankOrder() {
+        let ranks = SyncKinds.all.map { $0.rank }
+        #expect(ranks == ranks.sorted())
+        #expect(Set(SyncKinds.all.map { $0.type.rawValue }).count == SyncKinds.all.count)
+        // An account before its labels and rule, its labels before what
+        // points at them.
+        #expect(AccountSyncKind.rank < IncomeCategorySyncKind.rank)
+        #expect(AccountSyncKind.rank < SplitRuleSyncKind.rank)
+        #expect(IncomeCategorySyncKind.rank < IncomeSyncKind.rank)
+        #expect(PaymentMethodSyncKind.rank < TransferSyncKind.rank)
+        #expect(PaymentMethodSyncKind.rank < BalanceAdjustmentSyncKind.rank)
+    }
+
+    @Test func moneyRecordsReadBackExactly() throws {
+        let database = sampleDatabase()
+        let account = database.accounts[0]
+        var copy = Database(accounts: [Account(id: account.id, name: account.name, incomeCategories: [])])
+        let kinds: [any SyncKind.Type] = [IncomeCategorySyncKind.self, IncomeSyncKind.self, TransferSyncKind.self, BalanceAdjustmentSyncKind.self, SplitRuleSyncKind.self]
+        for kind in kinds {
+            for record in kind.records(in: database) {
+                let read = try SyncRecord(name: record.name, type: record.type, payload: record.payload)
+                #expect(kind.canonical(read) == record)
+                #expect(kind.apply(read, to: &copy) == .applied)
+            }
+        }
+        let applied = copy.accounts[0]
+        #expect(applied.incomeCategories == account.incomeCategories)
+        #expect(applied.incomes == account.incomes)
+        #expect(applied.transfers == account.transfers)
+        #expect(applied.balanceAdjustments == account.balanceAdjustments)
+        #expect(applied.splitRule == account.splitRule)
+    }
+
+    @Test func aSplitRuleIsOneRecordPerAccountWithTheRulesTime() throws {
+        let edited = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        let rule = SplitRule(isEnabled: true, savingsPercent: 10, expensesPercent: 60, freeMoneyPercent: 30, savingsWalletID: UUID(), updatedAt: edited)
+        let personal = Account(name: "Personal", splitRule: rule)
+        let business = Account(name: "Business")
+        let database = Database(accounts: [personal, business])
+        let records = SplitRuleSyncKind.records(in: database)
+        #expect(records.map(\.name) == [SyncRecordName.make(.splitRule, personal.id), SyncRecordName.make(.splitRule, business.id)])
+        let record = try #require(records.first)
+        #expect(record.modifiedAt == edited)
+        #expect(record.parent == personal.id)
+        #expect(SyncCoding.value(SplitRule.self, from: record.body) == rule)
+        // Its account not here yet: it waits for it.
+        var empty = Database()
+        #expect(SplitRuleSyncKind.apply(record, to: &empty) == .needsAccount(personal.id))
+        // A rule is never removed on its own.
+        var copy = database
+        SplitRuleSyncKind.remove(named: record.name, from: &copy)
+        #expect(copy == database)
+        #expect(SplitRuleSyncKind.record(named: SyncRecordName.make(.expense, personal.id), in: database) == nil)
+    }
+
+    @Test func anAccountFromICloudStartsEmptyAndTakesItsRuleAndOrdersFromICloud() throws {
+        let account = Account(name: "Personal")
+        let record = try #require(AccountSyncKind.records(in: Database(accounts: [account])).first)
+        var database = Database()
+        #expect(AccountSyncKind.apply(record, to: &database) == .applied)
+        let made = try #require(database.accounts.first)
+        #expect(made.id == account.id)
+        #expect(made.incomeCategories.isEmpty)
+        #expect(made.incomes.isEmpty && made.transfers.isEmpty && made.balanceAdjustments.isEmpty)
+        #expect(made.splitRule == SplitRule())
+        #expect(made.splitRule.updatedAt == .distantPast)
+        #expect(made.incomeCategoriesOrderedAt == .distantPast)
     }
 
     @Test func theSyncStateSurvivesBeingSaved() throws {
@@ -143,7 +233,7 @@ struct SyncSchemaToleranceTests {
         a.store.saveExpense(expense, in: personal.id)
         a.sync(cloud)
         let name = SyncRecordName.make(.expense, expense.id)
-        var newer = try #require(SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload))
+        var newer = try SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload)
         newer.body["tip"] = .number(Decimal(string: "4.5")!)
         newer.body["tags"] = .array([.string("work"), .null])
         newer.modifiedAt = later(by: 5)
@@ -193,7 +283,7 @@ struct SyncSchemaToleranceTests {
         a.store.saveExpense(expense, in: personal.id)
         a.sync(cloud)
         let name = SyncRecordName.make(.expense, expense.id)
-        var future = try #require(SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload))
+        var future = try SyncRecord(name: name, type: .expense, payload: try #require(cloud.records[name]).payload)
         future.readerVersion = SyncSchema.readerVersion + 1
         future.body["amount"] = .object(["value": .number(30), "currency": .string("EUR")])
         cloud.put(name: name, type: .expense, payload: future.payload)

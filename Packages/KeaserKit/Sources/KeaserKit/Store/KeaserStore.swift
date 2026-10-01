@@ -7,6 +7,10 @@ import os
 public enum StoreChange: Sendable, Equatable {
     case expenseSaved(accountID: UUID, expenseID: UUID)
     case expenseDeleted(accountID: UUID, expenseID: UUID)
+    case incomeSaved(accountID: UUID, incomeID: UUID)
+    case incomeDeleted(accountID: UUID, incomeID: UUID)
+    case transferSaved(accountID: UUID, transferID: UUID)
+    case transferDeleted(accountID: UUID, transferID: UUID)
     case accountCreated(accountID: UUID)
     case accountUpdated(accountID: UUID)
     case accountDeleted(accountID: UUID)
@@ -208,10 +212,20 @@ public final class KeaserStore {
 
     // MARK: Payment methods
 
-    /// Inserts or replaces a payment method (matched by ID).
+    /// Inserts or replaces a payment method (matched by ID). When that
+    /// changes the wallet's currency, what followed it (expenses, incomes,
+    /// transfer sides and stated balances with no currency of their own)
+    /// is given the old one first, so it keeps the currency it was typed
+    /// in. The opening balance has no currency of its own: it is read in
+    /// the new one, so a tracking wallet's balance is stated again with it.
     public func savePaymentMethod(_ method: PaymentMethod, in accountID: UUID) {
+        let display = database.preferences.currencyCode
         updateAccount(accountID) { account in
             if let i = account.paymentMethods.firstIndex(where: { $0.id == method.id }) {
+                let old = account.paymentMethods[i].effectiveCurrency(display: display)
+                if !CurrencyConverter.same(old, method.effectiveCurrency(display: display)) {
+                    account.pinCurrency(old, followingWallet: method.id)
+                }
                 account.paymentMethods[i] = method
             } else {
                 account.paymentMethods.append(method)
@@ -219,18 +233,218 @@ public final class KeaserStore {
         }
     }
 
-    /// Removes a payment method; its expenses keep no payment method.
+    /// Removes a payment method (a wallet). Its expenses, incomes and
+    /// transfers keep no wallet, its balance adjustments go, and the split
+    /// rule loses it as the savings wallet. What followed the wallet's own
+    /// currency is given that currency first, so it keeps it rather than
+    /// falling back to the display currency.
     public func deletePaymentMethod(_ methodID: UUID, in accountID: UUID) {
         updateAccount(accountID) { account in
+            if let currency = account.paymentMethod(id: methodID)?.currencyCode {
+                account.pinCurrency(currency, followingWallet: methodID)
+            }
             account.paymentMethods.removeAll { $0.id == methodID }
             for i in account.expenses.indices where account.expenses[i].paymentMethodID == methodID {
                 account.expenses[i].paymentMethodID = nil
+            }
+            for i in account.incomes.indices where account.incomes[i].walletID == methodID {
+                account.incomes[i].walletID = nil
+            }
+            for i in account.transfers.indices {
+                if account.transfers[i].fromWalletID == methodID {
+                    account.transfers[i].fromWalletID = nil
+                }
+                if account.transfers[i].toWalletID == methodID {
+                    account.transfers[i].toWalletID = nil
+                }
+            }
+            account.balanceAdjustments.removeAll { $0.walletID == methodID }
+            if account.splitRule.savingsWalletID == methodID {
+                account.splitRule.savingsWalletID = nil
             }
         }
     }
 
     public func movePaymentMethods(in accountID: UUID, fromOffsets source: IndexSet, toOffset destination: Int) {
         updateAccount(accountID) { $0.paymentMethods.keaserMove(fromOffsets: source, toOffset: destination) }
+    }
+
+    // MARK: Labels
+
+    /// Saves a category's or payment method's name and icon, as the label
+    /// editor does. One the account has keeps everything else (a category's
+    /// role, a wallet's kind, currency, balance, limit and switches), so a
+    /// rename or a new icon never resets it; a new one starts from its name.
+    public func saveLabel(id: UUID, name: String, symbol: String, kind: LabelKind, in accountID: UUID) {
+        let stored = account(id: accountID)
+        switch kind {
+        case .category:
+            var category = stored?.category(id: id) ?? ExpenseCategory(id: id, name: name, symbol: symbol)
+            category.name = name
+            category.symbol = symbol
+            saveCategory(category, in: accountID)
+        case .paymentMethod:
+            var method = stored?.paymentMethod(id: id) ?? PaymentMethod(id: id, name: name, symbol: symbol)
+            method.name = name
+            method.symbol = symbol
+            savePaymentMethod(method, in: accountID)
+        }
+    }
+
+    // MARK: Wallet balances
+
+    /// States what is in a wallet at `date`. A wallet not tracking starts
+    /// tracking from that balance; one already tracking gets a balance
+    /// adjustment, a later checkpoint that leaves its history as it is.
+    public func setBalance(_ balance: Decimal, ofWallet walletID: UUID, in accountID: UUID, at date: Date = .now) {
+        updateAccount(accountID) { account in
+            guard let w = account.paymentMethods.firstIndex(where: { $0.id == walletID }) else { return }
+            if account.paymentMethods[w].trackingSince == nil {
+                account.paymentMethods[w].trackingSince = date
+                account.paymentMethods[w].openingBalance = balance
+            } else {
+                account.balanceAdjustments.append(BalanceAdjustment(walletID: walletID, balance: balance, date: date))
+            }
+        }
+    }
+
+    public func deleteBalanceAdjustment(_ adjustmentID: UUID, in accountID: UUID) {
+        updateAccount(accountID) { $0.balanceAdjustments.removeAll { $0.id == adjustmentID } }
+    }
+
+    // MARK: Income
+
+    /// Inserts or replaces an income (matched by ID) and stamps `updatedAt`.
+    /// In the same save, its savings transfer is made, updated or removed
+    /// as the split rule says (`SavingsSplit`), at `rates` when the savings
+    /// wallet is in another currency. The rule applies to a new income or
+    /// one whose Skip This Time was just turned off; any other keeps the
+    /// split it was logged with. One already made stays as it is unless
+    /// what leaves the income's wallet changed.
+    public func saveIncome(_ income: Income, in accountID: UUID, rates: ExchangeRates? = nil, now: Date = .now) {
+        guard let a = database.accounts.firstIndex(where: { $0.id == accountID }) else { return }
+        var income = income
+        income.title = income.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        income.updatedAt = now
+        let before = database
+        var account = database.accounts[a]
+        let display = database.preferences.currencyCode
+        let stored = account.income(id: income.id)
+        let linked = income.savingsTransferID ?? stored?.savingsTransferID
+        let existing = account.transfer(id: linked)
+            ?? account.transfers.first { $0.kind == .savings && $0.incomeID == income.id }
+        let split = SavingsSplit.transfer(
+            for: income, stored: stored, existing: existing, in: account, rule: account.splitRule, display: display,
+            converter: CurrencyConverter(displayCurrency: display, rates: rates), now: now
+        )
+        if let transfer = split.transfer {
+            if let t = account.transfers.firstIndex(where: { $0.id == transfer.id }) {
+                account.transfers[t] = transfer
+            } else {
+                account.transfers.append(transfer)
+            }
+        } else if let existing {
+            account.transfers.removeAll { $0.id == existing.id }
+        }
+        // Any other savings transfer of it is a copy (made on another
+        // device) that would count twice.
+        account.transfers.removeAll { $0.kind == .savings && $0.incomeID == income.id && $0.id != split.transfer?.id }
+        income.savingsTransferID = split.transfer?.id
+        income.savingsPercent = split.percent
+        if let i = account.incomes.firstIndex(where: { $0.id == income.id }) {
+            account.incomes[i] = income
+        } else {
+            account.incomes.append(income)
+        }
+        database.accounts[a] = account
+        commit(.incomeSaved(accountID: accountID, incomeID: income.id), since: before, now: now)
+    }
+
+    /// Removes an income and the savings transfer it made.
+    public func deleteIncome(_ incomeID: UUID, in accountID: UUID) {
+        guard let a = database.accounts.firstIndex(where: { $0.id == accountID }),
+              let i = database.accounts[a].incomes.firstIndex(where: { $0.id == incomeID })
+        else { return }
+        let before = database
+        let linked = database.accounts[a].incomes[i].savingsTransferID
+        database.accounts[a].incomes.remove(at: i)
+        database.accounts[a].transfers.removeAll { transfer in
+            transfer.id == linked || (transfer.kind == .savings && transfer.incomeID == incomeID)
+        }
+        commit(.incomeDeleted(accountID: accountID, incomeID: incomeID), since: before)
+    }
+
+    // MARK: Transfers
+
+    /// Inserts or replaces a transfer (matched by ID) and stamps `updatedAt`.
+    public func saveTransfer(_ transfer: Transfer, in accountID: UUID, now: Date = .now) {
+        guard let a = database.accounts.firstIndex(where: { $0.id == accountID }) else { return }
+        var transfer = transfer
+        transfer.note = transfer.note.trimmingCharacters(in: .whitespacesAndNewlines)
+        transfer.updatedAt = now
+        let before = database
+        if let t = database.accounts[a].transfers.firstIndex(where: { $0.id == transfer.id }) {
+            database.accounts[a].transfers[t] = transfer
+        } else {
+            database.accounts[a].transfers.append(transfer)
+        }
+        commit(.transferSaved(accountID: accountID, transferID: transfer.id), since: before, now: now)
+    }
+
+    /// Removes a transfer. Deleting an income's savings transfer is
+    /// skipping it: the income keeps no split and is marked skipped. A
+    /// copy of it the income does not link, while another remains, goes
+    /// alone.
+    public func deleteTransfer(_ transferID: UUID, in accountID: UUID) {
+        guard let a = database.accounts.firstIndex(where: { $0.id == accountID }),
+              let t = database.accounts[a].transfers.firstIndex(where: { $0.id == transferID })
+        else { return }
+        let before = database
+        let transfer = database.accounts[a].transfers.remove(at: t)
+        let remaining = database.accounts[a].transfers
+        for i in database.accounts[a].incomes.indices {
+            let income = database.accounts[a].incomes[i]
+            let itsLast = transfer.kind == .savings && transfer.incomeID == income.id
+                && !remaining.contains { $0.kind == .savings && $0.incomeID == income.id }
+            guard income.savingsTransferID == transferID || itsLast else { continue }
+            database.accounts[a].incomes[i].savingsTransferID = nil
+            database.accounts[a].incomes[i].savingsPercent = nil
+            database.accounts[a].incomes[i].savingsSkipped = true
+        }
+        commit(.transferDeleted(accountID: accountID, transferID: transferID), since: before)
+    }
+
+    // MARK: Income categories
+
+    /// Inserts or replaces an income category (matched by ID).
+    public func saveIncomeCategory(_ category: IncomeCategory, in accountID: UUID) {
+        updateAccount(accountID) { account in
+            if let i = account.incomeCategories.firstIndex(where: { $0.id == category.id }) {
+                account.incomeCategories[i] = category
+            } else {
+                account.incomeCategories.append(category)
+            }
+        }
+    }
+
+    /// Removes an income category; its incomes become uncategorised.
+    public func deleteIncomeCategory(_ categoryID: UUID, in accountID: UUID) {
+        updateAccount(accountID) { account in
+            account.incomeCategories.removeAll { $0.id == categoryID }
+            for i in account.incomes.indices where account.incomes[i].categoryID == categoryID {
+                account.incomes[i].categoryID = nil
+            }
+        }
+    }
+
+    public func moveIncomeCategories(in accountID: UUID, fromOffsets source: IndexSet, toOffset destination: Int) {
+        updateAccount(accountID) { $0.incomeCategories.keaserMove(fromOffsets: source, toOffset: destination) }
+    }
+
+    // MARK: Split rule
+
+    public func updateSplitRule(in accountID: UUID, _ body: (inout SplitRule) -> Void) {
+        updateAccount(accountID) { body(&$0.splitRule) }
     }
 
     // MARK: Whole database

@@ -94,6 +94,31 @@ struct ExpenseDeletionStoreTests {
         #expect(store.accounts.count == 1)
     }
 
+    @Test func anExpenseWhoseWalletWentSinceComesBackInItsCurrency() throws {
+        let store = KeaserStore(file: nil)
+        store.updatePreferences { $0.currencyCode = "RWF" }
+        let account = store.createAccount(name: "Personal")
+        let dollars = PaymentMethod(name: "Dollars", symbol: "dollarsign", currencyCode: "USD")
+        store.savePaymentMethod(dollars, in: account.id)
+        let cash = account.paymentMethods[2]
+        store.saveExpense(Expense(title: "Lunch", amount: 12, paymentMethodID: dollars.id), in: account.id)
+        store.saveExpense(Expense(title: "Bus", amount: 500, paymentMethodID: cash.id), in: account.id)
+        let deletion = ExpenseDeletion(ids: store.accounts[0].expenses.map(\.id), in: store.database)
+        #expect(deletion.items.map(\.walletCurrency) == ["USD", nil])
+        #expect(store.delete(deletion))
+
+        // Both wallets deleted before the undo.
+        store.deletePaymentMethod(dollars.id, in: account.id)
+        store.deletePaymentMethod(cash.id, in: account.id)
+        #expect(store.restore(deletion.items))
+        let restored = store.accounts[0]
+        let lunch = try #require(restored.expenses.first { $0.title == "Lunch" })
+        #expect(lunch.paymentMethodID == nil && lunch.currencyCode == "USD")
+        #expect(restored.effectiveCurrency(of: lunch, display: "RWF") == "USD")
+        let bus = try #require(restored.expenses.first { $0.title == "Bus" })
+        #expect(bus.paymentMethodID == nil && bus.currencyCode == nil)
+    }
+
     @Test func aDeleteThatCannotBeSavedIsTakenBack() throws {
         let file = tempFile()
         let store = KeaserStore(file: file)

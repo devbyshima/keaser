@@ -7,7 +7,9 @@ import Testing
 /// `next(after:answer:model:budget:)`.
 @MainActor
 struct IntelligenceShortcutFlowTests {
-    private let budget = Duration.milliseconds(300)
+    private let budget = Duration.ample
+    /// For a model that answers after it.
+    private let shortBudget = Duration.milliseconds(300)
 
     private func category(_ name: String, in account: Account) -> UUID {
         account.categories.first { $0.name == name }!.id
@@ -52,7 +54,7 @@ struct IntelligenceShortcutFlowTests {
 
         for model in [FakeCategoryModel(nil), FakeCategoryModel("Health", delay: .seconds(5)), FakeCategoryModel("Pets")] {
             var f = flow([account], title: "Watsons", amount: 5)
-            #expect(await f.start(model: model, budget: budget) == .category)
+            #expect(await f.start(model: model, budget: shortBudget) == .category)
             #expect(f.categoryID == nil)
         }
     }
@@ -85,10 +87,10 @@ struct IntelligenceShortcutFlowTests {
         let account = Account(name: "Personal")
         let model = FakeCategoryModel("Health", delay: .seconds(5))
         var f = flow([account], title: "Watsons")
-        #expect(await f.start(model: model, budget: budget) == .amount)
-        #expect(await f.next(after: .amount, answer: .amount(5), model: model, budget: budget) == .category)
-        #expect(await f.next(after: .category, answer: .goBack, model: model, budget: budget) == .amount)
-        #expect(await f.next(after: .amount, answer: .amount(6), model: model, budget: budget) == .category)
+        #expect(await f.start(model: model, budget: shortBudget) == .amount)
+        #expect(await f.next(after: .amount, answer: .amount(5), model: model, budget: shortBudget) == .category)
+        #expect(await f.next(after: .category, answer: .goBack, model: model, budget: shortBudget) == .amount)
+        #expect(await f.next(after: .amount, answer: .amount(6), model: model, budget: shortBudget) == .category)
         #expect(model.asked == ["Watsons"])
     }
 
