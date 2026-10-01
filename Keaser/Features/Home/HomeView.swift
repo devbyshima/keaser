@@ -3,9 +3,9 @@ import SwiftUI
 import UIKit
 
 /// The Home tab: account switcher, search, filters, the spending summary with
-/// its chart, the latest expenses and the add button. Search replaces all of
-/// it with its own full-screen view while it is open, and the tab bar hides
-/// meanwhile.
+/// its chart and the latest expenses (Add Expense is the tab bar's detached
+/// button, `MainTabView`). Search replaces all of it with its own
+/// full-screen view while it is open, and the tab bar hides meanwhile.
 struct HomeView: View {
     @Environment(KeaserStore.self) private var store
     @Environment(ProStore.self) private var pro

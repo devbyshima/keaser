@@ -84,9 +84,10 @@ enum KeaserMetrics {
     static let cardRadius: CGFloat = 26
     static let rowRadius: CGFloat = 24
     static let primaryButtonHeight: CGFloat = 58
-    /// The band under a sheet's header where scrolled content fades out
-    /// (`keaserSheetScrollEdge()`): the cards' 16pt spacing.
-    static let sheetScrollEdge: CGFloat = 16
+    /// The band under a sheet's header that scrolled content stays out of
+    /// (`keaserSheetScrollEdge()`): twice the cards' 16pt spacing, the
+    /// first half clear and the second where content fades in.
+    static let sheetScrollEdge: CGFloat = 32
 }
 
 extension Font {
