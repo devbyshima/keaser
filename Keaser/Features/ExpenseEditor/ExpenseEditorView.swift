@@ -2,8 +2,9 @@ import KeaserKit
 import SwiftUI
 
 /// New Expense and Edit Expense: title, amount, category, payment method and
-/// date on one card, with Smart Suggestions under the title while typing,
-/// and the photos of its receipts under the card.
+/// date on one card, with Smart Suggestions under the title while typing;
+/// under the card, the note a read receipt leaves, then the photos of its
+/// receipts.
 struct ExpenseEditorView: View {
     let accountID: UUID
     /// Nil when creating.
@@ -139,6 +140,11 @@ struct ExpenseEditorView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         card
+                        // Right under the card, before the receipts, so it
+                        // shows at the `.medium` detent without a scroll.
+                        if let receiptNote {
+                            ReceiptNote(text: receiptNote)
+                        }
                         ReceiptAttachmentSection(
                             receipts: receipts,
                             isPreparing: preparingReceipts > 0,
@@ -157,9 +163,6 @@ struct ExpenseEditorView: View {
                             Button("Cancel", role: .cancel) {}
                         } message: { source in
                             Text(ReceiptViewer.removalMessage(for: source, in: receipts))
-                        }
-                        if let receiptNote {
-                            ReceiptNote(text: receiptNote)
                         }
                         if !isNew {
                             deleteButton
@@ -608,20 +611,23 @@ struct ExpenseEditorView: View {
                 receiptNotFound = true
                 return
             }
-            attach(jpegs)
-            if let draft, isReceipt { fill(from: draft) }
+            let attached = attach(jpegs)
+            var note: String?
+            if let draft, isReceipt { note = fill(from: draft) }
+            if let announcement = ReceiptFill.announcement(attached: attached, note: note) {
+                AccessibilityNotification.Announcement(announcement).post()
+            }
         }
         receiptTasks.append(task)
     }
 
-    private func attach(_ jpegs: [Data]) {
+    /// Adds the photos after the ones already kept; returns how many fit.
+    private func attach(_ jpegs: [Data]) -> Int {
         let before = receipts.count
         withAnimation(.smooth(duration: 0.3)) {
             receipts = ReceiptList.adding(jpegs.map { .unsaved(UnsavedReceipt(jpeg: $0)) }, to: receipts)
         }
-        let added = receipts.count - before
-        guard added > 0 else { return }
-        AccessibilityNotification.Announcement(added == 1 ? "Receipt attached" : "\(added) receipts attached").post()
+        return receipts.count - before
     }
 
     /// Takes one photo off the expense. A kept one is deleted once the edit
@@ -636,10 +642,12 @@ struct ExpenseEditorView: View {
     /// Fills in the receipt's merchant, total and day where the card is
     /// still empty (`ReceiptFill`), never over what the person typed or
     /// picked. The merchant becomes the title, so Smart Suggestions then
-    /// guess its labels as for a typed one.
-    private func fill(from draft: ReceiptDraft) {
+    /// guess its labels as for a typed one. Returns the note shown under
+    /// the card, or nil when there was nothing to fill in.
+    private func fill(from draft: ReceiptDraft) -> String? {
         let fill = ReceiptFill(draft, titleIsEmpty: titleIsEmpty, amountIsEmpty: amountIsEmpty, dateIsUntouched: !datePicked)
-        guard !fill.isEmpty else { return }
+        guard !fill.isEmpty else { return nil }
+        let note = draft.note(recordingIn: currencyCode)
         withAnimation(.snappy(duration: 0.25)) {
             if let merchant = fill.title { title = merchant }
             if let total = fill.total {
@@ -649,11 +657,11 @@ struct ExpenseEditorView: View {
             if let day = fill.day, let filled = day.date(keepingTimeOf: date, calendar: store.preferences.calendar) {
                 date = filled
             }
-            receiptNote = draft.note(recordingIn: currencyCode)
+            receiptNote = note
         }
         focus = nil
         guessLabels()
-        AccessibilityNotification.Announcement("Filled in from your receipt").post()
+        return note
     }
 
     private func save() {
@@ -726,10 +734,10 @@ struct ExpenseEditorView: View {
 }
 
 /// The note under the card once a receipt filled it in, set like a list
-/// section's footer. On iOS 26 and later the tab bar's Add Expense button
-/// shows blurred through the glass sheet at the trailing edge, level with
-/// the note once the editor scrolls to its end (Home's floating + sat there
-/// in the reference); the note's lines wrap before they reach it.
+/// section's footer, before the receipts. On iOS 26 and later the tab bar's
+/// Add Expense button shows blurred through the glass sheet at the trailing
+/// edge, level with the note (Home's floating + sat there in the
+/// reference); the note's lines wrap before they reach it.
 private struct ReceiptNote: View {
     let text: String
 

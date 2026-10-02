@@ -193,8 +193,12 @@ simulator GUI; add launch arguments instead.
   Receipt under the photo (`KeaserActionCard`, as Delete Expense); both
   ask "Remove Receipt?" and name the receipt in quotes. `.smooth` 0.3 s
   for receipts coming and going, `.success` haptics on removing. The card,
-  rows and header above stay as the reference has them; the receipts come
-  before the "Filled in from your receipt" note.
+  rows and header above stay as the reference has them. The "Filled in
+  from your receipt" note sits right under the card, before the receipts,
+  so it shows at `.medium` with no scroll, level with the blurred Add
+  Expense button (the founder's choice). VoiceOver hears the whole note,
+  the other-currency warning included, in one announcement with "Receipt
+  attached" (`ReceiptFill.announcement`).
 - Settings > Tutorials lists Apple Wallet Automation alone. The Add Expense
   Shortcut tutorial (a home-made shortcut on Back Tap or a Run Shortcut
   control) was removed by the founder's choice: Keaser's own Add Expense

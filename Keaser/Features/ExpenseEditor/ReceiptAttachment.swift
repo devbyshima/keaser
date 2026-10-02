@@ -211,7 +211,8 @@ struct ReceiptRow: View {
     }
 }
 
-/// Under the expense editor's card: the receipts (`ReceiptRow` for one,
+/// Under the expense editor's card (and its receipt note, when a receipt
+/// filled the card in): the receipts (`ReceiptRow` for one,
 /// `ReceiptGallery` for more), then Add Receipt in a card, drawn like Add
 /// Account: one menu for the camera and the photo library. It goes away at
 /// `ReceiptList.maximum`.

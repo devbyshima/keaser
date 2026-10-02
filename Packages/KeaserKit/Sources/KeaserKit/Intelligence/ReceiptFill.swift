@@ -24,4 +24,19 @@ public struct ReceiptFill: Equatable, Sendable {
     public static func wantsReading(titleIsEmpty: Bool, amountIsEmpty: Bool) -> Bool {
         titleIsEmpty || amountIsEmpty
     }
+
+    /// What VoiceOver says once captured receipts are kept and, when one was
+    /// read, the card filled in: one announcement, so the second never cuts
+    /// the first off, ending with the whole note under the card (the
+    /// other-currency warning included). Nil when nothing happened.
+    public static func announcement(attached: Int, note: String?) -> String? {
+        var parts: [String] = []
+        if attached == 1 {
+            parts.append("Receipt attached.")
+        } else if attached > 1 {
+            parts.append("\(attached) receipts attached.")
+        }
+        if let note { parts.append(note) }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
 }
