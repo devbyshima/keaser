@@ -111,6 +111,11 @@ struct HomeView: View {
                 // The style taps across 44pt; lay it out at the drawn 36pt so
                 // the block sits where the reference has it.
                 .padding(.vertical, -4)
+                // Its sheet floats right over it: the bright capsule would
+                // show through the sheet's glass as a blur across the name
+                // field, so it steps aside while New Account is up.
+                .opacity(sheet == .addAccount ? 0 : 1)
+                .animation(.smooth(duration: 0.3), value: sheet == .addAccount)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

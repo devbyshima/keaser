@@ -28,6 +28,7 @@ struct PaywallView: View {
     /// lines.
     @State private var featureLines: [Int: PaywallFold.Row] = [:]
     @State private var panelTop: CGFloat?
+    @State private var topSafeArea: CGFloat = 0
     @State private var scrolledBy: CGFloat = 0
     @State private var foldShift: CGFloat = 0
     @State private var foldPlaced = false
@@ -48,9 +49,11 @@ struct PaywallView: View {
                 scrolledBy = offset
             }
             .keaserReadableScrollContent(width: KeaserMetrics.narrowReadableWidth)
+            .mask(alignment: .top) { underPanelMask }
             .keaserBottomBar { bottomBar }
             .coordinateSpace(.named(Self.sheetSpace))
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomSafeArea = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topSafeArea = $0 }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HeaderIconButton("xmark", label: "Close") { dismiss() }
@@ -148,8 +151,32 @@ struct PaywallView: View {
     /// The gap the reference leaves between the panel and the bottom of the
     /// screen.
     private static let panelGap: CGFloat = 17
-    /// The band above the panel where content fades out (before iOS 26).
+    /// The band where content fades out: above the panel before iOS 26,
+    /// just under the glass panel's top edge on iOS 26 and later.
     private static let panelFade: CGFloat = 24
+
+    /// On iOS 26 and later the features scroll on under the glass panel,
+    /// which would show them refracted through it, the red heart as a smear.
+    /// They fade out over `panelFade` under its top edge instead, so the
+    /// lines above it stay whole and the glass shows only the sheet. The
+    /// mask reaches up under the header too (the scroll view's frame starts
+    /// below it), so scrolled content still passes under the header's
+    /// buttons into the system's soft edge instead of being cut off.
+    @ViewBuilder
+    private var underPanelMask: some View {
+        if #available(iOS 26.0, *), let panelTop {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .frame(height: topSafeArea + max(0, panelTop))
+                LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.panelFade)
+            }
+            .offset(y: -topSafeArea)
+        } else {
+            Rectangle()
+                .padding(.top, -topSafeArea)
+        }
+    }
     /// The reference's Continue, a little taller than onboarding's.
     private static let continueHeight: CGFloat = 62
 
@@ -164,7 +191,8 @@ struct PaywallView: View {
             .background(alignment: .top) {
                 if #available(iOS 26.0, *) {
                     // keaserBottomBar gives the bar the system's scroll edge
-                    // effect.
+                    // effect, and `underPanelMask` keeps the features out
+                    // of the glass.
                     EmptyView()
                 } else {
                     // Content fades out in a fixed band above the panel,

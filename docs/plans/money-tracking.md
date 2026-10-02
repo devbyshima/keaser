@@ -196,7 +196,7 @@ Decisions made while building:
 - The legal pages pushed in Settings stay white in light mode, as the reference draws them (`settingsDocumentCanvas`), and are black in dark mode.
 - `paywall-over-settings` is now one sheet over the Settings tab; the reference's sheet over a sheet no longer applies.
 
-- Checked on the iOS 18.6 simulator too (a runtime on this Mac, though AGENTS.md says only iOS 27 is local): the standard bar shows five items with Add Expense last as a small ink disc, Search hides it, and Home, Settings and Wallets read as on iOS 27, light and dark.
+- Checked on the iOS 18.6 simulator too (a runtime on this Mac, listed in AGENTS.md beside iOS 27): the standard bar shows five items with Add Expense last as a small ink disc, Search hides it, and Home, Settings and Wallets read as on iOS 27, light and dark.
 
 Left to check on a device:
 
@@ -213,3 +213,6 @@ Fixed since:
 - The chart callout for a wide total (RWF 100,000) covered the top of the "100K" axis label and sat about 2pt under the total. It now stays within the plot's width and clear of the total's whole line, at every text size.
 - The receipt note in New Expense sat below the fold under Add Receipt at `.medium`. By the founder's choice it sits right under the card, before the receipts, so it shows with no scroll, and VoiceOver hears all of it.
 - At accessibility text sizes the details card truncated long values ("Enterta...", "Credit..."). Each value now sits under its label and wraps, and one with nowhere to break shrinks instead.
+- At the XXXL text size the dates in Home's and Search's expense rows were cut short beside a long amount. When the date and the amount do not both fit, the amount now moves under the date, and the date shows whole.
+- The New Account sheet showed the Add Account button behind it as a bright blur across the name field. The button now steps aside while the sheet is up.
+- On iOS 26 and later the paywall's features showed through its glass plans panel, the red heart as a smear. They now fade out under the panel's top edge.

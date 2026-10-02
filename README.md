@@ -9,7 +9,7 @@
 Native iOS · SwiftUI · iOS 18 and later · no third-party packages
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-629%20in%2081%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
+[![Tests](https://img.shields.io/badge/tests-637%20in%2081%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
 </div>
@@ -56,7 +56,7 @@ widget. Everything stays on your iPhone.
 
 ## Build
 
-Requires Xcode 26 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+Requires Xcode 27 or later (the iOS 27 SDK) and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
     brew install xcodegen
     xcodegen generate
@@ -64,7 +64,7 @@ Requires Xcode 26 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
 The app targets iOS 18. From the command line:
 
-    ./scripts/build.sh          # simulator build, prints errors and warnings only
+    ./scripts/build.sh          # simulator build, prints errors, our own warnings and the result
     ./scripts/test.sh           # KeaserKit tests, run on the Mac (no simulator)
     ./scripts/screenshots.sh    # every screen, headless, into screenshots/
 
