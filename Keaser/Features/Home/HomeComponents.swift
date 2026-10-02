@@ -75,9 +75,11 @@ struct HomeExpenseRows: View {
     }
 }
 
-/// One expense on Home: category symbol, title, date and amount. At
-/// accessibility text sizes the amount moves under the date so the title
-/// keeps the width it needs.
+/// One expense on Home: category symbol, title, date and amount. The amount
+/// sits beside the date while the whole date fits next to it; otherwise
+/// (a long amount at a large text size, and always at accessibility sizes)
+/// it moves under the date, as the details card puts a value under its
+/// label, so the date reads whole.
 struct HomeExpenseRow: View {
     let expense: Expense
     let symbol: String
@@ -86,36 +88,65 @@ struct HomeExpenseRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        let isLarge = dynamicTypeSize.isAccessibilitySize
         HStack(spacing: 16) {
             SymbolTile(symbol: symbol, size: 42)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(expense.title)
-                    .keaserFont(17, weight: .semibold, relativeTo: .headline)
-                    .foregroundStyle(Color.keaserPrimaryText)
-                    .lineLimit(isLarge ? 3 : 1)
-                Text(expense.date, format: .dateTime.month(.abbreviated).day().year())
-                    .keaserFont(15, relativeTo: .subheadline)
-                    .foregroundStyle(Color.keaserSecondaryText)
-                    .lineLimit(isLarge ? 2 : 1)
-                if isLarge {
-                    amount
-                        .padding(.top, 4)
-                }
-            }
-            if isLarge {
-                Spacer(minLength: 0)
+            if dynamicTypeSize.isAccessibilitySize {
+                stacked
             } else {
-                Spacer(minLength: 8)
-                amount
-                    .layoutPriority(1)
+                // Picks by ideal widths: the date and the amount side by
+                // side, with the title left out of the measure (it
+                // truncates as before).
+                ViewThatFits(in: .horizontal) {
+                    sideBySide
+                    stacked
+                }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    private var sideBySide: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 1) {
+                title
+                    .frame(minWidth: 0, idealWidth: 0, alignment: .leading)
+                date
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            amount
+                .layoutPriority(1)
+        }
+    }
+
+    private var stacked: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 1) {
+                title
+                date
+                    .lineLimit(2)
+                amount
+                    .padding(.top, 4)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var title: some View {
+        Text(expense.title)
+            .keaserFont(17, weight: .semibold, relativeTo: .headline)
+            .foregroundStyle(Color.keaserPrimaryText)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+    }
+
+    private var date: some View {
+        Text(expense.date, format: .dateTime.month(.abbreviated).day().year())
+            .keaserFont(15, relativeTo: .subheadline)
+            .foregroundStyle(Color.keaserSecondaryText)
     }
 
     private var amount: some View {
