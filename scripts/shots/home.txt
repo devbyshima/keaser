@@ -22,12 +22,17 @@ suggestions | -KeaserSeed demo -KeaserSheet newExpense -KeaserExpenseTitle G
 guess | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle Outing -KeaserExpenseFocus amount
 # The long-press glass callout over the All Time bar, as in the recording;
 # over a bar near the leading edge, where it drops to just above its bar
-# rather than cover the total; and over the tallest bar under the total,
-# where it sits beside the bar.
+# rather than cover the total; over the tallest bar under the total, where
+# it sits on its bar; and a wide amount under a wide total, where it lines
+# up with the plot's trailing edge (clear of "100K") and sinks a little into
+# its bar to stay clear of the total, also at the chart's largest text size
+# and with the total at the largest accessibility size.
 chart-callout | -KeaserSeed single -KeaserChartSelection last
 chart-callout-edge | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 0
 chart-callout-tall | -KeaserSeed demo -KeaserPeriod thisYear -KeaserChartSelection 5
 chart-callout-wide-total | -KeaserSeed single -KeaserCurrency RWF -KeaserAmountScale 5000 -KeaserChartSelection last
+chart-callout-wide-total-xxxl | -KeaserSeed single -KeaserCurrency RWF -KeaserAmountScale 5000 -KeaserChartSelection last -UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL
+chart-callout-wide-total-axxxl | -KeaserSeed single -KeaserCurrency RWF -KeaserAmountScale 5000 -KeaserChartSelection last -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL
 # A first expense in a fresh account: Food & Drinks, then Cash.
 guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LUNCH -KeaserExpenseFocus amount
 # Receipt scanning in New Expense (owner: intelligence). -KeaserCategoryModel
