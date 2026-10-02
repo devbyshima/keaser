@@ -199,11 +199,14 @@ public enum SpendingChart {
     }
 
     /// Where the long-press callout's leading edge goes: centred over the
-    /// bar whose middle is at `barCenter`, but kept inside a chart
-    /// `chartWidth` wide (flush with its leading edge if it cannot fit).
-    public static func calloutLeading(barCenter: Double, calloutWidth: Double, chartWidth: Double) -> Double {
+    /// bar whose middle is at `barCenter`, but kept between the chart's
+    /// leading edge and `plotTrailing`, the plot's trailing edge, past which
+    /// the value axis prints its labels (flush with the leading edge if it
+    /// cannot fit). Over the last bars a wide callout lines up with the
+    /// plot's end, as the first bar's lines up with its start.
+    public static func calloutLeading(barCenter: Double, calloutWidth: Double, plotTrailing: Double) -> Double {
         let centred = barCenter - calloutWidth / 2
-        return min(max(centred, 0), max(chartWidth - calloutWidth, 0))
+        return min(max(centred, 0), max(plotTrailing - calloutWidth, 0))
     }
 
     /// Where the long-press callout rests, in the chart's coordinates (y
@@ -254,24 +257,27 @@ public enum SpendingChart {
     ///    still over its bar, but sunk into the bar's top just far enough
     ///    to clear the total, by at most half its own height.
     /// 3. Where even that would cover it: beside the bar, on the trailing
-    ///    side if the chart has room there, else the leading one, with its
+    ///    side if the plot has room there, else the leading one, with its
     ///    top just under the total.
     ///
-    /// It always stays inside the chart, `chartWidth` wide. `barTop` and
-    /// `plotTop` are y positions; `barWidth` is the drawn bar's width.
+    /// It never reaches past `plotTrailing`, the plot's trailing edge, so
+    /// the value labels beside the plot always show, nor before the chart's
+    /// leading edge. `keepClear` is the total's whole line, descent
+    /// included, so a comma's tail is inside it. `barTop` and `plotTop` are
+    /// y positions; `barWidth` is the drawn bar's width.
     public static func calloutPlacement(
         barCenter: Double,
         barWidth: Double,
         barTop: Double,
         calloutWidth: Double,
         calloutHeight: Double,
-        chartWidth: Double,
+        plotTrailing: Double,
         plotTop: Double,
         keepClear: Area?,
         gap: Double = 6,
         margin: Double = 4
     ) -> CalloutPlacement {
-        let centred = calloutLeading(barCenter: barCenter, calloutWidth: calloutWidth, chartWidth: chartWidth)
+        let centred = calloutLeading(barCenter: barCenter, calloutWidth: calloutWidth, plotTrailing: plotTrailing)
         let onBar = CalloutPlacement(leading: centred, bottom: max(barTop, plotTop) - gap)
         guard let keepClear, !keepClear.isEmpty else { return onBar }
         let avoided = keepClear.grown(by: margin)
@@ -285,7 +291,7 @@ public enum SpendingChart {
             if isClear(sunk) { return sunk }
         }
         let trailing = barCenter + barWidth / 2 + margin
-        if trailing + calloutWidth <= chartWidth {
+        if trailing + calloutWidth <= plotTrailing {
             return CalloutPlacement(leading: trailing, bottom: bottom)
         }
         let leading = barCenter - barWidth / 2 - margin - calloutWidth

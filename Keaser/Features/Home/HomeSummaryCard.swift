@@ -17,23 +17,20 @@ struct HomeSummaryCard: View {
     /// Where the total and the chart are in the card, so the chart's
     /// callout can keep clear of the total.
     @State private var totalFrame = CGRect.zero
-    /// The total's baseline: its digits end there, while its frame runs on
-    /// for the font's descent, which is empty space above the chart.
-    @State private var totalBaseline: CGFloat?
     @State private var chartFrame = CGRect.zero
 
     private nonisolated static let space = "HomeSummaryCard"
 
-    /// The total's ink in the chart's coordinates (its frame down to the
-    /// baseline), once both are laid out.
+    /// The total's line in the chart's coordinates, once both are laid out:
+    /// its whole frame, descent included, so a comma's tail is inside it.
+    /// It always ends 40pt above the chart, at every text size.
     private var totalInChart: SpendingChart.Area? {
         guard !chartFrame.isEmpty, !totalFrame.isEmpty else { return nil }
-        let bottom = totalBaseline.map { min(max($0, totalFrame.minY), totalFrame.maxY) } ?? totalFrame.maxY
         return SpendingChart.Area(
             x: totalFrame.minX - chartFrame.minX,
             y: totalFrame.minY - chartFrame.minY,
             width: totalFrame.width,
-            height: bottom - totalFrame.minY
+            height: totalFrame.height
         )
     }
 
@@ -52,12 +49,6 @@ struct HomeSummaryCard: View {
                     // adding an expense), or fade with Reduce Motion.
                     .contentTransition(reduceMotion ? .opacity : .numericText(value: total.doubleValue))
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { totalFrame = $0 }
-                    .overlay(alignment: Alignment(horizontal: .leading, vertical: .lastTextBaseline)) {
-                        Color.clear
-                            .frame(width: 1, height: 1)
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.space)).maxY } action: { totalBaseline = $0 }
-                            .accessibilityHidden(true)
-                    }
                     .padding(.top, 8.5)
             }
             .accessibilityElement(children: .combine)
@@ -88,7 +79,8 @@ struct HomeSummaryCard: View {
 /// Pressing and holding a bar raises a small glass callout out of it with
 /// its period and amount; sliding the finger carries the callout from bar
 /// to bar until the finger lifts and it sinks back. The callout never
-/// covers `keepClear`, the total printed above the chart.
+/// covers `keepClear`, the total printed above the chart, nor the value
+/// labels beside the plot.
 struct HomeSpendingChart: View {
     let buckets: [SpendingChart.Bucket]
     let period: Period
@@ -178,9 +170,7 @@ struct HomeSpendingChart: View {
                     // Drawn here rather than as a chart annotation so its
                     // entrance, exit and glide are ours to animate.
                     .overlay(alignment: .topLeading) {
-                        // Free to pass over the axis labels, so a wide amount
-                        // over the last bar still sits centred on it.
-                        callout(proxy: proxy, plot: plot, chartWidth: geometry.size.width)
+                        callout(proxy: proxy, plot: plot)
                     }
             }
         }
@@ -209,16 +199,17 @@ struct HomeSpendingChart: View {
         #endif
     }
 
-    /// The pressed bar's callout, sitting on top of the bar and kept inside
-    /// the chart; under a wide total it sinks a little into the bar's top
-    /// instead of covering the total (`SpendingChart.calloutPlacement`). It
-    /// rises out of the bar's top as it appears and sinks back into it as
-    /// it goes.
+    /// The pressed bar's callout, sitting on top of the bar and kept over
+    /// the plot, so the value labels always show: over the last bars a wide
+    /// amount lines up with the plot's trailing edge, still covering its
+    /// bar. Under a wide total it sinks a little into the bar's top instead
+    /// of covering the total (`SpendingChart.calloutPlacement`). It rises
+    /// out of the bar's top as it appears and sinks back into it as it goes.
     ///
     /// The placement lives on a container that stays put while the callout
     /// inside it comes and goes, so the exit plays where the callout was and
     /// the entrance scales from the callout's own bottom edge.
-    private func callout(proxy: ChartProxy, plot: CGRect, chartWidth: CGFloat) -> some View {
+    private func callout(proxy: ChartProxy, plot: CGRect) -> some View {
         let anchored = (selectedIndex ?? lastCalloutIndex).flatMap { index in buckets.first { $0.index == index } }
         let barCenter = anchored.flatMap { proxy.position(forX: key($0.index)) }.map { plot.minX + $0 } ?? plot.midX
         let barTop = anchored.flatMap { proxy.position(forY: valueScale.position(of: $0.total.doubleValue)) }.map { plot.minY + $0 } ?? plot.maxY
@@ -231,12 +222,13 @@ struct HomeSpendingChart: View {
                 barTop: barTop,
                 calloutWidth: width,
                 calloutHeight: height,
-                chartWidth: chartWidth,
+                plotTrailing: plot.maxX,
                 plotTop: plot.minY,
                 keepClear: keepClear,
-                // `keepClear` ends at the digits' baseline, so a little room
-                // is enough; under a wide total this lets the callout sit
-                // on its bar instead of sinking into it.
+                // `keepClear` already runs down through the total's descent,
+                // so 2pt more keeps the callout about as far under a comma's
+                // tail as it sits above its bar, while sinking it as little
+                // as that allows into a tall bar under a wide total.
                 margin: 2
             )
         }

@@ -204,9 +204,12 @@ Left to check on a device:
 - A route that arrives while the welcome letter is up changes the tab under the letter after 2 s, and a Home sheet cannot show over it (as before the tab bar).
 - Tapping Add Expense opens New Expense without the bar flashing to a fifth tab: on iOS 27 (prominent tab), on iOS 26 (the search tab's place, which must not turn into a search field) and on iOS 18 to 25 (a plain last tab). Tap it on Home, then Cancel: Home must still be selected and showing (from Home the route changes no tab, so nothing would put the bar back if the system had moved it). No local iOS 26 simulator exists, and taps cannot be screenshotted.
 
-Noticed while checking phase 2, not caused by it (left as they are):
+Noticed while checking phase 2, not caused by it (left as they are; the chart callout that covered "100K" under a wide total has been fixed since):
 
-- The chart callout for a wide total (RWF 100,000) covers the top of the "100K" axis label and sits about 2pt under the total.
 - In New Expense at `.medium`, a receipt's "Filled in from your receipt" note (and the other-currency warning) sits below the fold under Add Receipt, so it needs a scroll.
 - At accessibility text sizes the details card truncates long values ("Enterta...", "Credit...").
 - A DEBUG `-KeaserSheet newExpense` launch now and then draws Home without the sheet, on main as well (1 or 2 launches in 10); retake such a shot.
+
+Fixed since:
+
+- The receipt note in New Expense (the second item above), by the founder's choice: it sits right under the card, before the receipts, so it shows at `.medium` with no scroll, and VoiceOver hears all of it.

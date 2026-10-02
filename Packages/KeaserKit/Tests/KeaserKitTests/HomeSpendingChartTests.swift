@@ -177,18 +177,19 @@ struct HomeSpendingChartTests {
 
 struct HomeChartCalloutTests {
     @Test func calloutCentresOverItsBar() {
-        #expect(SpendingChart.calloutLeading(barCenter: 150, calloutWidth: 80, chartWidth: 340) == 110)
+        #expect(SpendingChart.calloutLeading(barCenter: 150, calloutWidth: 80, plotTrailing: 340) == 110)
     }
 
-    @Test func calloutStaysInsideTheChart() {
+    @Test func calloutStaysOverThePlot() {
         // The first bar of a month sits against the leading edge, the All
-        // Time bar of this year near the trailing one.
-        #expect(SpendingChart.calloutLeading(barCenter: 10, calloutWidth: 80, chartWidth: 340) == 0)
-        #expect(SpendingChart.calloutLeading(barCenter: 330, calloutWidth: 80, chartWidth: 340) == 260)
+        // Time bar of this year near the trailing one, where the value
+        // labels begin.
+        #expect(SpendingChart.calloutLeading(barCenter: 10, calloutWidth: 80, plotTrailing: 340) == 0)
+        #expect(SpendingChart.calloutLeading(barCenter: 330, calloutWidth: 80, plotTrailing: 340) == 260)
     }
 
-    @Test func calloutWiderThanTheChartStartsAtItsLeadingEdge() {
-        #expect(SpendingChart.calloutLeading(barCenter: 50, calloutWidth: 120, chartWidth: 100) == 0)
+    @Test func calloutWiderThanThePlotStartsAtItsLeadingEdge() {
+        #expect(SpendingChart.calloutLeading(barCenter: 50, calloutWidth: 120, plotTrailing: 100) == 0)
     }
 
     @Test func calloutRisesFromTheBarTop() {
@@ -206,9 +207,10 @@ struct HomeChartCalloutTests {
         #expect(SpendingChart.calloutRise(barTop: -20, calloutBottom: -10) == 0)
     }
 
-    // The home card as laid out on an iPhone 16 Pro: a 338pt chart with its
-    // plot starting 6pt down, the total's text 40pt above the chart, and a
-    // callout 106 by 66pt as in the reference.
+    // Round numbers for the home card: a plot ending at x 338 with its top
+    // 6pt down, the total's line ending 40pt above the chart, and a callout
+    // 106 by 66pt. The cases further down use the card as measured on an
+    // iPhone 16 Pro, where the plot's top is the chart's top.
     private let total = SpendingChart.Area(x: 0, y: -88, width: 190, height: 48)
 
     private func placement(
@@ -224,7 +226,7 @@ struct HomeChartCalloutTests {
             barTop: barTop,
             calloutWidth: calloutWidth,
             calloutHeight: 66,
-            chartWidth: 338,
+            plotTrailing: 338,
             plotTop: 6,
             keepClear: keepClear
         )
@@ -294,6 +296,124 @@ struct HomeChartCalloutTests {
                     let frame = SpendingChart.Area(x: spot.leading, y: spot.bottom - 66, width: 106, height: 66)
                     #expect(!total.overlaps(frame), "bar \(index) of \(count), top \(barTop)")
                     #expect(frame.minX >= 0 && frame.maxX <= 338)
+                }
+            }
+        }
+    }
+
+    // The card as measured on an iPhone 16 Pro at the default text size: the
+    // plot runs from x 0 to 307 (the value labels start about 5pt further
+    // on), its top is the chart's top, and the total's line (its frame,
+    // descent included) ends 40pt above the chart. "RWF 100,000" is 255pt
+    // wide; the All Time bar of this year spans 241.65 to 295.35.
+    private let wideTotal = SpendingChart.Area(x: 0, y: -88, width: 255, height: 48)
+
+    private func measured(
+        barCenter: Double = 268.5,
+        barWidth: Double = 53.7,
+        barTop: Double = 0,
+        calloutWidth: Double,
+        calloutHeight: Double = 46,
+        plotTrailing: Double = 307,
+        keepClear: SpendingChart.Area
+    ) -> SpendingChart.CalloutPlacement {
+        SpendingChart.calloutPlacement(
+            barCenter: barCenter,
+            barWidth: barWidth,
+            barTop: barTop,
+            calloutWidth: calloutWidth,
+            calloutHeight: calloutHeight,
+            plotTrailing: plotTrailing,
+            plotTop: 0,
+            keepClear: keepClear,
+            margin: 2
+        )
+    }
+
+    @Test func calloutKeepsOffTheValueLabelsUnderAWideTotal() {
+        // "RWF 100,000" over its full bar: centred, it would run 20pt past
+        // the plot's end, over "100K", so it lines up with the plot's end
+        // instead, still covering the whole bar. Resting 6pt above the bar
+        // would cover the total, so its top sits 2pt under the total's line
+        // and it sinks 8pt into the bar, no deeper than the 8pt corners of
+        // an All Time bar.
+        let spot = measured(calloutWidth: 117, keepClear: wideTotal)
+        #expect(spot == SpendingChart.CalloutPlacement(leading: 190, bottom: 8))
+        let frame = SpendingChart.Area(x: spot.leading, y: spot.bottom - 46, width: 117, height: 46)
+        #expect(frame.maxX == 307)
+        #expect(frame.minY == -38)
+        #expect(frame.minX <= 241.65 && frame.maxX >= 295.35)
+    }
+
+    @Test func calloutKeepsOffTheValueLabelsAtTheLargestChartText() {
+        // xxxLarge, where the chart's text stops growing: wider labels end
+        // the plot at 294, and the callout is 154 by 60. Its top still sits
+        // 2pt under the total's line, sinking 22pt (less than half its
+        // height), so it stays on its bar.
+        let total = SpendingChart.Area(x: 0, y: -96, width: 300, height: 56)
+        let spot = measured(barCenter: 257.5, barWidth: 51.5, calloutWidth: 154, calloutHeight: 60, plotTrailing: 294, keepClear: total)
+        #expect(spot == SpendingChart.CalloutPlacement(leading: 140, bottom: 22))
+    }
+
+    @Test func calloutSinksTheSameUnderAnySizeOfTotal() {
+        // The total's line always ends 40pt above the chart, however large
+        // its text, so the callout under it lands in the same place.
+        for height in [48.0, 56, 84] {
+            let total = SpendingChart.Area(x: 0, y: -40 - height, width: 300, height: height)
+            #expect(measured(calloutWidth: 117, keepClear: total) == SpendingChart.CalloutPlacement(leading: 190, bottom: 8))
+        }
+    }
+
+    @Test func calloutStaysCentredOverTheLastBarWhenItFits() {
+        // "$20.00" fits over the last bar inside the plot, beside a short
+        // total: centred and resting 6pt above the bar, as in the recording.
+        let total = SpendingChart.Area(x: 0, y: -88, width: 138, height: 48)
+        #expect(measured(calloutWidth: 71, keepClear: total) == SpendingChart.CalloutPlacement(leading: 233, bottom: -6))
+    }
+
+    /// The callout's height and where the plot ends, at xSmall, the default
+    /// text size and xxxLarge (the chart's largest).
+    static let textSizes: [(calloutHeight: Double, plotTrailing: Double)] = [(42.5, 309), (46, 307), (60.5, 294)]
+
+    @Test(arguments: textSizes)
+    func calloutNeverCoversTheValueLabelsOrTheTotal(_ size: (calloutHeight: Double, plotTrailing: Double)) {
+        let height = size.calloutHeight
+        // A short total, "RWF 100,000", and one as wide as the card at an
+        // accessibility size.
+        let totals = [
+            SpendingChart.Area(x: 0, y: -88, width: 138, height: 48),
+            wideTotal,
+            SpendingChart.Area(x: 0, y: -124, width: 338, height: 84),
+        ]
+        // All Time, Today, This Week, This Year and the months.
+        for count in [4, 6, 7, 12, 28, 31] {
+            let slot = size.plotTrailing / Double(count)
+            let barWidth = slot * 0.7
+            for width in [58.0, 117, 195] {
+                for total in totals {
+                    for index in 0..<count {
+                        let center = slot * (Double(index) + 0.5)
+                        for barTop in stride(from: 0.0, through: 182, by: 13) {
+                            let spot = measured(
+                                barCenter: center, barWidth: barWidth, barTop: barTop,
+                                calloutWidth: width, calloutHeight: height,
+                                plotTrailing: size.plotTrailing, keepClear: total
+                            )
+                            let frame = SpendingChart.Area(x: spot.leading, y: spot.bottom - height, width: width, height: height)
+                            let place = "\(width)pt wide, bar \(index) of \(count), top \(barTop)"
+                            // Inside the plot, so never over a value label.
+                            #expect(frame.minX >= 0 && frame.maxX <= size.plotTrailing, "\(place)")
+                            #expect(!total.grown(by: 2).overlaps(frame), "\(place)")
+                            // Above the plot's bottom, so never over a period label.
+                            #expect(frame.maxY <= 182, "\(place)")
+                            // On its bar, sunk at most half its height, and
+                            // covering the whole bar when it is off-centre.
+                            #expect(spot.bottom - barTop <= height / 2, "\(place)")
+                            if spot.leading != center - width / 2 {
+                                #expect(frame.minX <= center - barWidth / 2 && center + barWidth / 2 <= frame.maxX, "\(place)")
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -161,7 +161,12 @@ simulator GUI; add launch arguments instead.
 - The Home chart's long-press callout (`ChartCallout` in HomeSummaryCard.swift)
   is small Liquid Glass tinted with a breath of `keaserInk`, by the founder's
   choice over the recording's larger opaque tag: keep its look when matching
-  the reference elsewhere. Its placement (clear of the total) is separate.
+  the reference elsewhere. Its placement is separate
+  (`SpendingChart.calloutPlacement`): on its bar and within the plot's
+  width, never over the value labels (a wide amount over the last bars lines
+  up with the plot's trailing edge), and 2pt clear of the total's whole line
+  (descent included). Where resting above a tall bar would cover the total,
+  it sinks into the bar's top, by at most half the callout's height.
 - Tapping an expense (Home, Search, Open Expense, a Spotlight result) opens
   its details (`ExpenseDetailSheet`: the Add Expense card, read only, with
   Edit and Delete), not Edit Expense as the recording does: the founder's
@@ -193,8 +198,12 @@ simulator GUI; add launch arguments instead.
   Receipt under the photo (`KeaserActionCard`, as Delete Expense); both
   ask "Remove Receipt?" and name the receipt in quotes. `.smooth` 0.3 s
   for receipts coming and going, `.success` haptics on removing. The card,
-  rows and header above stay as the reference has them; the receipts come
-  before the "Filled in from your receipt" note.
+  rows and header above stay as the reference has them. The "Filled in
+  from your receipt" note sits right under the card, before the receipts,
+  so it shows at `.medium` with no scroll, level with the blurred Add
+  Expense button (the founder's choice). VoiceOver hears the whole note,
+  the other-currency warning included, in one announcement with "Receipt
+  attached" (`ReceiptFill.announcement`).
 - Settings > Tutorials lists Apple Wallet Automation alone. The Add Expense
   Shortcut tutorial (a home-made shortcut on Back Tap or a Run Shortcut
   control) was removed by the founder's choice: Keaser's own Add Expense
