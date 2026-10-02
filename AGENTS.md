@@ -18,7 +18,7 @@ The Xcode project is generated. After editing `project.yml`, run
 
 ## Commands
 
-    ./scripts/build.sh           # xcodegen + simulator build; prints errors only
+    ./scripts/build.sh           # xcodegen + simulator build; prints errors, our own warnings and the result
     CLOUD=1 ./scripts/build.sh   # the same with iCloud sync switched on (see "iCloud sync")
     ./scripts/test.sh            # KeaserKit tests on the Mac
     ./scripts/screenshots.sh     # headless screenshots from scripts/shots/*.txt

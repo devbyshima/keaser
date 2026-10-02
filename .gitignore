@@ -8,3 +8,5 @@ screenshots/.stage/
 /.scratch/
 screenshots/
 screenshots.prev/
+.claude/settings.local.json
+.claude/worktrees/

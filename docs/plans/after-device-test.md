@@ -22,7 +22,7 @@ The device test decides details in every plan. Record the answers here before bu
 - 3. What exactly is Shortcut Input > Amount for a domestic tap? Check with a Show Notification of the Amount variable, and with the Get Type action or the variable inspector to see whether it is Text, Number or Currency. Is it '$4.50', 'US$4.50', 'RWF 5,000', 'Frw 5,000', 'RF 5.000' or '4.50'? This confirms that Keaser's own currency is recognised (no domestic false warnings) and whether Wallet formats amounts with the phone's locale, which would allow the stricter shared-symbol rule.
 - 4. Tutorial path coercion. Build a shortcut: a Text action with '€12.40', then Add Expense with Amount = that Text. Does the current build show 'The shortcut passed €12.40, but Keaser records amounts in ...' (branch A: Add Expense is already covered), a silent card in Keaser's currency (branch B: step 10 needs a founder decision), a 'What is the amount?' prompt (coercion failed), or 1,240? Repeat with '4,50 €' and 'CA$4.50'.
 - 5. Does the Amount arrive at all with the founder's cards and bank, and how long after the tap does the automation run? The trigger waits for the issuer's transaction notification and can time out (forum 765516). If the amount is often missing, this feature is worth less and the missing-amount path (Add Expense asks; Log Wallet refuses) matters more.
-- 6. Current bug check: a shortcut with Text '4,50 €' feeding Log Wallet Transaction. Does the current build save 450 in Keaser's currency on the founder's phone? The Mac probe says it does on en_US. This confirms the parser change is a bug fix as well as a feature.
+- 6. DONE, no device check needed: the bug (a shortcut with Text '4,50 €' feeding Log Wallet Transaction saved 450 on an English (US) phone) was fixed in c753fb3 by `WalletAmount.read`, ahead of the device test.
 - 7. The phone's Region and Language compared with Keaser's currency (for example English (US) with RWF). This decides which forms of Keaser's currency Wallet produces and whether the device-locale symbol table is enough.
 - 8. With Confirm Expense Details off: does the 'Successfully added expense' card show after a Run Immediately tap, and for how long? That decides whether a result-card warning is a usable fallback. Also: is a three-line dialog above the card shown in full or truncated? That decides the optional in-card 'Paid €12.40' line.
 - 9. Traveller check, if the founder or a tester travels: for a tap abroad, does Wallet pass the merchant's currency ('€12.40') or the card's billing currency? If it is the billing currency, the Wallet case mostly disappears, and the value of this feature falls to the parser fix plus Siri or typed input.
@@ -30,11 +30,11 @@ The device test decides details in every plan. Record the answers here before bu
 ### Quick Expense control ("log my usual coffee")
 
 - Which iOS version is the test iPhone on (18.x, 26.x or 27), and does it have an Action button? This decides which pinning path is exercised: ForegroundContinuableIntent before 26, supportedModes on 26, allowedExecutionTargets on 27.
-- When you tap the existing Add Expense control in Control Center, do its questions (amount, title, lists) actually appear, and does the 'Successfully added expense' card show at the end? Yes proves that control intents reach the app process with UI, so the Quick Expense dialog could also be feedback. Nothing happening means pinning or prompts fail, and that must be fixed (or plan B used) before building this.
-- Same Add Expense control from the Lock Screen (phone locked, after first unlock) and from the Action button: does it run without unlocking, does it ask for Face ID, and does the expense get saved? This decides whether .alwaysAllowed is right and whether a Lock Screen Quick Expense is worth offering.
-- With Keaser force-quit from the app switcher, does the Add Expense control still work? This checks that the system launches the app in the background for control intents.
-- After adding through the control, is the expense in Home immediately when you open Keaser, and did the Spending widget update? This validates the cross-process write and reload that Quick Expense reuses.
-- Roughly how long between the tap and the result, and did anything ever get added twice or not at all? This decides the double-tap guard and whether to stop awaiting Spotlight and the weekly summary in this intent.
+- The existing Add Expense control now opens Keaser on New Expense (`keaser://new-expense`, an OpenURLIntent) and runs no intent of its own. Tap it in Control Center: does Keaser open on New Expense with Title ready to type? It no longer shows whether a control intent reaches the app process, so check that with a first Quick Expense build (or use plan B).
+- Same Add Expense control from the Lock Screen (phone locked, after first unlock) and from the Action button: does it ask for Face ID, and does New Expense come up after unlocking? Opening the app always needs an unlocked phone, so whether .alwaysAllowed is right for a Lock Screen Quick Expense must be checked with Quick Expense itself.
+- With Keaser force-quit from the app switcher, does the Add Expense control still open it on New Expense? Whether the system launches the app in the background for a control intent is again a Quick Expense check.
+- After saving the New Expense the control opened, did the Spending widget update? This is the app's own save, so the cross-process write and reload that Quick Expense needs are still unchecked.
+- Roughly how long between the tap and New Expense ready to type, from a running and a force-quit Keaser? This is the time a one-press Quick Expense has to beat. The double-tap guard and whether to stop awaiting Spotlight and the weekly summary are decided with Quick Expense itself.
 - Which expenses do you actually log repeatedly, and is their amount fixed (coffee, bus fare) or variable (groceries)? This confirms that 'pick your usual from history with a fixed amount' fits. Mostly variable amounts would make this feature weaker than the Add Expense control.
 - Where would you put it: Control Center (title and amount visible at the larger sizes), the Lock Screen (symbol only, 2 slots) or the Action button? This decides whether a per-control symbol choice is needed.
 - Has a Run Shortcut control with a fully prefilled Add Expense action (and Confirm Expense Details off) already felt good enough? If yes, the value of a native control is mainly in not building a shortcut per preset and not flipping the global confirm switch.
@@ -59,7 +59,7 @@ The device test decides details in every plan. Record the answers here before bu
 - Does the founder actually use Visual Intelligence (Camera Control hold, the iOS 27 Camera Siri Mode, or screenshot Image Search), and do other apps' results (Etsy, Amazon, Google) show there? Note how they look (grid, thumbnails, how many shown before scrolling) and how many taps it takes to reach an app's results.
 - What do the founder's real expense titles look like after using the current build: merchant names ('Blue Bottle Coffee', 'Trader Joe's') or generic words ('Coffee', 'Groceries')? Merchant names make the text matching worth building. Generic words mean only weak label matching, and the plan should be cut or dropped.
 - If the Wallet automation (Log Wallet Transaction) is set up: what merchant strings does Wallet actually pass ('BLUE BOTTLE COFFEE 66 MINT', 'SQ *CAFE', store numbers)? The normalisation and stop-word rules depend on it.
-- Does tapping a Keaser expense in Spotlight open it in Edit Expense in the right account, including from the lock screen after Face ID? The Visual Intelligence results use this exact OpenExpenseIntent path, so any bug there must be fixed first.
+- Does tapping a Keaser expense in Spotlight open its details (`ExpenseDetailSheet`) in the right account, including from the lock screen after Face ID? The Visual Intelligence results use this exact OpenExpenseIntent path, so any bug there must be fixed first.
 - How does an expense result look in the system lists of the current build (Spotlight, Siri): is the category SF Symbol with '$5.20 · Sep 26, 2026' readable? That is the closest preview of the Visual Intelligence cards.
 - How long does New Expense's receipt scan take on the device with a real receipt, and does it read crumpled or angled receipts and the shop name correctly? That sets the 1.2 s deadline and predicts how well a camera frame will read.
 - Under Settings > Apps > Keaser (Siri, Apple Intelligence & Siri, Search), which per-app switches exist? If the system already lets people hide Keaser's content from Visual Intelligence or search, no in-app switch is needed.
@@ -70,6 +70,8 @@ The device test decides details in every plan. Record the answers here before bu
 ## 1. Wallet currency warning
 
 When Apple Wallet hands Keaser a payment in a currency other than Keaser's, Keaser stops saving it quietly as if it were in Keaser's currency. It shows the expense card first, with one sentence saying what will be recorded, and the person taps Continue or Cancel. The same change fixes a bug that exists today: when a Wallet amount is written with different number separators than the phone's locale, the number is misread (on an English (US) phone, "4,50 €" is currently logged as 450).
+
+Status: Behaviour step 6 (reading the amount, which fixed the 450 bug) is DONE (c753fb3), and so are steps 1 and 2 below, except that step 1 still has `isWritten` and `otherCurrencyNote` to add. Everything else in this plan is still open.
 
 **Behaviour**
 
@@ -135,7 +137,7 @@ There is no new setting and no Pro gate. DataDetection is not used (see apis). T
 - /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/SnippetPreview.swift (new kind walletOther)
 - /Users/FullTimeStudio/Dev/apps/keaser/scripts/shots/shortcuts.txt
 - /Users/FullTimeStudio/Dev/apps/keaser/KeaserIntentTests/AddExpenseTests.swift
-- /Users/FullTimeStudio/Dev/apps/keaser/AGENTS.md (-KeaserSnippet row, line 108)
+- /Users/FullTimeStudio/Dev/apps/keaser/AGENTS.md (the shortcuts `-KeaserSnippet` row under Launch arguments)
 - /Users/FullTimeStudio/Dev/apps/keaser/README.md (test badge, line 12)
 - Read-only reuse: /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Intelligence/ReceiptParser.swift (number :299, currency(forMark:) :459, symbolCodes :489, prefixedSymbols :498, currencyAliases :504)
 - Read-only reuse: /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/ShortcutFlow.swift (ShortcutCard, otherCurrencyNote :338-352)
@@ -170,7 +172,7 @@ There is no new setting and no Pro gate. DataDetection is not used (see apis). T
    Otherwise save and return as today.
    Also: add a private isVoiceOnly (a copy of AddExpenseFlow.swift:74-79), or move it into IntentSupport as a static helper taking `some AppIntent`. Update the type doc comment at :6-10 ('no confirmation, except for a payment in another currency') and the Amount parameter description at :20 to: "The amount as Wallet passes it, such as \"$4.50\" or \"4,50 €\"." Optionally add to IntentDescription: " A payment in another currency is shown to you first."
 5. 4. SnippetPreview.swift: add Kind.walletOther. Its dialog is the real WalletAmount note plus " Confirm expense details:", built from WalletAmount.read("€1.60") (or "$1.60" when the seeded currency is EUR) with sample Watsons 1.60. Buttons: Cancel and Continue. Not interactive. Update the doc comment at :5-20.
-6. 5. scripts/shots/shortcuts.txt: add 'wallet-other | -KeaserSeed demo -KeaserSnippet walletOther' and 'wallet-other-xxxl | -KeaserSeed demo -KeaserSnippet walletOther -UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL'. Take screenshots in dark and light: ./scripts/screenshots.sh shortcuts, then APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh shortcuts. Check that the three-line dialog wraps without truncation above the card at both sizes. AGENTS.md: add walletOther to the -KeaserSnippet row (line 108).
+6. 5. scripts/shots/shortcuts.txt: add 'wallet-other | -KeaserSeed demo -KeaserSnippet walletOther' and 'wallet-other-xxxl | -KeaserSeed demo -KeaserSnippet walletOther -UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL'. Take screenshots in dark and light: ./scripts/screenshots.sh shortcuts, then APPEARANCE=light OUT=screenshots/light ./scripts/screenshots.sh shortcuts. Check that the three-line dialog wraps without truncation above the card at both sizes. AGENTS.md: add walletOther to the shortcuts `-KeaserSnippet` row under Launch arguments.
 7. 6. Tests: the KeaserKit suite (Swift Testing) and KeaserIntentTests (see tests). Run ./scripts/test.sh and ./scripts/build.sh, then update the README badge (line 12) to the new count.
 8. 7. FALLBACK, only if device question 1 or 2 says prompts cannot be shown or answered from a Run Immediately Wallet automation: skip the requestConfirmation branch. Save, then return IntentDialog "Added as \(recorded). The payment was \(text), and Keaser records amounts in \(code), so change the amount in Keaser if needed." with the normal card. Add a KeaserKit function for that sentence, with tests. Separately, tell the founder that the tutorial's default (Confirm Expense Details on) then fails for every Wallet payment, which is a bigger issue than this feature.
 9. 8. OPTIONAL, +1.5 h: an in-card line. Add `paidAs: String?` to ShortcutCard and draw it under the 38 pt amount in ExpenseCardView as 'Paid €12.40' (callout, Color.keaserSnippetLabel, monochrome, centred, 6 pt below the amount, taking that space from the 20.5 pt bottom padding). Do it only if device question 8 shows the dialog sentence is truncated on the lock screen. It would also let Add Expense's card show 'Paid ¥1,500'.
@@ -216,7 +218,7 @@ There is no new setting and no Pro gate. DataDetection is not used (see apis). T
 - Branch B: if Shortcuts coerces Wallet's text Amount into Add Expense's IntentCurrencyAmount with the phone's currency, the tutorial path (the one most users follow) stays silent, and fixing it means reversing a tested product rule (SettingsTutorialsTests.swift:45-48).
 - Coupling: WalletAmount reuses internal ReceiptParser.number, currency tables and forms. A later receipt tweak could change Wallet parsing. Tests on both sides guard this; do not edit number(), wrap it.
 - AppIntentsTesting cannot answer confirmations, so the mismatch path is only partly covered by automated tests. It must be checked on a device.
-- Only an iOS 27 simulator runtime exists locally. The iOS 18 to 25 card and the real system chrome are only approximated by SnippetPreview.
+- The local simulator runtimes are iOS 27.0 and iOS 18.6. The real system chrome, on either, is only approximated by SnippetPreview.
 - No conversion: Continue still records €12.40 as $12.40 in totals, widgets and the weekly summary until the person edits it. Real multi-currency support is out of scope. Changing Settings > Currency during a trip relabels history without converting it, as it does today.
 - Amounts above 999,999,999 (VND, IDR) are refused by ReceiptParser.number's 9-digit cap. This is rare, but it is a new refusal that today's parser does not have.
 - Wording in the dialog is English-only and interpolated, like the existing notes. This is consistent with the app.
@@ -412,7 +414,7 @@ NOTHING TO CHANGE WAS GIVEN (typical for Siri)
   - "What day was it?"
   - "Which account should it move to?"
   - "Which expense?" (then asks what to change again)
-- iOS 18 to 25: requestToContinueInForeground("Open “Coffee” in Keaser to edit it?") { AppIntentRoutes.open(.expense(id)) }, which is the same route Open Expense takes into Edit Expense. This needs the app-only, deprecated ForegroundContinuableIntent conformance used the same way AddExpenseIntent uses it.
+- iOS 18 to 25: requestToContinueInForeground("Open “Coffee” in Keaser to edit it?") { AppIntentRoutes.open(.expense(id)) }, which is the same route Open Expense takes (the expense's details, with Edit one tap away). This needs the app-only, deprecated ForegroundContinuableIntent conformance used the same way AddExpenseIntent uses it.
 
 CONFIRMATION (the default; always when there is a currency note)
 - requestConfirmation(actionName: .custom(acceptLabel: "Save", acceptAlternatives: ["Change", "Yes"], denyLabel: "Cancel", denyAlternatives: ["Keep", "No"], destructive: false), dialog:, content: { ExpenseCardView(card: after, previous: was) }) on iOS 18 and later. It is not the interactive session card: v1 has no in-card lists.
@@ -567,7 +569,7 @@ SAFETY, UNDO, SIDE EFFECTS
 - The App Shortcut budget becomes 8 of 10. The approved 'log my usual coffee' feature may want one more, leaving 1.
 - The category-parameterized phrase depends on updateAppShortcutParameters(). Today it only runs when account names change, so the new fingerprint trigger is required or Siri keeps stale category names.
 - iOS 27 Siri may drop dialogs and snippets. The question sentence must stand alone without the card, which is why every change is spelled out in the sentence.
-- AppIntentsTesting cannot drive requestChoice, disambiguation or undo. Those paths are verified on device only, and the iOS 18.0 to 18.1 and 18 to 25 fallbacks can only be compile-checked (the only local simulator runtime is iOS 27.0).
+- AppIntentsTesting cannot drive requestChoice, disambiguation or undo. Those paths are verified on device only, and the iOS 18.0 to 18.1 and 18 to 25 fallbacks can only be compile-checked (AppIntentsTesting needs the iOS 27.0 runtime; the iOS 18.6 one is there for screenshots only).
 - Stricter than Add Expense: .requiresLocalDeviceAuthentication means CarPlay and locked-screen Siri edits ask to unlock first. This is intended by the founder rule but may feel slower than adding.
 
 **Value**
@@ -576,7 +578,7 @@ Moderate value for a moderate cost (about 20 h, or about 17 h without the accoun
 
 ## 4. Visual Intelligence search
 
-Someone uses Visual Intelligence on a shop sign, a receipt or a screenshot (an order email, say). Keaser then shows their past expenses at that place, newest first, and tapping one opens it in Edit Expense. The system's "More results" button opens Keaser's Search with the place's name already typed in. This is search only, because iOS 27 still gives third-party apps no way to take the image and log it. The picture is read on the iPhone and never kept, and Keaser shows nothing while the phone is locked.
+Someone uses Visual Intelligence on a shop sign, a receipt or a screenshot (an order email, say). Keaser then shows their past expenses at that place, newest first, and tapping one opens its details (`ExpenseDetailSheet`). The system's "More results" button opens Keaser's Search with the place's name already typed in. This is search only, because iOS 27 still gives third-party apps no way to take the image and log it. The picture is read on the iPhone and never kept, and Keaser shows nothing while the phone is locked.
 
 **Behaviour**
 
@@ -610,7 +612,7 @@ RESULTS
 - Results are computed live from DatabaseFile.shared.load(), so a deleted expense never appears.
 
 TAP A RESULT
-The existing OpenExpenseIntent runs. It asks for Face ID or the passcode if needed (requiresLocalDeviceAuthentication), then Keaser selects the expense's account and shows the expense in Edit Expense (route .expense(id)), exactly as for a Spotlight result.
+The existing OpenExpenseIntent runs. It asks for Face ID or the passcode if needed (requiresLocalDeviceAuthentication), then Keaser selects the expense's account and shows the expense's details (`ExpenseDetailSheet`, route .expense(id)), exactly as for a Spotlight result.
 
 MORE RESULTS
 The system's "More results" button runs the new ShowVisualSearchResultsIntent (schema .visualIntelligence.semanticContentSearch). Keaser opens, selects the account of the best match if it is not already selected, and shows Search with the best name typed in, e.g. Blue Bottle Coffee. Search's existing copy applies: "No Results" / "No expenses match “…”." With no match it opens Search empty: "Search Expenses" / "Enter a search term to find expenses".
@@ -726,7 +728,7 @@ NOT IN V1 (considered)
 - AppIntentsTesting: pass the first returned item to definitions.intents["OpenExpenseIntent"].makeIntent(target:).run(), as AddExpenseTests.testTheReturnedExpenseCanBePassedOn does.
 - AppIntentsTesting (optional): definitions.intents["ShowVisualSearchResultsIntent"].makeIntent(semanticContent: descriptor).run() leaves Search showing 'Coffee', checked through accessibility only (no taps), matching IntentTestCase's rules.
 - Screenshots (scripts/shots/intents.txt, name | args): 'visual-search-receipt | -KeaserSeed demo -KeaserVisualSearch coffee', 'visual-search-receipt-image | -KeaserSeed demo -KeaserVisualSearch coffee -KeaserVisualSearchImage 1', 'visual-search-sign | -KeaserSeed demo -KeaserVisualSearch text:UBER', 'visual-search-labels | -KeaserSeed demo -KeaserVisualSearch labels:coffee,cup', 'visual-search-more | -KeaserSeed demo -KeaserOpenSearch Coffee'.
-- Manual (device only, Visual Intelligence cannot run in the simulator): sign, receipt, screenshot, random screenshot showing no Keaser results, locked phone showing nothing, a tap opening Edit Expense after Face ID, More results opening Search in the right account, and the Logger timing under 1.5 s.
+- Manual (device only, Visual Intelligence cannot run in the simulator): sign, receipt, screenshot, random screenshot showing no Keaser results, locked phone showing nothing, a tap opening the expense's details after Face ID, More results opening Search in the right account, and the Logger timing under 1.5 s.
 
 **Risks**
 
