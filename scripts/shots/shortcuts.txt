@@ -29,3 +29,7 @@ confirm-account-long | -KeaserSeed demo -KeaserSnippet confirmAccount -KeaserSni
 confirm-category-more-xxxl | -KeaserSeed single -KeaserSnippet confirmCategory -KeaserSnippetOptions many -UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXXL
 confirm-category-ax | -KeaserSeed single -KeaserSnippet confirmCategory -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
 confirm-category-axxxl | -KeaserSeed single -KeaserSnippet confirmCategory -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL
+
+# The closed card at an accessibility size keeps one line per detail, to stay
+# within the system's height (only the expense's details stack).
+confirm-ax | -KeaserSeed single -KeaserSnippet confirm -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL

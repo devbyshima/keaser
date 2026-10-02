@@ -353,6 +353,24 @@ public struct ShortcutCard: Hashable, Sendable {
         return "The shortcut passed \(passed), but Keaser records amounts in \(appCurrencyCode.uppercased()), so it will be added as \(added)."
     }
 
+    /// Whether a detail has nowhere to break between lines ("Entertainment",
+    /// "04/08/2026"), so the expense's details shrink it to fit at the
+    /// accessibility text sizes rather than break it in the middle. Anything
+    /// else wraps where the system's line breaking allows: between words,
+    /// or between the characters of a language written without spaces
+    /// ("星巴克咖啡店").
+    public static func isUnbreakable(_ value: String) -> Bool {
+        let text = value as CFString
+        let tokenizer = CFStringTokenizerCreate(
+            nil, text, CFRange(location: 0, length: CFStringGetLength(text)), kCFStringTokenizerUnitLineBreak, nil
+        )
+        var pieces = 0
+        while pieces < 2, CFStringTokenizerAdvanceToNextToken(tokenizer) != [] {
+            pieces += 1
+        }
+        return pieces < 2
+    }
+
     /// Two-digit month and day in the locale's order: "04/08/2026" in the
     /// US, "08/04/2026" in the UK.
     public static func dateText(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {

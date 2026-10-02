@@ -16,6 +16,7 @@ struct ExpenseDetailSheet: View {
 
     @Environment(KeaserStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var isEditing = false
     @State private var confirmingDelete = false
@@ -65,7 +66,7 @@ struct ExpenseDetailSheet: View {
                     VStack(spacing: 16) {
                         if let expense, let account {
                             KeaserCard(fill: .homeSheetCard) {
-                                ExpenseCardView(card: IntentSupport.card(for: expense, in: account, store: store))
+                                ExpenseCardView(card: IntentSupport.card(for: expense, in: account, store: store), stacksAtAccessibilitySizes: true)
                                     .padding(.bottom, 8)
                             }
                             ReceiptDetailSection(receipts: expense.receipts) { index in
@@ -94,8 +95,9 @@ struct ExpenseDetailSheet: View {
                 #endif
             }
         }
-        // Two or more receipts make a gallery that needs the whole height.
-        .presentationDetents((expense?.receipts.count ?? 0) > 1 ? [.large] : [.medium])
+        // Two or more receipts make a gallery that needs the whole height,
+        // and the accessibility text sizes get room for the taller card.
+        .presentationDetents((expense?.receipts.count ?? 0) > 1 || dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium])
         .presentationDragIndicator(.hidden)
         .keaserSheetChrome()
         // The details tell Siri which expense is open, as Edit Expense does.

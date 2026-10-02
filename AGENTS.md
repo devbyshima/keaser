@@ -171,7 +171,11 @@ simulator GUI; add launch arguments instead.
   its details (`ExpenseDetailSheet`: the Add Expense card, read only, with
   Edit and Delete), not Edit Expense as the recording does: the founder's
   choice. Edit turns the sheet into Edit Expense (`onClose` brings the
-  details back); long press and swipe still edit or delete directly.
+  details back); long press and swipe still edit or delete directly. At the
+  accessibility text sizes the details card puts each value under its label,
+  trailing and wrapping as Edit Expense does
+  (`ExpenseCardView(stacksAtAccessibilitySizes:)`); a value with nowhere to
+  break shrinks instead (`ShortcutCard.isUnbreakable`).
 - Receipts are Keaser's own addition to the reference, built only from the
   shared pieces (`Keaser/Features/ExpenseEditor/ReceiptAttachment.swift`).
   Under the editor's card (`ReceiptAttachmentSection`): one receipt is a
@@ -180,8 +184,9 @@ simulator GUI; add launch arguments instead.
   `ReceiptGallery`, then Add Receipt in a card, drawn like Add Account (one
   menu: Scan Receipt, Choose Photos), gone at `ReceiptList.maximum`. The
   details show the same row or gallery under their card
-  (`ReceiptDetailSection`) and open at `.large` for two or more (`.medium`
-  otherwise); the editor keeps its one `.medium` detent and scrolls. The
+  (`ReceiptDetailSection`) and open at `.large` for two or more, or at the
+  accessibility text sizes (`.medium` otherwise); the editor keeps its one
+  `.medium` detent and scrolls. The
   gallery is two columns of equal 3:4 tiles at every text size, with the
   card radius (26) and the cards' 16pt spacing and margins, an odd last
   one in the left column; VoiceOver reads each as "Receipt 2 of 3". A tap
@@ -531,7 +536,9 @@ Seeded launches keep the database in memory and never touch the real file.
   `PageExpenseCardOptionsIntent` and
   `CloseExpenseCardOptionsIntent`, which only change the draft in
   `AddExpenseDrafts`; `ExpenseCardSnippetIntent` then draws the card again.
-  The closed card must stay as the reference has it.
+  The closed card must stay as the reference has it, one line per detail at
+  every text size, to stay within the system's height; the open list's
+  header stays one line too.
 - "How Much Did I Spend" (`GetSpendingIntent`): period (`SpendingPeriod`,
   This Week by default), account (the selected one when empty), category
   and payment method. Answered by `SpendingQuestion` exactly as Home totals
