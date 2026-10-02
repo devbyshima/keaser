@@ -33,11 +33,14 @@ guess-lunch | -KeaserSeed account -KeaserSheet newExpense -KeaserExpenseTitle LU
 # Receipt scanning in New Expense (owner: intelligence). -KeaserCategoryModel
 # off keeps Apple Intelligence out, so these read the same on any Mac. A
 # receipt read and filled in (the merchant's labels come from Smart
-# Suggestions), while it is read, one in another currency, one printed onto
-# an image and read with Vision, and a photo that is not a receipt.
+# Suggestions), while it is read, one in another currency (then with a
+# sample photo already kept: the note stays under the card, the receipt
+# below it), one printed onto an image and read with Vision, and a photo
+# that is not a receipt.
 receipt | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt coffee -KeaserCategoryModel off
 receipt-reading | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt coffee -KeaserReceiptHold 1 -KeaserCategoryModel off
 receipt-currency | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt cafe-paris -KeaserCategoryModel off
+receipt-currency-photo | -KeaserSeed account -KeaserSheet newExpense -KeaserReceiptAttached 1 -KeaserReceipt cafe-paris -KeaserCategoryModel off
 receipt-image | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt grocery -KeaserReceiptImage 1 -KeaserCategoryModel off
 receipt-not-found | -KeaserSeed account -KeaserSheet newExpense -KeaserReceipt not-a-receipt -KeaserCategoryModel off
 # Receipts kept with an expense. The details with 1 receipt (a row), then 2,

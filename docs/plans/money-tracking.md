@@ -210,3 +210,7 @@ Noticed while checking phase 2, not caused by it (left as they are):
 - In New Expense at `.medium`, a receipt's "Filled in from your receipt" note (and the other-currency warning) sits below the fold under Add Receipt, so it needs a scroll.
 - At accessibility text sizes the details card truncates long values ("Enterta...", "Credit...").
 - A DEBUG `-KeaserSheet newExpense` launch now and then draws Home without the sheet, on main as well (1 or 2 launches in 10); retake such a shot.
+
+Fixed since:
+
+- The receipt note in New Expense (the second item above), by the founder's choice: it sits right under the card, before the receipts, so it shows at `.medium` with no scroll, and VoiceOver hears all of it.
