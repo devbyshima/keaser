@@ -339,6 +339,17 @@ struct ReceiptFillTests {
         #expect(ReceiptFill.wantsReading(titleIsEmpty: true, amountIsEmpty: false))
         #expect(!ReceiptFill.wantsReading(titleIsEmpty: false, amountIsEmpty: false))
     }
+
+    @Test func voiceOverHearsTheReceiptsAndTheWholeNoteAtOnce() {
+        let warning = ReceiptDraft(merchant: "Café de Flore", total: 14.5, currencyCode: "EUR").note(recordingIn: "USD")
+        #expect(ReceiptFill.announcement(attached: 1, note: warning)
+            == "Receipt attached. Filled in from your receipt, which shows EUR. Keaser records amounts in USD, so check the amount before saving.")
+        #expect(ReceiptFill.announcement(attached: 3, note: draft.note(recordingIn: "USD"))
+            == "3 receipts attached. Filled in from your receipt. Check the details before saving.")
+        #expect(ReceiptFill.announcement(attached: 0, note: warning) == warning)
+        #expect(ReceiptFill.announcement(attached: 2, note: nil) == "2 receipts attached.")
+        #expect(ReceiptFill.announcement(attached: 0, note: nil) == nil)
+    }
 }
 
 @MainActor
