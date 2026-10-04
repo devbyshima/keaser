@@ -127,22 +127,22 @@ There is no new setting and no Pro gate. DataDetection is not used (see apis). T
 
 **Files**
 
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/WalletAmount.swift (NEW)
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/QuickLog.swift (amount(from text:) at :30-35 delegates to WalletAmount)
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Tests/KeaserKitTests/PlatformWalletAmountTests.swift (NEW)
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Tests/KeaserKitTests/PlatformTests.swift (keep :125-129; add the cross-locale regressions)
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/LogWalletTransactionIntent.swift
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/IntentSupport.swift (optional: shared isVoiceOnly helper)
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/AddExpenseFlow.swift (only if isVoiceOnly moves to IntentSupport)
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/SnippetPreview.swift (new kind walletOther)
-- /Users/FullTimeStudio/Dev/apps/keaser/scripts/shots/shortcuts.txt
-- /Users/FullTimeStudio/Dev/apps/keaser/KeaserIntentTests/AddExpenseTests.swift
-- /Users/FullTimeStudio/Dev/apps/keaser/AGENTS.md (the shortcuts `-KeaserSnippet` row under Launch arguments)
-- /Users/FullTimeStudio/Dev/apps/keaser/README.md (test badge, line 12)
-- Read-only reuse: /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Intelligence/ReceiptParser.swift (number :299, currency(forMark:) :459, symbolCodes :489, prefixedSymbols :498, currencyAliases :504)
-- Read-only reuse: /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/ShortcutFlow.swift (ShortcutCard, otherCurrencyNote :338-352)
-- OPTIONAL: /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/ExpenseCard.swift + ShortcutFlow.swift (ShortcutCard.paidAs line under the amount)
-- OPTIONAL: /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Settings/Tutorials.swift (Wallet tutorial 'done' section, :220 onward)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/WalletAmount.swift (NEW)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/QuickLog.swift (amount(from text:) at :30-35 delegates to WalletAmount)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Tests/KeaserKitTests/PlatformWalletAmountTests.swift (NEW)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Tests/KeaserKitTests/PlatformTests.swift (keep :125-129; add the cross-locale regressions)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/LogWalletTransactionIntent.swift
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/IntentSupport.swift (optional: shared isVoiceOnly helper)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/AddExpenseFlow.swift (only if isVoiceOnly moves to IntentSupport)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/SnippetPreview.swift (new kind walletOther)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/scripts/shots/shortcuts.txt
+- /Users/FullTimeStudio/Dev/shima/building/keaser/KeaserIntentTests/AddExpenseTests.swift
+- /Users/FullTimeStudio/Dev/shima/building/keaser/AGENTS.md (the shortcuts `-KeaserSnippet` row under Launch arguments)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/README.md (test badge, line 12)
+- Read-only reuse: /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Intelligence/ReceiptParser.swift (number :299, currency(forMark:) :459, symbolCodes :489, prefixedSymbols :498, currencyAliases :504)
+- Read-only reuse: /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/ShortcutFlow.swift (ShortcutCard, otherCurrencyNote :338-352)
+- OPTIONAL: /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/ExpenseCard.swift + ShortcutFlow.swift (ShortcutCard.paidAs line under the amount)
+- OPTIONAL: /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Settings/Tutorials.swift (Wallet tutorial 'done' section, :220 onward)
 
 **Steps**
 
@@ -296,20 +296,20 @@ PROCESS AND AVAILABILITY
 
 **Files**
 
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/QuickExpense.swift (new: QuickExpense preset, identifier coding, resolve, QuickExpenseCatalog usual/sections/matching, QuickExpenseControlState, controlKind)
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Tests/KeaserKitTests/PlatformQuickExpenseTests.swift (new)
-- /Users/FullTimeStudio/Dev/apps/keaser/KeaserWidgets/Shared/QuickExpenseEntity.swift (new, compiled into app and extension: QuickExpenseEntity + QuickExpenseQuery)
-- /Users/FullTimeStudio/Dev/apps/keaser/KeaserWidgets/Shared/LogQuickExpenseIntent.swift (new, both targets: declaration, supportedModes, allowedExecutionTargets, app-only ForegroundContinuableIntent)
-- /Users/FullTimeStudio/Dev/apps/keaser/KeaserWidgets/QuickExpenseControl.swift (new, extension only: ControlWidget, QuickExpenseConfiguration, value provider, extension fallback perform)
-- /Users/FullTimeStudio/Dev/apps/keaser/KeaserWidgets/KeaserWidgetsBundle.swift (add QuickExpenseControl() after AddExpenseControl())
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/LogQuickExpenseFlow.swift (new, app perform)
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/App/KeaserApp.swift (store observer also reloads the Quick Expense controls on account, label, currency and reload changes)
-- /Users/FullTimeStudio/Dev/apps/keaser/KeaserIntentTests/QuickExpenseTests.swift (new)
-- /Users/FullTimeStudio/Dev/apps/keaser/Packages/KeaserKit/Sources/KeaserKit/Settings/ReleaseHistory.swift (highlight in the next entry)
-- /Users/FullTimeStudio/Dev/apps/keaser/AGENTS.md (Shared names: LogQuickExpenseIntent 'Add Quick Expense', QuickExpenseControl kind; Where things live: shortcuts row)
-- /Users/FullTimeStudio/Dev/apps/keaser/README.md (test badge count)
-- /Users/FullTimeStudio/Dev/apps/keaser/scripts/shots/shortcuts.txt (optional control stand-in shots)
-- /Users/FullTimeStudio/Dev/apps/keaser/Keaser/Intents/SnippetPreview.swift or a new Keaser/Intents/ControlPreview.swift (optional DEBUG -KeaserControl stand-in)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Platform/QuickExpense.swift (new: QuickExpense preset, identifier coding, resolve, QuickExpenseCatalog usual/sections/matching, QuickExpenseControlState, controlKind)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Tests/KeaserKitTests/PlatformQuickExpenseTests.swift (new)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/KeaserWidgets/Shared/QuickExpenseEntity.swift (new, compiled into app and extension: QuickExpenseEntity + QuickExpenseQuery)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/KeaserWidgets/Shared/LogQuickExpenseIntent.swift (new, both targets: declaration, supportedModes, allowedExecutionTargets, app-only ForegroundContinuableIntent)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/KeaserWidgets/QuickExpenseControl.swift (new, extension only: ControlWidget, QuickExpenseConfiguration, value provider, extension fallback perform)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/KeaserWidgets/KeaserWidgetsBundle.swift (add QuickExpenseControl() after AddExpenseControl())
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/LogQuickExpenseFlow.swift (new, app perform)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/App/KeaserApp.swift (store observer also reloads the Quick Expense controls on account, label, currency and reload changes)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/KeaserIntentTests/QuickExpenseTests.swift (new)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Packages/KeaserKit/Sources/KeaserKit/Settings/ReleaseHistory.swift (highlight in the next entry)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/AGENTS.md (Shared names: LogQuickExpenseIntent 'Add Quick Expense', QuickExpenseControl kind; Where things live: shortcuts row)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/README.md (test badge count)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/scripts/shots/shortcuts.txt (optional control stand-in shots)
+- /Users/FullTimeStudio/Dev/shima/building/keaser/Keaser/Intents/SnippetPreview.swift or a new Keaser/Intents/ControlPreview.swift (optional DEBUG -KeaserControl stand-in)
 - No project.yml change: KeaserWidgets/Shared is already a source of both targets (project.yml app sources list KeaserWidgets/Shared; the extension compiles all of KeaserWidgets)
 
 **Steps**
