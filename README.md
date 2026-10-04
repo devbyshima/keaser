@@ -8,7 +8,7 @@
 
 Native iOS · SwiftUI · iOS 18 and later · no third-party packages
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-637%20in%2081%20suites-brightgreen.svg)](Packages/KeaserKit/Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
@@ -103,6 +103,9 @@ See `AGENTS.md` for architecture notes and the debug launch arguments.
 
 ## License
 
-Keaser is free and open source. You can use, study, change and share it under
-the terms of the [GNU General Public License v3.0](LICENSE): if you distribute
-a modified version, it must stay open source under the same license.
+Keaser is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+You may use, study and change it for any non-commercial purpose. Selling it, or using it in
+anything that earns money, is not allowed. Versions published before this change remain under GPL-3.0.
+
+The Keaser name and icon are not covered by the license: a modified version must use its own
+name and icon.
