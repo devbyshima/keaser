@@ -249,7 +249,7 @@ simulator GUI; add launch arguments instead.
 ## Data
 
 One JSON file (`DatabaseFile.shared`) in the app group
-`group.com.fulltimestudio.keaser`, read by the widget extension. All writes go
+`group.com.devbyshima.keaser`, read by the widget extension. All writes go
 through `KeaserStore` (injected with `@Environment(KeaserStore.self)`, or
 `AppEnvironment.store` outside views). Each mutation saves immediately and
 notifies observers (`addObserver`) with a `StoreChange`. Money is `Decimal`;
@@ -361,7 +361,7 @@ App Intents tests wrote their fixture into.
 How it works (KeaserKit `Sync/`, pure and tested; app `Keaser/Cloud/`):
 
 - Records in one custom zone (`SyncSchema.zoneName` "Keaser") of the private
-  database of `iCloud.com.fulltimestudio.keaser`. Each has one encrypted
+  database of `iCloud.com.devbyshima.keaser`. Each has one encrypted
   field, `payload`: a JSON envelope `{body, modifiedAt, parent,
   readerVersion}` where `body` is the model's own JSON. Types and names:
   `Account.<id>` (name, created, updated; what it holds are records of their
@@ -422,7 +422,7 @@ Turning it on (paid Apple Developer Program):
    mode, `KEASER_CLOUD`, `KeaserCloudSync`), then `xcodegen generate`.
 2. Open the project in Xcode with the paid team selected and build to a
    device once: automatic signing registers the iCloud container
-   `iCloud.com.fulltimestudio.keaser` and push for the App ID.
+   `iCloud.com.devbyshima.keaser` and push for the App ID.
 3. Run on two devices signed in to the same Apple Account, then deploy the
    CloudKit schema from the Development to the Production environment in
    the CloudKit Console before any TestFlight or App Store build.

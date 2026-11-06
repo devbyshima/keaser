@@ -207,7 +207,7 @@ final class ProStore {
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
     @ObservationIgnored private var activationObserver: (any NSObjectProtocol)?
-    @ObservationIgnored private let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "ProStore")
+    @ObservationIgnored private let log = Logger(subsystem: "com.devbyshima.keaser", category: "ProStore")
 
     func plan(_ kind: ProProduct) -> Plan? {
         plans.first { $0.kind == kind }

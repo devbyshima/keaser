@@ -69,7 +69,7 @@ The app targets iOS 18. From the command line:
     ./scripts/screenshots.sh    # every screen, headless, into screenshots/
 
 To run on a device, select your team in Xcode (the project uses automatic
-signing) and keep the app group `group.com.fulltimestudio.keaser` on both the
+signing) and keep the app group `group.com.devbyshima.keaser` on both the
 app and the widget extension.
 
 ### Testing purchases
@@ -77,8 +77,8 @@ app and the widget extension.
 The `Keaser` scheme uses `Keaser/Resources/Keaser.storekit`, so running from
 Xcode offers the monthly, yearly and lifetime products locally. Set real
 products and prices in App Store Connect before release; the IDs are
-`com.fulltimestudio.keaser.pro.monthly`, `com.fulltimestudio.keaser.pro.yearly`
-and `com.fulltimestudio.keaser.pro.lifetime`. The paywall's struck-through
+`com.devbyshima.keaser.pro.monthly`, `com.devbyshima.keaser.pro.yearly`
+and `com.devbyshima.keaser.pro.lifetime`. The paywall's struck-through
 "regular" lifetime price is `ProPricing.lifetimeRegularPriceMultiplier`.
 
 ## Before shipping

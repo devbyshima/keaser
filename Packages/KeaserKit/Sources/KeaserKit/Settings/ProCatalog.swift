@@ -3,9 +3,9 @@ import Foundation
 /// The ways to buy Keaser Pro, in paywall order. Raw values are the App Store
 /// product IDs, matching `Keaser/Resources/Keaser.storekit`.
 public enum ProProduct: String, CaseIterable, Identifiable, Sendable {
-    case monthly = "com.fulltimestudio.keaser.pro.monthly"
-    case yearly = "com.fulltimestudio.keaser.pro.yearly"
-    case lifetime = "com.fulltimestudio.keaser.pro.lifetime"
+    case monthly = "com.devbyshima.keaser.pro.monthly"
+    case yearly = "com.devbyshima.keaser.pro.yearly"
+    case lifetime = "com.devbyshima.keaser.pro.lifetime"
 
     /// The auto-renewable subscription group `monthly` and `yearly` share,
     /// so a subscriber can switch between them without paying twice.

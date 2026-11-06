@@ -231,9 +231,9 @@ struct SettingsProTests {
     private let now = Date(timeIntervalSince1970: 1_790_000_000)
 
     @Test func productIDsMatchTheStoreKitConfiguration() {
-        #expect(ProProduct.monthly.rawValue == "com.fulltimestudio.keaser.pro.monthly")
-        #expect(ProProduct.yearly.rawValue == "com.fulltimestudio.keaser.pro.yearly")
-        #expect(ProProduct.lifetime.rawValue == "com.fulltimestudio.keaser.pro.lifetime")
+        #expect(ProProduct.monthly.rawValue == "com.devbyshima.keaser.pro.monthly")
+        #expect(ProProduct.yearly.rawValue == "com.devbyshima.keaser.pro.yearly")
+        #expect(ProProduct.lifetime.rawValue == "com.devbyshima.keaser.pro.lifetime")
         #expect(ProProduct.subscriptionGroupName == "Keaser Pro")
         #expect(ProProduct.allCases == [.monthly, .yearly, .lifetime])
     }

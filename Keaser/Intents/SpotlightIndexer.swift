@@ -30,7 +30,7 @@ final class SpotlightIndexer {
     private var pending: Task<Void, Never>?
     private let work = SerialWork()
 
-    nonisolated private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "Spotlight")
+    nonisolated private static let log = Logger(subsystem: "com.devbyshima.keaser", category: "Spotlight")
 
     /// Starts keeping the index in step with `store`. Safe to call more than
     /// once (App Intents call it when they run without the app's UI).

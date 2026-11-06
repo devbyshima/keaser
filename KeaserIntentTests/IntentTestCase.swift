@@ -13,7 +13,7 @@ import XCTest
 /// The app is launched before each test (which also installs it on the first
 /// run), and only read through accessibility afterwards: no test taps.
 class IntentTestCase: XCTestCase {
-    static let bundleIdentifier = "com.fulltimestudio.keaser"
+    static let bundleIdentifier = "com.devbyshima.keaser"
     let definitions = IntentDefinitions(bundleIdentifier: IntentTestCase.bundleIdentifier)
 
     /// Keaser Pro in the data the test starts from.

@@ -55,7 +55,7 @@ public final class KeaserStore {
 
     @ObservationIgnored private let file: DatabaseFile?
     @ObservationIgnored private var observers: [@MainActor (StoreChange) -> Void] = []
-    @ObservationIgnored private let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "KeaserStore")
+    @ObservationIgnored private let log = Logger(subsystem: "com.devbyshima.keaser", category: "KeaserStore")
 
     /// `file == nil` keeps everything in memory (tests, previews, seeded debug
     /// launches).

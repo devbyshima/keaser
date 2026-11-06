@@ -9,7 +9,7 @@ import WidgetKit
 /// control's action no way to prompt, so such a control does nothing. Siri,
 /// Shortcuts and Wallet automations still run Add Expense in place.
 struct AddExpenseControl: ControlWidget {
-    static let kind = "com.fulltimestudio.keaser.add-expense"
+    static let kind = "com.devbyshima.keaser.add-expense"
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {

@@ -6,7 +6,7 @@ import os
 /// The app writes; the widget extension only reads. Writes are atomic
 /// (write-to-temp then rename), so a reader never sees half a file.
 public struct DatabaseFile: Sendable {
-    public static let appGroupID = "group.com.fulltimestudio.keaser"
+    public static let appGroupID = "group.com.devbyshima.keaser"
 
     public let url: URL
 
@@ -23,7 +23,7 @@ public struct DatabaseFile: Sendable {
         return DatabaseFile(url: base.appending(path: "Keaser", directoryHint: .isDirectory).appending(path: "database.json"))
     }
 
-    private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "DatabaseFile")
+    private static let log = Logger(subsystem: "com.devbyshima.keaser", category: "DatabaseFile")
 
     static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()

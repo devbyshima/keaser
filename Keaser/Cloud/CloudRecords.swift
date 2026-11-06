@@ -10,7 +10,7 @@ import os
 /// encrypted with keys in the person's iCloud Keychain: Apple stores them,
 /// and the makers of Keaser cannot read them.
 enum CloudRecords {
-    private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "CloudSync")
+    private static let log = Logger(subsystem: "com.devbyshima.keaser", category: "CloudSync")
 
     /// The CKRecord to send for `record`: built on the copy iCloud last had
     /// (its system fields carry the change tag, so the save is not taken for

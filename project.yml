@@ -1,6 +1,6 @@
 name: Keaser
 options:
-  bundleIdPrefix: com.fulltimestudio
+  bundleIdPrefix: com.devbyshima
   deploymentTarget:
     iOS: "18.0"
   createIntermediateGroups: true
@@ -16,7 +16,7 @@ settings:
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: 7WHQR6L96K
+    DEVELOPMENT_TEAM: W46T258AXM
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
 
@@ -55,7 +55,7 @@ targetTemplates:
       path: Keaser/App/Keaser.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.fulltimestudio.keaser
+          - group.com.devbyshima.keaser
   # The paid Apple Developer Program: CloudKit in the iCloud container
   # (automatic signing creates it), push for CloudKit's silent notifications
   # and the background mode that delivers them. Defines KEASER_CLOUD and sets
@@ -66,9 +66,9 @@ targetTemplates:
       path: Keaser/App/KeaserCloud.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.fulltimestudio.keaser
+          - group.com.devbyshima.keaser
         com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.fulltimestudio.keaser
+          - iCloud.com.devbyshima.keaser
         com.apple.developer.icloud-services:
           - CloudKit
         aps-environment: development
@@ -105,7 +105,7 @@ targets:
       - target: KeaserWidgets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.keaser
+        PRODUCT_BUNDLE_IDENTIFIER: com.devbyshima.keaser
         TARGETED_DEVICE_FAMILY: "1"
         ENABLE_PREVIEWS: YES
         # Keaser/Resources/AppIcon.icon, an Icon Composer document written by
@@ -136,7 +136,7 @@ targets:
         # photo of one to an expense) ask for the camera.
         NSCameraUsageDescription: Keaser uses the camera to photograph receipts. The photo is read on your iPhone and, if you attach it, kept with the expense. Keaser has no servers and never sees it.
         CFBundleURLTypes:
-          - CFBundleURLName: com.fulltimestudio.keaser
+          - CFBundleURLName: com.devbyshima.keaser
             CFBundleURLSchemes: [keaser]
 
   KeaserWidgets:
@@ -150,10 +150,10 @@ targets:
       path: KeaserWidgets/KeaserWidgets.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.fulltimestudio.keaser
+          - group.com.devbyshima.keaser
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.keaser.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.devbyshima.keaser.widgets
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME: WidgetBackground
@@ -179,6 +179,6 @@ targets:
       - target: Keaser
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.keaser.intent-tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.devbyshima.keaser.intent-tests
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES

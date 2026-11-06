@@ -147,7 +147,7 @@ struct CloudSyncStateFile: Sendable {
         CloudSyncStateFile(url: URL.applicationSupportDirectory.appending(path: "Keaser", directoryHint: .isDirectory).appending(path: "cloud-sync.plist"))
     }
 
-    private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "CloudSync")
+    private static let log = Logger(subsystem: "com.devbyshima.keaser", category: "CloudSync")
 
     /// Nil when there is none yet, or it does not read: sync then starts as
     /// a first sync, which merges with iCloud instead of overwriting it.

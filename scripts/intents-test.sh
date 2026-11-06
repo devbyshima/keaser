@@ -13,7 +13,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 mkdir -p .build
-BUNDLE_ID="com.fulltimestudio.keaser"
+BUNDLE_ID="com.devbyshima.keaser"
 LOG="$ROOT/.build/intents-test.log"
 export SIM="${SIM:-Keaser intents test}"
 UDID="$("$ROOT/scripts/sim.sh")"

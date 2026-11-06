@@ -44,7 +44,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 
     /// How many pending changes one batch is built from.
     private static let batchSize = 400
-    private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "CloudSync")
+    private static let log = Logger(subsystem: "com.devbyshima.keaser", category: "CloudSync")
 
     init(bridge: CloudStoreBridge, attachments: any CloudAttachmentFiles, stateFile: CloudSyncStateFile = .shared, report: @escaping @Sendable (CloudSyncStatus) -> Void) {
         self.bridge = bridge

@@ -13,7 +13,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "com.fulltimestudio.keaser.pro.lifetime",
+      "productID" : "com.devbyshima.keaser.pro.lifetime",
       "referenceName" : "Keaser Pro Lifetime",
       "type" : "NonConsumable"
     }
@@ -45,7 +45,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.fulltimestudio.keaser.pro.monthly",
+          "productID" : "com.devbyshima.keaser.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Keaser Pro Monthly",
           "subscriptionGroupID" : "21753401",
@@ -67,7 +67,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.fulltimestudio.keaser.pro.yearly",
+          "productID" : "com.devbyshima.keaser.pro.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Keaser Pro Yearly",
           "subscriptionGroupID" : "21753401",

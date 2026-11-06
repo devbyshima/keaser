@@ -14,7 +14,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE_ID="com.fulltimestudio.keaser"
+BUNDLE_ID="com.devbyshima.keaser"
 SETTLE="${SETTLE:-5}"
 OUT="${OUT:-$ROOT/screenshots}"
 UDID="$("$ROOT/scripts/sim.sh")"

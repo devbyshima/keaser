@@ -23,7 +23,7 @@ public protocol ProPassRecord: Sendable {
 /// One generic password in the Keychain. Readable after the first unlock, so
 /// a launch while the phone is locked in a pocket still finds it.
 public struct KeychainProPassRecord: ProPassRecord {
-    public static let service = "com.fulltimestudio.keaser.pass"
+    public static let service = "com.devbyshima.keaser.pass"
     private static let account = "firstStart"
 
     public init() {}

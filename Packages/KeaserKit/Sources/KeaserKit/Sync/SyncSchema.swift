@@ -15,7 +15,7 @@ public enum SyncSchema {
     /// The iCloud container. Automatic signing creates it the first time
     /// the app is built with `Keaser/App/KeaserCloud.entitlements` under the
     /// paid Apple Developer Program.
-    public static let containerIdentifier = "iCloud.com.fulltimestudio.keaser"
+    public static let containerIdentifier = "iCloud.com.devbyshima.keaser"
 
     /// The custom zone in the private database that holds every record.
     public static let zoneName = "Keaser"

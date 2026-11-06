@@ -12,7 +12,7 @@ import Foundation
 public enum SpotlightPlan {
     /// The named index Keaser writes to (Apple asks apps not to use the
     /// default index).
-    public static let indexName = "com.fulltimestudio.keaser.entities"
+    public static let indexName = "com.devbyshima.keaser.entities"
 
     /// Bump whenever what goes into the index changes, so every copy of the
     /// app rebuilds its index on the next launch.

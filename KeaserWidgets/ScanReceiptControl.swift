@@ -10,7 +10,7 @@ import WidgetKit
 /// Like Add Expense, it opens the app (`keaser://scan-receipt`): a control's
 /// action cannot show a camera where it is tapped.
 struct ScanReceiptControl: ControlWidget {
-    static let kind = "com.fulltimestudio.keaser.scan-receipt"
+    static let kind = "com.devbyshima.keaser.scan-receipt"
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {

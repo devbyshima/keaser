@@ -94,7 +94,7 @@ final class WeeklySummaryScheduler {
     /// On this serial queue it holds neither the main actor nor one of
     /// Swift's few cooperative threads, and the requests still reach the
     /// service in the order they were made.
-    private nonisolated static let queue = DispatchQueue(label: "com.fulltimestudio.keaser.weekly-summary", qos: .utility)
+    private nonisolated static let queue = DispatchQueue(label: "com.devbyshima.keaser.weekly-summary", qos: .utility)
 
     /// Schedules `plan`, or removes the pending summary for nil, without
     /// waiting for the notification service.

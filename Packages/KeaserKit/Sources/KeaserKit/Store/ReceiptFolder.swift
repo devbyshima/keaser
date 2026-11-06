@@ -39,7 +39,7 @@ public struct ReceiptFolder: Sendable {
     /// downloaded photo and upload a new one.
     public static let writingOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
 
-    private static let log = Logger(subsystem: "com.fulltimestudio.keaser", category: "ReceiptFolder")
+    private static let log = Logger(subsystem: "com.devbyshima.keaser", category: "ReceiptFolder")
 
     public func fileURL(for photo: ReceiptPhoto) -> URL {
         url.appending(path: photo.fileName)
